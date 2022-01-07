@@ -1,6 +1,6 @@
 from scipy.optimize import curve_fit
 from numpy import pi,arctan
-from numpy import loadtxt,frombuffer,array,asarray,linspace
+from numpy import loadtxt,frombuffer,array,asarray,linspace,arange
 
 from matplotlib.pyplot import plot,xlim,ylim,xlabel,ylabel
 
@@ -64,6 +64,10 @@ class Data():
 
         return self
 
+    @property
+    def x(self):
+        return self.fce_calibration(arange(self.data.shape[-1]),*self.calibration.opt)
+
     def save_h5(self,filename = None):
 
         if filename == None:
@@ -81,6 +85,7 @@ class Data():
         with h5py.File(filename,'r') as f:
             x = f['data']
             self.data = x[:]
+            self.shape = self.data.shape
 
         return self
 
