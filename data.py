@@ -6,6 +6,7 @@ from matplotlib.pyplot import plot,xlim,ylim,xlabel,ylabel
 
 from glob import glob
 import re
+import h5py
 
 class Calibration():
     """
@@ -63,6 +64,26 @@ class Data():
 
         return self
 
+    def save_h5(self,filename = None):
+
+        if filename == None:
+            filename = self.path + '/' + 'data.h5'
+
+        print('Saving:',filename)
+        with h5py.File(filename,'w') as f:
+            f.create_dataset('data',data = self.data)
+
+        return self
+
+    def load_h5(self,filename):
+
+        print('Loading:',filename)
+        with h5py.File(filename,'r') as f:
+            x = f['data']
+            self.data = x[:]
+
+        return self
+
 class DataXRF(Data):
     """
     XRF data class
@@ -77,10 +98,11 @@ class DataXRF(Data):
         """
         return a * x**2 + b * x + c
 
-    def read(self,path=None):
+    def read(self,path = None):
         """
         Reads XRF data from .edf files.
         """
+        self.path = path
         filenames = sorted(glob(path + '/*Z0*.edf'), key=lambda x: int(re.sub('\D','',x)))
 
         print("Reading XRF data")
