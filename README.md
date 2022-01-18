@@ -1,2 +1,6 @@
 # XRDXRFutils
-XRDXRF utility
+XRD XRF utility classes
+
+### Install
+
+`pip install --user .`
