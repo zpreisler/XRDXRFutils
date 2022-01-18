@@ -32,8 +32,8 @@ class Calibration():
         plot(x,y,'k-',lw = 1)
         plot(self.x,self.y,'.')
 
-        xlim(0,x[-1])
-        ylim(0,y[-1])
+        xlim(x[0],x[-1])
+        ylim(y[0],y[-1])
 
         xlabel(r'$x$')
         ylabel(r'$y$')
@@ -86,6 +86,34 @@ class Data():
             x = f['data']
             self.data = x[:]
             self.shape = self.data.shape
+
+        return self
+
+    def read_params(self,filename=None):
+        """
+        Process the scanning parameters file.
+
+        name: str
+            name of the parameters file
+        
+        Returns: dictionary
+        """
+
+        print('Reading parameters from:',filename)
+        self.params = {}
+
+        with open(filename,'r') as f:
+            for line in f:
+                try:
+                    key,value = line.split('=')
+                    self.params[key] = value
+
+                except:
+                    axis = re.search('AXIS: (\S)',line)
+                    value = re.search('STEP: (\d+)',line)
+                    if axis and value:
+                        self.params[axis.group(1)] = int(value.group(1))
+        self.shape = (self.params['y'],self.params['x'],-1)
 
         return self
 
@@ -145,3 +173,38 @@ class DataXRD(Data):
         XRF calibration function 
         """
         return (arctan((x+a)/s)) * 180 / pi + beta
+
+    def read(self,path = None):
+        """
+        Reads XRD data from .dat files.
+        """
+        self.path = path
+        filenames = sorted(glob(self.path + '/[F,f]rame*.dat'), key=lambda x: int(re.sub('\D','',x)))
+
+        print("Reading XRD data")
+        self.__read__(filenames)
+        print("Done")
+
+        return self
+
+    def __read__(self,filenames):
+
+        z = []
+        for i,filename in enumerate(filenames):
+            """
+            Strangely this is faster then loadtxt.
+            """
+            with open(filename,mode='r') as f:
+                y = [int(line.split()[-1]) for line in f]
+            z += [asarray(y)]
+
+        z = asarray(z).reshape(self.shape)
+
+        """
+        Invert rows
+        """
+        for i,y in enumerate(z):
+            if i % 2 == 0:
+                y[:] = y[::-1]
+
+        self.data = z
