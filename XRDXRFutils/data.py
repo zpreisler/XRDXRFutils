@@ -168,9 +168,9 @@ class DataXRD(Data):
         super().__init__()
 
     @staticmethod
-    def fce_calibration(x,a,beta,s):
+    def fce_calibration(x,a,s,beta):
         """
-        XRF calibration function 
+        XRD calibration function 
         """
         return (arctan((x+a)/s)) * 180 / pi + beta
 
