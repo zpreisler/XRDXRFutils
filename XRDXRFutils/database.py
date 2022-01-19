@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-from matplotlib.pyplot import plot,figure,subplots,xlim,ylim,vlines,legend,fill_between
+from matplotlib.pyplot import plot,figure,subplots,xlim,ylim,vlines,legend,fill_between,cm
 
-from numpy import loadtxt,arcsin,pi,array,asarray,minimum,concatenate
+from numpy import loadtxt,arcsin,pi,array,asarray,minimum,concatenate,linspace,arange
 from numpy.random import randint
 from glob import glob
 
@@ -49,8 +49,6 @@ class Phase(dict):
 
         vlines(self.theta,0,self.intensity, colors=colors, linestyles=linestyles, label=label, **kwargs)
 
-        return self
-
 class PhaseList(list):
 
     def __init__(self,*args,**kwargs):
@@ -74,6 +72,15 @@ class PhaseList(list):
         self.theta,self.intensity = concatenate(theta),concatenate(intensity)
 
         return self.theta,self.intensity
+
+    def plot(self,cmap='winter',**kwargs):
+
+        c = cm.get_cmap(cmap)
+        n = len(self) + 1 
+        colors = c(arange(1,n)/(n))
+
+        for i,phase in enumerate(self):
+            phase.plot(colors=colors[i],**kwargs)
 
     def random(self):
         idx = randint(self.__len__())

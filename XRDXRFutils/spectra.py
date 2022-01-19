@@ -1,4 +1,5 @@
 from numpy import loadtxt,arctan,pi,arange,array
+from matplotlib.pyplot import plot
 from .utils import snip,convolve
 
 class Spectra():
@@ -33,7 +34,7 @@ class SpectraXRD(Spectra):
         XRD calibration function 
             x is a channel
         """
-        return (arctan((x+a)/s)) * 180 / pi + beta
+        return (arctan((x + a) / s)) * 180 / pi + beta
 
     @property
     def theta(self):
@@ -50,3 +51,6 @@ class SpectraXRD(Spectra):
     def relative_intensity(self,n=21,std=3,m=32):
         y = self.counts - self.background(n=n,std=std,m=m)
         return y / y.max()
+
+    def plot(self,*args,**kwargs):
+        plot(self.theta,self.intensity,*args,**kwargs)
