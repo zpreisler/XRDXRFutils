@@ -104,3 +104,56 @@ class GaussNewton(SpectraXRD):
         dr = pinv(J) @ dz
    
         self.gamma[:] += dr * alpha
+
+    def minimize_sigma(self,alpha = 1):
+        """
+        Minimize sigma2
+        """
+        x = self.theta
+        y = self.intensity
+        z = zeros(len(x))
+        
+        dsigma2 = []
+        for mu,I,sigma2,gamma in zip(self.mu,self.I,
+                                     self.sigma2,self.gamma):
+            c = self.core(x,mu,sigma2)
+            h = gamma * I * c
+            dsigma2 += [h * self.dsigma2(x,mu,sigma2)]
+            z += h
+        
+        dz = y - z
+        J = array(dsigma2).T
+        dr = pinv(J) @ dz
+   
+        self.sigma2[:] += dr * alpha
+
+    def autocalibration(self,alpha = 1):
+        """
+        Autocalibration
+        """
+
+        x = self.theta
+        y = self.intensity
+
+        da = zeros(len(x))
+        ds = zeros(len(x))
+        dbeta = zeros(len(x))
+
+        z = zeros(len(x))
+        
+        for mu,I,sigma2,gamma in zip(self.mu,self.I,
+                                     self.sigma2,self.gamma):
+            c = self.core(x,mu,sigma2)
+            h = gamma * I * c
+            
+            da += h * self.da(self.channel,x,self.opt[0],self.opt[1],mu,sigma2)
+            ds += h * self.ds(self.channel,x,self.opt[0],self.opt[1],mu,sigma2)
+            dbeta += h * self.dbeta(x,mu,sigma2)
+
+            z += h
+        
+        dz = y - z
+        J = array([da,ds,dbeta]).T
+        
+        dr = pinv(J) @ dz
+        self.opt[:] += dr * alpha
