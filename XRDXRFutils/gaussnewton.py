@@ -1,7 +1,9 @@
 from .spectra import SpectraXRD
 
-from numpy import exp,pi,array,ones,zeros,full
+from numpy import exp,pi,array,ones,zeros,full,trapz,minimum
 from numpy.linalg import pinv,inv
+
+from matplotlib.pyplot import plot
 
 class GaussNewton(SpectraXRD):
     """
@@ -13,6 +15,8 @@ class GaussNewton(SpectraXRD):
         spectra: experimental spectra; Spectra class
         """
         super().__init__()
+
+        self.label = phase.label
 
         self.max_theta = max_theta
         self.min_intensity = min_intensity
@@ -44,9 +48,11 @@ class GaussNewton(SpectraXRD):
     def get_theta(self,**kwargs):
         return self.phase.get_theta(**kwargs)
 
-    def plot(self,*args,**kwargs):
+    def plot_spectra(self,*args,**kwargs):
         super().plot(*args,**kwargs)
-        self.phase.plot()
+
+    def plot(self,*args,**kwargs):
+        plot(self.theta,self.z(),*args,**kwargs)
 
     """
     Derivatives
@@ -83,6 +89,21 @@ class GaussNewton(SpectraXRD):
             y += gamma * I * c
             
         return y
+
+    def loss(self):
+        y = self.intensity
+        return sum((y - self.z())**2)
+
+    def area(self):
+        return trapz(self.z())
+
+    def overlap(self):
+        m =  minimum(self.z(),self.intensity)
+        m[m < 0] = 0
+        return m
+
+    def overlap_area(self):
+        return trapz(self.overlap())
 
     def minimize_gamma(self,alpha = 1):
         """
@@ -157,3 +178,37 @@ class GaussNewton(SpectraXRD):
         
         dr = pinv(J) @ dz
         self.opt[:] += dr * alpha
+
+    def calibration(self,alpha = 1):
+        """
+        Calibrate a,s and intensities
+            assuming fixed beta, and sigma
+        """
+        x = self.theta
+        y = self.intensity
+
+        da = zeros(len(x))
+        ds = zeros(len(x))
+        dbeta = zeros(len(x))
+
+        z = zeros(len(x))
+        
+        dgamma = []
+        for mu,I,sigma2,gamma in zip(self.mu,self.I,
+                                     self.sigma2,self.gamma):
+            c = self.core(x,mu,sigma2)
+            h = gamma * I * c
+
+            dgamma += [I * c]
+
+            da += h * self.da(self.channel,x,self.opt[0],self.opt[1],mu,sigma2)
+            ds += h * self.ds(self.channel,x,self.opt[0],self.opt[1],mu,sigma2)
+
+            z += h
+        
+        dz = y - z
+        J = array([da,ds] + dgamma).T
+        dr = pinv(J) @ dz
+   
+        self.opt[:2] += dr[:2] * alpha
+        self.gamma[:] += dr[2:] * alpha

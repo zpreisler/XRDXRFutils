@@ -29,15 +29,18 @@ class Phase(dict):
         theta = concatenate(theta)
         intensity = concatenate(intensity) / 1000.0
         
-        self.theta,self.intensity = array(sorted(zip(theta,intensity))).T
+        theta,intensity = array(sorted(zip(theta,intensity))).T
 
-        f = array([True]*len(self.theta))
+        f = array([True]*len(theta))
         if max_theta:
-            f &= (self.theta < max_theta) 
+            f &= (theta < max_theta) 
         if min_intensity:
-            f &= self.intensity > min_intensity
+            f &= intensity > min_intensity
 
-        return self.theta[f],self.intensity[f]
+        self.theta = theta[f]
+        self.intensity = intensity[f]
+
+        return self.theta,self.intensity
 
     def plot(self, colors='k', linestyles='dashed', label=None, **kwargs):
 
@@ -120,6 +123,7 @@ class DatabaseXRD(dict):
             else:
                 key = formula
 
+            phase.label = key
             if key in self:
                 self[key] += PhaseList([phase])
             else:
