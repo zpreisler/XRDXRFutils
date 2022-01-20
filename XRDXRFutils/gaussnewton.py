@@ -1,6 +1,6 @@
 from .spectra import SpectraXRD
 
-from numpy import exp,pi,array,ones,zeros,full,trapz,minimum
+from numpy import exp,pi,array,ones,zeros,full,trapz,minimum,fabs,sign
 from numpy.linalg import pinv,inv
 
 from matplotlib.pyplot import plot
