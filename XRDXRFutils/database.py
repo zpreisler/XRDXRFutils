@@ -16,6 +16,12 @@ class Phase(dict):
 
     def get_theta(self,l=[1.541],scale=[1.0],max_theta=None,min_intensity=None):
 
+        #FIXME
+        #Recalculate when conditions are not the same
+
+        if hasattr(self,'theta') and hasattr(self,'intensity'):
+            return self.theta,self.intensity
+
         d,i = self['_pd_peak_intensity']
 
         theta = []
@@ -63,6 +69,10 @@ class PhaseList(list):
             self.label = kwargs.pop('label')
 
     def get_theta(self,**kwargs):
+
+        #FIXME
+        if hasattr(self,'theta') and hasattr(self,'intensity'):
+            return self.theta,self.intensity
         
         theta = []
         intensity = []
