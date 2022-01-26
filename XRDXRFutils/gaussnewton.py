@@ -94,7 +94,7 @@ class GaussNewton(SpectraXRD):
         for mu,I,sigma2,gamma in zip(self.mu, self.I,
                                      self.sigma2, self.gamma):
             c = self.core(x,mu,sigma2)
-            y += gamma * I * c
+            y += self.fgamma(gamma) * I * c
             
         return y
 
@@ -125,8 +125,11 @@ class GaussNewton(SpectraXRD):
         for mu,I,sigma2,gamma in zip(self.mu,self.I,
                                      self.sigma2,self.gamma):
             c = self.core(x,mu,sigma2)
-            dgamma += [I * c]
-            z += gamma * I * c
+            #dgamma += [I * c]
+            #z += gamma * I * c
+
+            dgamma += [I * c * self.dgamma(gamma)]
+            z += self.fgamma(gamma) * I * c
         
         dz = y - z
         J = array(dgamma).T
@@ -173,7 +176,9 @@ class GaussNewton(SpectraXRD):
         for mu,I,sigma2,gamma in zip(self.mu,self.I,
                                      self.sigma2,self.gamma):
             c = self.core(x,mu,sigma2)
-            h = gamma * I * c
+            #h = gamma * I * c
+
+            h = self.fgamma(gamma) * I * c
             
             da += h * self.da(self.channel,x,self.opt[0],self.opt[1],mu,sigma2)
             ds += h * self.ds(self.channel,x,self.opt[0],self.opt[1],mu,sigma2)
@@ -205,9 +210,11 @@ class GaussNewton(SpectraXRD):
         for mu,I,sigma2,gamma in zip(self.mu,self.I,
                                      self.sigma2,self.gamma):
             c = self.core(x,mu,sigma2)
-            h = gamma * I * c
+            #h = gamma * I * c
+            h = self.fgamma(gamma) * I * c
 
-            dgamma += [I * c]
+            #dgamma += [I * c]
+            dgamma += [I * c * self.dgamma(gamma)]
 
             da += h * self.da(self.channel,x,self.opt[0],self.opt[1],mu,sigma2)
             ds += h * self.ds(self.channel,x,self.opt[0],self.opt[1],mu,sigma2)
