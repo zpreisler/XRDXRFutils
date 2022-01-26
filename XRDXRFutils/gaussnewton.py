@@ -1,6 +1,6 @@
 from .spectra import SpectraXRD
 
-from numpy import exp,pi,array,ones,zeros,full,trapz,minimum,fabs,sign,sqrt
+from numpy import exp,log,pi,array,ones,zeros,full,trapz,minimum,fabs,sign,sqrt
 from numpy.linalg import pinv,inv
 
 from matplotlib.pyplot import plot
@@ -78,12 +78,16 @@ class GaussNewton(SpectraXRD):
         return -1.0 / sigma2 * (x - mu)
 
     @staticmethod
-    def fgamma(gamma,delta=0.5):
-        return delta * (sqrt(1 + (gamma/delta)**2) -1)
+    def fgamma(gamma,delta=1.0):
+        return 0.5 * (sqrt(1 + gamma**2)) + 0.5 * gamma
+        #return log(exp(gamma - 0.5) + 1.0)
+        #return delta * (sqrt(1 + (gamma/delta)**2) -1)
 
     @staticmethod
-    def dgamma(gamma,delta=0.5):
-        return gamma / (delta * sqrt(gamma**2/delta**2 + 1))
+    def dgamma(gamma,delta=1.0):
+        return 0.5 * (gamma / sqrt(1 + gamma**2)) + 0.5
+        #return 1.0 / (1.0 + exp(-gamma + 0.5))
+        #return gamma / (delta * sqrt(gamma**2/delta**2 + 1))
 
     def z(self):     
         """
@@ -149,7 +153,7 @@ class GaussNewton(SpectraXRD):
         for mu,I,sigma2,gamma in zip(self.mu,self.I,
                                      self.sigma2,self.gamma):
             c = self.core(x,mu,sigma2)
-            h = gamma * I * c
+            h = self.fgamma(gamma) * I * c
             dsigma2 += [h * self.dsigma2(x,mu,sigma2)]
             z += h
         
