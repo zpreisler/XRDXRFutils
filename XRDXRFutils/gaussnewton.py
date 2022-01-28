@@ -102,12 +102,28 @@ class GaussNewton(SpectraXRD):
             
         return y
 
+    def z0(self):     
+        """
+        Synthetic spectra.
+        """
+        x = self.theta
+        y = zeros(len(x))
+        for mu,I,sigma2,gamma in zip(self.mu, self.I,
+                                     self.sigma2, self.gamma):
+            c = self.core(x,mu,sigma2)
+            y += I * c
+            
+        return y
+
     def loss(self):
         y = self.intensity
         return sum((y - self.z())**2)
 
-    def area(self):
+    def area_fit(self):
         return trapz(self.z())
+
+    def area_0(self):
+        return trapz(self.z0())
 
     def overlap(self):
         m =  minimum(self.z(),self.intensity)
