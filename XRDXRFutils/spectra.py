@@ -6,6 +6,18 @@ class Spectra():
     def __init__(self):
         pass
 
+    def from_array(self,x):
+        self.counts = x
+        self.channel = arange(self.counts.__len__())
+
+        return self
+
+    def from_file(self,filename):
+        self.counts = loadtxt(filename,unpack=True,usecols=1)
+        self.channel = arange(self.counts.__len__())
+
+        return self
+
 class SpectraXRF(Spectra):
     def __init__(self):
         super().__init__()

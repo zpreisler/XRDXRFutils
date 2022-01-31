@@ -1,7 +1,7 @@
 from scipy.optimize import curve_fit
 from numpy import pi,arctan
-from numpy import loadtxt,frombuffer,array,asarray,linspace,arange
-
+from numpy import loadtxt,frombuffer,array,asarray,linspace,arange,trapz
+from scipy.interpolate import interp1d
 from matplotlib.pyplot import plot,xlim,ylim,xlabel,ylabel
 
 from glob import glob
@@ -37,6 +37,36 @@ class Calibration():
 
         xlabel(r'$x$')
         ylabel(r'$y$')
+
+class Container():
+    """
+    Container to pass parameters to the Pool.
+    """
+    def __init__(self,y,x,new_x,fx,gx):
+
+        self.y = y
+        self.x = x
+        self.new_x = new_x
+        self.fx = fx
+        self.gx =gx
+    
+    def resample_y(self):
+        
+        f = interp1d(self.x,self.y,fill_value='extrapolate')
+        new_y = f(self.new_x)
+
+        iy = []
+        ay = new_y[0]
+        for f,_gx,by in zip(self.fx,self.gx,new_y[1:]):
+
+            gy = array([ay,*self.y[f],by])
+            iy += [trapz(gy,_gx)]
+            
+            ay = by
+            
+        iy = array(iy)
+                   
+        return iy
 
 class Data():
     """
@@ -122,6 +152,66 @@ class Data():
         self.shape = (self.params['y'],self.params['x'],-1)
 
         return self
+
+    def resample(self,nbins=1024,bounds=(0,30)):
+        """
+        Resample the whole dataset
+        """
+
+        def __resample_x(x,nbins,bounds):
+            
+            new_x = linspace(*bounds,nbins)   
+            
+            fx = []
+            gx = []
+
+            ax = new_x[0]
+            
+            for bx in new_x[1:]:
+                
+                f = (x > ax) & (x < bx)
+                
+                gx += [array([ax,*x[f],bx])]
+                fx += [f]
+
+                ax = bx
+                       
+            return new_x,fx,gx
+
+        def __resample_y(y,x,new_x,fx,gx):
+            
+            f = interp1d(x,y,fill_value='extrapolate')
+            new_y = f(new_x)
+
+            iy = []
+            ay = new_y[0]
+            for f,_gx,by in zip(fx,gx,new_y[1:]):
+
+                gy = array([ay,*y[f],by])
+                iy += [trapz(gy,_gx)]
+                
+                ay = by
+                
+            iy = array(iy)
+                       
+            return iy
+
+        x = self.x
+        y = self.data.reshape(-1,self.data.shape[-1])
+
+        new_x,fx,gx = __resample_x(x,nbins,bounds)
+        ix = (new_x[:-1] + new_x[1:]) * 0.5
+
+        c = [Container(_y,x,new_x,fx,gx) for _y in y]
+
+        return c
+
+        #iy = []
+        #for _y in y:
+        #    iy += [__resample_y(_y,x,new_x,fx,gx)]
+        #iy = asarray(iy)
+        
+        #return ix,iy
 
 class DataXRF(Data):
     """
@@ -226,3 +316,36 @@ class DataXRD(Data):
                 y[:] = y[::-1]
 
         self.data = z
+
+def resample(x,y,nbins=1024,bounds=(0,30)):
+    """
+    Simple resample code. For debugging.
+    """
+    
+    f = interp1d(x,y,fill_value='extrapolate')
+    
+    new_x = linspace(*bounds,nbins)
+    new_y = f(new_x)
+    
+    ax = new_x[0]
+    ay = new_y[0]
+    
+    ix = []
+    iy = []
+
+    for bx,by in zip(new_x[1:],new_y[1:]):
+        f = (x > ax) & (x < bx)
+
+        gx = array([ax,*x[f],bx])
+        gy = array([ay,*y[f],by])
+
+        ix += [(ax + bx) * 0.5]
+        iy += [trapz(gy,gx)]
+
+        ax = bx
+        ay = by
+        
+    ix = array(ix)
+    iy = array(iy)
+               
+    return ix,iy

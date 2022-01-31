@@ -1,4 +1,4 @@
-from .data import DataXRF,DataXRD
+from .data import DataXRF,DataXRD,resample
 from .database import DatabaseXRD,Phase,PhaseList
 from .spectra import SpectraXRD,SpectraXRF
 from .utils import snip,convolve
