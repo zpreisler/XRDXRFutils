@@ -42,6 +42,12 @@ class Data():
     """
     Data Class
     """
+
+    """
+    Namespace
+    """
+    name = 'data.h5'
+
     def __init__(self):
         pass
 
@@ -71,7 +77,7 @@ class Data():
     def save_h5(self,filename = None):
 
         if filename == None:
-            filename = self.path + '/' + 'data.h5'
+            filename = self.path + '/' + self.name
 
         print('Saving:',filename)
         with h5py.File(filename,'w') as f:
@@ -121,6 +127,12 @@ class DataXRF(Data):
     """
     XRF data class
     """
+
+    """
+    Namespace
+    """
+    name = 'xrf.h5'
+
     def __init__(self):
         super().__init__()
 
@@ -164,6 +176,12 @@ class DataXRD(Data):
     """
     XRD data class
     """
+
+    """
+    Namespace
+    """
+    name = 'xrd.h5'
+
     def __init__(self):
         super().__init__()
 
