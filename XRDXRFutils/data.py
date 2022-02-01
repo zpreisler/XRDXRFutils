@@ -4,6 +4,8 @@ from numpy import loadtxt,frombuffer,array,asarray,linspace,arange,trapz
 from scipy.interpolate import interp1d
 from matplotlib.pyplot import plot,xlim,ylim,xlabel,ylabel
 
+from multiprocessing import Pool
+
 from glob import glob
 import re
 import h5py
@@ -153,12 +155,25 @@ class Data():
 
         return self
 
+    @staticmethod
+    def f_resample_y(x):
+        return x.resample_y()
+
     def resample(self,nbins=1024,bounds=(0,30)):
+
+        c = self.__resample_x(nbins,bounds)
+
+        with Pool() as p:
+            results = p.map(self.f_resample_y,c) 
+        
+        return results
+
+    def __resample_x(self,nbins,bounds):
         """
         Resample the whole dataset
         """
 
-        def __resample_x(x,nbins,bounds):
+        def resample_x(x,nbins,bounds):
             
             new_x = linspace(*bounds,nbins)   
             
@@ -178,40 +193,13 @@ class Data():
                        
             return new_x,fx,gx
 
-        def __resample_y(y,x,new_x,fx,gx):
-            
-            f = interp1d(x,y,fill_value='extrapolate')
-            new_y = f(new_x)
-
-            iy = []
-            ay = new_y[0]
-            for f,_gx,by in zip(fx,gx,new_y[1:]):
-
-                gy = array([ay,*y[f],by])
-                iy += [trapz(gy,_gx)]
-                
-                ay = by
-                
-            iy = array(iy)
-                       
-            return iy
-
         x = self.x
         y = self.data.reshape(-1,self.data.shape[-1])
 
-        new_x,fx,gx = __resample_x(x,nbins,bounds)
+        new_x,fx,gx = resample_x(x,nbins,bounds)
         ix = (new_x[:-1] + new_x[1:]) * 0.5
 
-        c = [Container(_y,x,new_x,fx,gx) for _y in y]
-
-        return c
-
-        #iy = []
-        #for _y in y:
-        #    iy += [__resample_y(_y,x,new_x,fx,gx)]
-        #iy = asarray(iy)
-        
-        #return ix,iy
+        return [Container(_y,x,new_x,fx,gx) for _y in y]
 
 class DataXRF(Data):
     """
