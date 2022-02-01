@@ -80,14 +80,10 @@ class GaussNewton(SpectraXRD):
     @staticmethod
     def fgamma(gamma,delta=1.0):
         return 0.5 * (sqrt(1 + gamma**2)) + 0.5 * gamma
-        #return log(exp(gamma - 0.5) + 1.0)
-        #return delta * (sqrt(1 + (gamma/delta)**2) -1)
 
     @staticmethod
     def dgamma(gamma,delta=1.0):
         return 0.5 * (gamma / sqrt(1 + gamma**2)) + 0.5
-        #return 1.0 / (1.0 + exp(-gamma + 0.5))
-        #return gamma / (delta * sqrt(gamma**2/delta**2 + 1))
 
     def z(self):     
         """
@@ -148,8 +144,6 @@ class GaussNewton(SpectraXRD):
         for mu,I,sigma2,gamma in zip(self.mu,self.I,
                                      self.sigma2,self.gamma):
             c = self.core(x,mu,sigma2)
-            #dgamma += [I * c]
-            #z += gamma * I * c
 
             dgamma += [I * c * self.dgamma(gamma)]
             z += self.fgamma(gamma) * I * c
@@ -199,7 +193,6 @@ class GaussNewton(SpectraXRD):
         for mu,I,sigma2,gamma in zip(self.mu,self.I,
                                      self.sigma2,self.gamma):
             c = self.core(x,mu,sigma2)
-            #h = gamma * I * c
 
             h = self.fgamma(gamma) * I * c
             
@@ -233,10 +226,8 @@ class GaussNewton(SpectraXRD):
         for mu,I,sigma2,gamma in zip(self.mu,self.I,
                                      self.sigma2,self.gamma):
             c = self.core(x,mu,sigma2)
-            #h = gamma * I * c
             h = self.fgamma(gamma) * I * c
 
-            #dgamma += [I * c]
             dgamma += [I * c * self.dgamma(gamma)]
 
             da += h * self.da(self.channel,x,self.opt[0],self.opt[1],mu,sigma2)

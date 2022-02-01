@@ -62,7 +62,11 @@ class Container():
         for f,_gx,by in zip(self.fx,self.gx,new_y[1:]):
 
             gy = array([ay,*self.y[f],by])
-            iy += [trapz(gy,_gx)]
+
+            integral = sum((gy[1:] + gy[:-1]) * 0.5 * (_gx[1:] - _gx[:-1] ))
+
+            #iy += [trapz(gy,_gx)]
+            iy += [integral]
             
             ay = by
             
@@ -157,12 +161,14 @@ class Data():
 
     @staticmethod
     def f_resample_y(x):
+        """
+        For Pool
+        """
         return x.resample_y()
 
     def resample(self,nbins=1024,bounds=(0,30)):
 
         c = self.__resample_x(nbins,bounds)
-
         with Pool() as p:
             results = p.map(self.f_resample_y,c) 
         
@@ -175,7 +181,7 @@ class Data():
 
         def resample_x(x,nbins,bounds):
             
-            new_x = linspace(*bounds,nbins)   
+            new_x = linspace(*bounds,nbins + 1)
             
             fx = []
             gx = []
@@ -312,7 +318,7 @@ def resample(x,y,nbins=1024,bounds=(0,30)):
     
     f = interp1d(x,y,fill_value='extrapolate')
     
-    new_x = linspace(*bounds,nbins)
+    new_x = linspace(*bounds,nbins + 1)
     new_y = f(new_x)
     
     ax = new_x[0]
@@ -327,8 +333,11 @@ def resample(x,y,nbins=1024,bounds=(0,30)):
         gx = array([ax,*x[f],bx])
         gy = array([ay,*y[f],by])
 
+        integral = sum((gy[1:] + gy[:-1]) * 0.5 * (gx[1:] - gx[:-1] ))
+
         ix += [(ax + bx) * 0.5]
-        iy += [trapz(gy,gx)]
+        #iy += [trapz(gy,gx)]
+        iy += [integral]
 
         ax = bx
         ay = by
