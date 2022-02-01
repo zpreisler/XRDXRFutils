@@ -14,10 +14,16 @@ class Calibration():
     """
     Calibration class
     """
-    def __init__(self,fce):
-        self.fce = fce
+    def __init__(self,parent):
+
+        self.metadata = {}
+        self.parent = parent
+
+        self.fce = parent.fce_calibration
 
     def from_file(self,filename):
+
+        self.metadata['filename'] = filename
 
         self.x,self.y = loadtxt(filename,unpack = True, dtype = 'float')
         self.opt,opt_var = curve_fit(self.fce,self.x,self.y)
@@ -64,8 +70,6 @@ class Container():
             gy = array([ay,*self.y[f],by])
 
             integral = sum((gy[1:] + gy[:-1]) * 0.5 * (_gx[1:] - _gx[:-1] ))
-
-            #iy += [trapz(gy,_gx)]
             iy += [integral]
             
             ay = by
@@ -82,10 +86,10 @@ class Data():
     """
     Namespace
     """
-    name = 'data.h5'
+    name = 'data'
 
     def __init__(self):
-        pass
+        self.metadata = {}
 
     @staticmethod
     def fce_calibration(x,a,b):
@@ -102,22 +106,36 @@ class Data():
 
         returns: self
         """
-        self.calibration = Calibration(self.fce_calibration).from_file(filename)
+        self.calibration = Calibration(self).from_file(filename)
 
         return self
 
     @property
     def x(self):
-        return self.fce_calibration(arange(self.data.shape[-1]),*self.calibration.opt)
+        if hasattr(self,'calibration'):
+            return self.fce_calibration(arange(self.data.shape[-1]),*self.calibration.opt)
+        else:
+            return self._x
 
     def save_h5(self,filename = None):
 
         if filename == None:
-            filename = self.path + '/' + self.name
+            filename = self.path + '/' + self.name + '.h5'
 
         print('Saving:',filename)
         with h5py.File(filename,'w') as f:
-            f.create_dataset('data',data = self.data)
+
+            dataset = f.create_dataset('spectra',data = self.data)
+            for k,v in self.metadata.items():
+                dataset.attrs[k] = v
+            
+            if hasattr(self,'calibration'):
+                calibration = f.create_group('calibration')
+
+                for attr in ['x','y','opt']:
+                    calibration.create_dataset(attr,data = getattr(self.calibration,attr))
+                for k,v in self.calibration.metadata.items():
+                    calibration.attrs[k] = v
 
         return self
 
@@ -125,9 +143,21 @@ class Data():
 
         print('Loading:',filename)
         with h5py.File(filename,'r') as f:
-            x = f['data']
+            x = f['spectra']
             self.data = x[:]
             self.shape = self.data.shape
+
+            for k,v in x.attrs.items():
+                self.metadata[k] = v
+
+            if 'calibration' in f:
+                x = f['calibration']
+                self.calibration = Calibration(self)
+                for k,v in x.items():
+                    setattr(self.calibration,k,v[:])
+
+                for k,v in x.attrs.items():
+                    self.calibration.metadata[k] = v
 
         return self
 
@@ -155,6 +185,7 @@ class Data():
                     value = re.search('STEP: (\d+)',line)
                     if axis and value:
                         self.params[axis.group(1)] = int(value.group(1))
+
         self.shape = (self.params['y'],self.params['x'],-1)
 
         return self
@@ -173,6 +204,17 @@ class Data():
             results = p.map(self.f_resample_y,c) 
         
         return results
+
+    def resample2(self,nbins=1024,bounds=(0,30)):
+
+        cls = self.__class__()
+
+        cls.data = self.data
+        cls._x = self.x
+        cls.nbins = 1024
+        cls.bounds = bounds
+
+        return cls
 
     def __resample_x(self,nbins,bounds):
         """
@@ -215,7 +257,7 @@ class DataXRF(Data):
     """
     Namespace
     """
-    name = 'xrf.h5'
+    name = 'xrf'
 
     def __init__(self):
         super().__init__()
@@ -232,6 +274,7 @@ class DataXRF(Data):
         Reads XRF data from .edf files.
         """
         self.path = path
+        self.metadata['path'] = path
         filenames = sorted(glob(path + '/*Z0*.edf'), key=lambda x: int(re.sub('\D','',x)))
 
         print("Reading XRF data")
@@ -264,7 +307,7 @@ class DataXRD(Data):
     """
     Namespace
     """
-    name = 'xrd.h5'
+    name = 'xrd'
 
     def __init__(self):
         super().__init__()
@@ -281,9 +324,10 @@ class DataXRD(Data):
         Reads XRD data from .dat files.
         """
         self.path = path
+        self.metadata['path'] = path
         filenames = sorted(glob(self.path + '/[F,f]rame*.dat'), key=lambda x: int(re.sub('\D','',x)))
 
-        print("Reading XRD data")
+        print("Reading XRD data from",self.path)
         self.__read__(filenames)
         print("Done")
 
@@ -336,7 +380,6 @@ def resample(x,y,nbins=1024,bounds=(0,30)):
         integral = sum((gy[1:] + gy[:-1]) * 0.5 * (gx[1:] - gx[:-1] ))
 
         ix += [(ax + bx) * 0.5]
-        #iy += [trapz(gy,gx)]
         iy += [integral]
 
         ax = bx
