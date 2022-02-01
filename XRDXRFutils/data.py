@@ -117,7 +117,6 @@ class Data():
     @property
     def x(self):
         if hasattr(self,'calibration'):
-            #return self.fce_calibration(arange(self.data.shape[-1]),*self.calibration.opt)
             return self.fce_calibration(arange(self.shape[-1]),*self.calibration.opt)
         else:
             return self._x
@@ -130,9 +129,11 @@ class Data():
         print('Saving:',filename)
         with h5py.File(filename,'w') as f:
 
-            dataset = f.create_dataset('spectra',data = self.data)
             for k,v in self.metadata.items():
-                dataset.attrs[k] = v
+                f.attrs[k] = v
+
+            dataset = f.create_dataset('data',data = self.data)
+            dataset = f.create_dataset('x',data = self.x)
             
             if hasattr(self,'calibration'):
                 calibration = f.create_group('calibration')
@@ -148,10 +149,14 @@ class Data():
 
         print('Loading:',filename)
         with h5py.File(filename,'r') as f:
-            x = f['spectra']
+
+            x = f['data']
             self.data = x[:]
 
-            for k,v in x.attrs.items():
+            if 'x' in f:
+                self._x = f['x'][:]
+
+            for k,v in f.attrs.items():
                 self.metadata[k] = v
 
             if 'calibration' in f:
@@ -203,12 +208,13 @@ class Data():
 
     def resample(self,nbins=1024,bounds=(0,30)):
 
-        c = self.__resample_x(nbins,bounds)
+        x,c = self.__resample_x(nbins,bounds)
         with Pool() as p:
             results = p.map(self.f_resample_y,c) 
 
         cls = self.__class__()
         cls.data = asarray(results).reshape(self.shape[0],self.shape[1],-1)
+        cls._x = x
         
         return cls
 
@@ -243,7 +249,7 @@ class Data():
         new_x,fx,gx = resample_x(x,nbins,bounds)
         ix = (new_x[:-1] + new_x[1:]) * 0.5
 
-        return [Container(_y,x,new_x,fx,gx) for _y in y]
+        return ix,[Container(_y,x,new_x,fx,gx) for _y in y]
 
 class DataXRF(Data):
     """
