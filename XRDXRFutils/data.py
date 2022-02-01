@@ -111,9 +111,14 @@ class Data():
         return self
 
     @property
+    def shape(self):
+        return self.data.shape
+
+    @property
     def x(self):
         if hasattr(self,'calibration'):
-            return self.fce_calibration(arange(self.data.shape[-1]),*self.calibration.opt)
+            #return self.fce_calibration(arange(self.data.shape[-1]),*self.calibration.opt)
+            return self.fce_calibration(arange(self.shape[-1]),*self.calibration.opt)
         else:
             return self._x
 
@@ -145,7 +150,6 @@ class Data():
         with h5py.File(filename,'r') as f:
             x = f['spectra']
             self.data = x[:]
-            self.shape = self.data.shape
 
             for k,v in x.attrs.items():
                 self.metadata[k] = v
@@ -202,18 +206,10 @@ class Data():
         c = self.__resample_x(nbins,bounds)
         with Pool() as p:
             results = p.map(self.f_resample_y,c) 
-        
-        return results
-
-    def resample2(self,nbins=1024,bounds=(0,30)):
 
         cls = self.__class__()
-
-        cls.data = self.data
-        cls._x = self.x
-        cls.nbins = 1024
-        cls.bounds = bounds
-
+        cls.data = asarray(results).reshape(self.shape[0],self.shape[1],-1)
+        
         return cls
 
     def __resample_x(self,nbins,bounds):
@@ -297,7 +293,6 @@ class DataXRF(Data):
         x = [read_edf(filename,n,shape) for filename in filenames]
 
         self.data = asarray(x)[::-1]
-        self.shape = self.data.shape
 
 class DataXRD(Data):
     """
