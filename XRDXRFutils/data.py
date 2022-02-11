@@ -195,7 +195,7 @@ class Data():
                     if axis and value:
                         self.params[axis.group(1)] = int(value.group(1))
 
-        self.shape = (self.params['y'],self.params['x'],-1)
+        self.params['shape'] = (self.params['y'],self.params['x'],-1)
 
         return self
 
@@ -339,13 +339,13 @@ class DataXRD(Data):
         z = []
         for i,filename in enumerate(filenames):
             """
-            Strangely this is faster then loadtxt.
+            Strangely this is faster then loadtxt. But only reads int!
             """
             with open(filename,mode='r') as f:
                 y = [int(line.split()[-1]) for line in f]
             z += [asarray(y)]
 
-        z = asarray(z).reshape(self.shape)
+        z = asarray(z).reshape(self.params['shape'])
 
         """
         Invert rows
