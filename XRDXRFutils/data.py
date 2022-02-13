@@ -5,6 +5,7 @@ from scipy.interpolate import interp1d
 from matplotlib.pyplot import plot,xlim,ylim,xlabel,ylabel
 
 from multiprocessing import Pool
+from concurrent.futures import ThreadPoolExecutor
 
 from glob import glob
 import re
@@ -299,6 +300,25 @@ class DataXRF(Data):
         x = [read_edf(filename,n,shape) for filename in filenames]
 
         self.data = asarray(x)[::-1]
+
+class DataSXRF(Data):
+    """
+    Syntetic XRF data class
+    """
+    
+    """
+    Namespace
+    """
+    name = 'sxrf'
+    
+    def __inti__(self):
+        super().__init__()
+    
+    def read(self):
+        pass
+    
+    def __read__(self):
+        pass
 
 class DataXRD(Data):
     """
