@@ -1,15 +1,16 @@
 from scipy.optimize import curve_fit
 from numpy import pi,arctan
-from numpy import loadtxt,frombuffer,array,asarray,linspace,arange,trapz
+from numpy import loadtxt,frombuffer,array,asarray,linspace,arange,trapz,zeros
 from scipy.interpolate import interp1d
 from matplotlib.pyplot import plot,xlim,ylim,xlabel,ylabel
+import os
 
 from multiprocessing import Pool
-from concurrent.futures import ThreadPoolExecutor
 
 from glob import glob
 import re
 import h5py
+from .spectra import SpectraSXRF
 
 class Calibration():
     """
@@ -311,14 +312,54 @@ class DataSXRF(Data):
     """
     name = 'sxrf'
     
-    def __inti__(self):
+    def __init__(self):
         super().__init__()
     
-    def read(self):
-        pass
+    def read(self, outdata_path):
+        xmso_filenames = []
+        if not os.path.isdir(outdata_path):
+            raise FileNotFoundError(f"No such file or directory: {outdata_path}")
+        for path, dirs, files in os.walk(outdata_path):
+            for _file in files:
+                xmso_filenames.append(os.path.join(path, _file))
+        print(f"Reading SXRF data from {outdata_path}")
+        self.spe_objs = [s for s in self.__read__(xmso_filenames)]
+        
+        return self
     
-    def __read__(self):
-        pass
+    def _get_labels(self, symbols, lines):
+        """Generator"""
+        if len(symbols) != len(lines):
+            raise ValueError("Symbols and lines differ in length")
+        for s in self.spe_objs:
+            np_labels = zeros((len(symbols)))
+            for fluo in s.fluorescence_lines:
+                try:
+                    sym_index = symbols.index(fluo.symbol)
+                    np_labels[sym_index] = fluo.lines[lines[sym_index]]
+                except ValueError:
+                    pass
+            yield np_labels
+    
+    def get_data_and_labels(self, symbols, lines):
+        self.data = asarray([s.counts for s in self.spe_objs])
+        self.labels = asarray([l for l in self._get_labels(symbols, lines)])
+        return self
+    
+    @staticmethod
+    def process_file(filename):
+        sxrf = SpectraSXRF()
+        s = sxrf.from_file(filename)
+        return s
+    
+    def __read__(self, xmso_filenames):
+        with Pool() as p:
+            results = p.map(self.process_file, xmso_filenames)
+        # with ThreadPoolExecutor() as executor:
+            # results = executor.map(process_file, xmso_filenames)
+        
+        return results
+        
 
 class DataXRD(Data):
     """
