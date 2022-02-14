@@ -1,7 +1,8 @@
-from numpy import loadtxt,arctan,pi,arange,array, asarray
+from numpy import loadtxt,arctan,pi,arange,array, asarray, linspace
 from matplotlib.pyplot import plot
 from .utils import snip,convolve
 import xml.etree.ElementTree as et
+from scipy.interpolate import interp1d
 
 class Spectra():
     def __init__(self):
@@ -32,6 +33,46 @@ class FluorescenceSXRF:
 class SpectraSXRF(Spectra):
     def __init__(self):
         super().__init__()
+        self.nbins = None
+    
+    def set_nbins(self, nbins):
+        self.nbins = nbins
+    
+    @staticmethod
+    def resample(x,y,nbins=1024,bounds=(0,30)):
+        """
+        Simple resample code. For debugging.
+        """
+        
+        f = interp1d(x,y,fill_value='extrapolate')
+        
+        new_x = linspace(*bounds,nbins + 1)
+        new_y = f(new_x)
+        
+        ax = new_x[0]
+        ay = new_y[0]
+        
+        ix = []
+        iy = []
+
+        for bx,by in zip(new_x[1:],new_y[1:]):
+            f = (x > ax) & (x < bx)
+
+            gx = array([ax,*x[f],bx])
+            gy = array([ay,*y[f],by])
+
+            integral = sum((gy[1:] + gy[:-1]) * 0.5 * (gx[1:] - gx[:-1] ))
+
+            ix += [(ax + bx) * 0.5]
+            iy += [integral]
+
+            ax = bx
+            ay = by
+            
+        ix = array(ix)
+        iy = array(iy)
+                   
+        return ix,iy
     
     @staticmethod
     def get_metadata(xml_data):
@@ -72,16 +113,25 @@ class SpectraSXRF(Spectra):
             )
 
     
-    def from_file(self, xmso_filename, interaction_number = 2, shape = None):
+    def from_file(self, xmso_filename, interaction_number = 2, shape = None, time_correction = None):
         xml_data = et.parse(xmso_filename)
         convoluted = xml_data.find("spectrum_conv")
         self.energy = asarray([e.text for e in convoluted.findall(".//energy")], dtype=float)
-        self.counts = asarray(
-            [c.text for c in convoluted.findall(f".//counts[@interaction_number = '{interaction_number}']")],
-            dtype=float,
-        )
+        if time_correction:
+            self.counts = time_correction * asarray(
+                [c.text for c in convoluted.findall(f".//counts[@interaction_number = '{interaction_number}']")],
+                dtype=float,
+            )
+        else:
+            self.counts = asarray(
+                [c.text for c in convoluted.findall(f".//counts[@interaction_number = '{interaction_number}']")],
+                dtype=float,
+            )
         if shape:
             self.counts = self.counts.reshape(*shape)
+        
+        if self.nbins:
+            self.energy, self.counts = self.resample(self.energy, self.counts, self.nbins)
             
         self.channel = arange(self.counts.__len__(),dtype='int16')
         

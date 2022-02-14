@@ -314,6 +314,10 @@ class DataSXRF(Data):
     
     def __init__(self):
         super().__init__()
+        self.nbins = None
+    
+    def set_nbins(self, nbins):
+        self.nbins = nbins
     
     def read(self, outdata_path):
         xmso_filenames = []
@@ -342,24 +346,26 @@ class DataSXRF(Data):
             yield np_labels
     
     def get_data_and_labels(self, symbols, lines):
+        self.energy = self.spe_objs[0].energy
         self.data = asarray([s.counts for s in self.spe_objs])
         self.labels = asarray([l for l in self._get_labels(symbols, lines)])
         return self
     
-    @staticmethod
-    def process_file(filename):
+    #@staticmethod
+    def process_file(self, filename):
         sxrf = SpectraSXRF()
+        self.nbins and sxrf.set_nbins(self.nbins)
         s = sxrf.from_file(filename)
         return s
     
     def __read__(self, xmso_filenames):
+        #results = [self.process_file(fname, self.nbins) for fname in xmso_filenames]
         with Pool() as p:
             results = p.map(self.process_file, xmso_filenames)
         # with ThreadPoolExecutor() as executor:
             # results = executor.map(process_file, xmso_filenames)
         
         return results
-        
 
 class DataXRD(Data):
     """
