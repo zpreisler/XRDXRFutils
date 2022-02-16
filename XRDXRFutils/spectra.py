@@ -39,40 +39,11 @@ class SpectraSXRF(Spectra):
         self.nbins = nbins
     
     @staticmethod
-    def resample(x,y,nbins=1024,bounds=(0,30)):
-        """
-        Simple resample code. For debugging.
-        """
-        
-        f = interp1d(x,y,fill_value='extrapolate')
-        
-        new_x = linspace(*bounds,nbins + 1)
-        new_y = f(new_x)
-        
-        ax = new_x[0]
-        ay = new_y[0]
-        
-        ix = []
-        iy = []
-
-        for bx,by in zip(new_x[1:],new_y[1:]):
-            f = (x > ax) & (x < bx)
-
-            gx = array([ax,*x[f],bx])
-            gy = array([ay,*y[f],by])
-
-            integral = sum((gy[1:] + gy[:-1]) * 0.5 * (gx[1:] - gx[:-1] ))
-
-            ix += [(ax + bx) * 0.5]
-            iy += [integral]
-
-            ax = bx
-            ay = by
-            
-        ix = array(ix)
-        iy = array(iy)
-                   
-        return ix,iy
+    def rebin(x,y):
+        xx = x[::2]
+        yp = y[:-1] + y[1:]
+        yy = yp[::2]
+        return xx, yy
     
     @staticmethod
     def get_metadata(xml_data):
@@ -131,7 +102,9 @@ class SpectraSXRF(Spectra):
             self.counts = self.counts.reshape(*shape)
         
         if self.nbins:
-            self.energy, self.counts = self.resample(self.energy, self.counts, self.nbins)
+            self.energy, self.counts = self.rebin(self.energy, self.counts)
+            #b = self.energy[1] - self.energy[0]
+            #self.counts = self.counts / b
             
         self.channel = arange(self.counts.__len__(),dtype='int16')
         
@@ -140,6 +113,12 @@ class SpectraSXRF(Spectra):
         self.fluorescence_lines = list(self.get_fluorescence_lines(xml_data))
         
         return self
+    
+    def time_correction(self, tc):
+        self.counts = self.counts * tc
+        for l in self.fluorescence_lines:
+            for k, v in l.lines.items():
+                l.lines[k] = v * tc
 
 class SpectraXRD(Spectra):
     def __init__(self):
