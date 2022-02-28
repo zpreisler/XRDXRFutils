@@ -183,6 +183,14 @@ class Data():
         print('Reading parameters from:',filename)
         self.params = {}
 
+        if filename == None:
+
+            self.params['x'] = 1
+            self.params['y'] = 1
+            self.params['shape'] = (1,1,-1)
+
+            return self
+
         with open(filename,'r') as f:
             for line in f:
                 try:

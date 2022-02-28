@@ -54,7 +54,10 @@ class Phase(dict):
             self.get_theta()
 
         if label is None:
-            label = self['_chemical_name_mineral']
+            try:
+                label = self['_chemical_name_mineral']
+            except:
+                label = self['_chemical_name_common']
 
         vlines(self.theta,0,self.intensity, colors=colors, linestyles=linestyles, label=label, **kwargs)
 
