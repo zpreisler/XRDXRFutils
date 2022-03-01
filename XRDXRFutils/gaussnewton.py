@@ -176,7 +176,7 @@ class GaussNewton(SpectraXRD):
    
         self.sigma2[:] += dr * alpha
 
-    def autocalibration(self,alpha = 1):
+    def autocalibrate(self,alpha = 1):
         """
         Autocalibration
         """
@@ -208,7 +208,7 @@ class GaussNewton(SpectraXRD):
         dr = pinv(J) @ dz
         self.opt[:] += dr * alpha
 
-    def calibration(self,alpha = 1):
+    def calibrate(self,alpha = 1):
         """
         Calibrate a,s and intensities
             assuming fixed beta, and sigma

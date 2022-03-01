@@ -29,6 +29,8 @@ class Calibration():
         self.x,self.y = loadtxt(filename,unpack = True, dtype = 'float')
         self.opt,opt_var = curve_fit(self.fce,self.x,self.y)
 
+        self.parent.opt = self.opt.copy()
+
         return self
 
     def plot(self):

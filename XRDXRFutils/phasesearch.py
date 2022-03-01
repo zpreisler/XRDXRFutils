@@ -37,7 +37,7 @@ class PhaseSearch(list):
     
     def theta_correction(self,n=4):
         for i in range(n):
-            self.select().calibration()
+            self.select().calibrate()
             
     def search(self,alpha=1.0):
         

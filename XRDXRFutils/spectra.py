@@ -1,10 +1,11 @@
 from numpy import loadtxt,arctan,pi,arange,array
 from matplotlib.pyplot import plot
 from .utils import snip,convolve
+from .data import Calibration
 
 class Spectra():
     def __init__(self):
-        pass
+        self.calibration = Calibration(self)
 
     def from_array(self,x):
         self.counts = x
@@ -15,6 +16,12 @@ class Spectra():
     def from_file(self,filename):
         self.counts = loadtxt(filename,unpack=True,usecols=1)
         self.channel = arange(self.counts.__len__())
+
+        return self
+
+    def from_Data(self,data,x=0,y=0):
+        self.counts = data.data[x,y]
+        self.channel = arange(self.counts.__len__(),dtype='int')
 
         return self
 
@@ -37,6 +44,14 @@ class SpectraXRD(Spectra):
         self.counts = loadtxt(filename,unpack=True,dtype='int',usecols=1)
         self.channel = arange(self.counts.__len__(),dtype='int')
         self.intensity = self.relative_intensity()
+
+        return self
+
+    def from_Data(self,data,x=0,y=0):
+        self.counts = data.data[x,y]
+        self.channel = arange(self.counts.__len__(),dtype='int')
+        self.intensity = self.relative_intensity()
+        self.opt = data.calibration.opt.copy()
 
         return self
 

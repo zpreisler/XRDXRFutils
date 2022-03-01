@@ -5,6 +5,7 @@ from matplotlib.pyplot import plot,figure,subplots,xlim,ylim,vlines,legend,fill_
 from numpy import loadtxt,arcsin,pi,array,asarray,minimum,concatenate,linspace,arange
 from numpy.random import randint
 from glob import glob
+import warnings
 
 class Phase(dict):
 
@@ -106,6 +107,8 @@ class DatabaseXRD(dict):
 
     def read_cifs(self,path):
         filenames = sorted(glob(path + '/*.cif'))
+        if not filenames:
+            warnings.warn('No files found')
 
         i = 0
         for filename in filenames:
