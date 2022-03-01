@@ -57,7 +57,7 @@ class Phase(dict):
             try:
                 label = self['_chemical_name_mineral']
             except:
-                label = self['_chemical_name_common']
+                label = self['_chemical_formula_sum']
 
         vlines(self.theta,0,self.intensity, colors=colors, linestyles=linestyles, label=label, **kwargs)
 

@@ -9,6 +9,7 @@ from multiprocessing import Pool
 from glob import glob
 import re
 import h5py
+import warnings
 
 class Calibration():
     """
@@ -286,6 +287,8 @@ class DataXRF(Data):
         self.path = path
         self.metadata['path'] = path
         filenames = sorted(glob(path + '/*Z0*.edf'), key=lambda x: int(re.sub('\D','',x)))
+        if not filenames:
+            warnings.warn('No files found')
 
         print("Reading XRF data")
         self.__read__(filenames)
@@ -335,6 +338,8 @@ class DataXRD(Data):
         self.path = path
         self.metadata['path'] = path
         filenames = sorted(glob(self.path + '/[F,f]rame*.dat'), key=lambda x: int(re.sub('\D','',x)))
+        if not filenames:
+            warnings.warn('No files found')
 
         print("Reading XRD data from",self.path)
         self.__read__(filenames)
