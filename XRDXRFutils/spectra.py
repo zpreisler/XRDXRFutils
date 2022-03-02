@@ -90,7 +90,7 @@ class SpectraXRD(Spectra):
 
     def relative_intensity(self,n=21,std=3,m=32):
         y = self.counts - self.background(n=n,std=std,m=m)
-        y[y < 0] = 0
+        #y[y < 0] = 0
         return y / y.max()
 
     def plot(self,*args,**kwargs):
