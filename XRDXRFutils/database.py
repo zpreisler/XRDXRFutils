@@ -15,7 +15,7 @@ class Phase(dict):
     def __len__(self):
         return len(self['_pd_peak_intensity'][0])
 
-    def get_theta(self,l=[1.541],scale=[1.0],max_theta=None,min_intensity=None):
+    def get_theta(self, l=[1.541], scale=[1.0], min_theta=None, max_theta=None, min_intensity=None):
 
         #FIXME
         #Recalculate when conditions are not the same
@@ -39,6 +39,8 @@ class Phase(dict):
         theta,intensity = array(sorted(zip(theta,intensity))).T
 
         f = array([True]*len(theta))
+        if min_theta:
+            f &= (theta > min_theta)
         if max_theta:
             f &= (theta < max_theta) 
         if min_intensity:
