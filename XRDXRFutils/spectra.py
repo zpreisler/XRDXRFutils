@@ -55,6 +55,19 @@ class SpectraXRD(Spectra):
 
         return self
 
+    def calibrate_from_file(self,filename):
+        """
+        Read data from file and fit the calibration curve
+
+        Calibration parameters are stored in self.opt
+
+        returns: self
+        """
+        self.calibration.from_file(filename)
+        self.opt = self.calibration.opt
+
+        return self
+
     @staticmethod
     def fce_calibration(x,a,s,beta):
         """
@@ -77,6 +90,7 @@ class SpectraXRD(Spectra):
 
     def relative_intensity(self,n=21,std=3,m=32):
         y = self.counts - self.background(n=n,std=std,m=m)
+        y[y < 0] = 0
         return y / y.max()
 
     def plot(self,*args,**kwargs):
