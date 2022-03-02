@@ -1,0 +1,13 @@
+.DS_Store
+build/.DS_Store
+build/lib/XRDXRFutils/__init__.py
+build/lib/XRDXRFutils/data.py
+build/lib/XRDXRFutils/database.py
+build/lib/XRDXRFutils/gaussnewton.py
+build/lib/XRDXRFutils/phasesearch.py
+build/lib/XRDXRFutils/spectra.py
+build/lib/XRDXRFutils/utils.py
+XRDXRFutils.egg-info/dependency_links.txt
+XRDXRFutils.egg-info/PKG-INFO
+XRDXRFutils.egg-info/SOURCES.txt
+XRDXRFutils.egg-info/top_level.txt
