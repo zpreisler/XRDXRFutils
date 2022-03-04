@@ -72,14 +72,15 @@ class Container():
 
             gy = array([ay,*self.y[f],by])
 
-            integral = sum((gy[1:] + gy[:-1]) * 0.5 * (_gx[1:] - _gx[:-1] ))
+            integral = sum((gy[1:] + gy[:-1]) * (_gx[1:] - _gx[:-1] ))
             iy += [integral]
             
             ay = by
             
-        iy = array(iy)
-                   
-        return iy
+        iy = array(iy) * 0.5
+        scale = sum(y) / sum(iy)
+
+        return iy * scale
 
 class Data():
     """
@@ -257,6 +258,10 @@ class Data():
         x = self.x
         y = self.data.reshape(-1,self.data.shape[-1])
 
+        s = x < bounds[-1]
+        x = x[s]
+        y = y[:,s]
+
         new_x,fx,gx = resample_x(x,nbins,bounds)
         ix = (new_x[:-1] + new_x[1:]) * 0.5
 
@@ -375,7 +380,10 @@ def resample(x,y,nbins=1024,bounds=(0,30)):
     """
     Simple resample code. For debugging.
     """
-    
+    s = x < bounds[-1]
+    x = x[s]
+    y = y[s]
+
     f = interp1d(x,y,fill_value='extrapolate')
     
     new_x = linspace(*bounds,nbins + 1)
@@ -388,20 +396,23 @@ def resample(x,y,nbins=1024,bounds=(0,30)):
     iy = []
 
     for bx,by in zip(new_x[1:],new_y[1:]):
-        f = (x > ax) & (x < bx)
+        f = (x >= ax) & (x < bx)
 
         gx = array([ax,*x[f],bx])
         gy = array([ay,*y[f],by])
 
-        integral = sum((gy[1:] + gy[:-1]) * 0.5 * (gx[1:] - gx[:-1] ))
+        integral = sum((gy[1:] + gy[:-1]) * (gx[1:] - gx[:-1] ))
 
         ix += [(ax + bx) * 0.5]
-        iy += [integral]
+        iy += [integral * 0.5]
 
         ax = bx
         ay = by
+
         
     ix = array(ix)
     iy = array(iy)
+
+    scale = sum(y) / sum(iy)
                
-    return ix,iy
+    return ix,iy * scale
