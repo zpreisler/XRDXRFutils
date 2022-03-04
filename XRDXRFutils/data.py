@@ -78,7 +78,12 @@ class Container():
             ay = by
             
         iy = array(iy) * 0.5
-        scale = sum(y) / sum(iy)
+
+        s = sum(iy)
+        if s > 0:
+            scale = sum(self.y) / s
+        else:
+            scale = 1
 
         return iy * scale
 
