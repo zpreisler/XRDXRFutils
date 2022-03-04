@@ -1,8 +1,8 @@
 from scipy.optimize import curve_fit
-from numpy import pi,arctan
-from numpy import loadtxt,frombuffer,array,asarray,linspace,arange,trapz
+from numpy import pi, arctan
+from numpy import loadtxt, frombuffer, array, asarray, linspace, arange, trapz, flip
 from scipy.interpolate import interp1d
-from matplotlib.pyplot import plot,xlim,ylim,xlabel,ylabel
+from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
 
 from multiprocessing import Pool
 
@@ -369,7 +369,7 @@ class DataXRD(Data):
             if i % 2 == 0:
                 y[:] = y[::-1]
 
-        self.data = z
+        self.data = flip(z, axis = 0)
 
 def resample(x,y,nbins=1024,bounds=(0,30)):
     """
