@@ -11,3 +11,10 @@ XRDXRFutils.egg-info/dependency_links.txt
 XRDXRFutils.egg-info/PKG-INFO
 XRDXRFutils.egg-info/SOURCES.txt
 XRDXRFutils.egg-info/top_level.txt
+XRDXRFutils/__pycache__/__init__.cpython-38.pyc
+XRDXRFutils/__pycache__/data.cpython-38.pyc
+XRDXRFutils/__pycache__/database.cpython-38.pyc
+XRDXRFutils/__pycache__/gaussnewton.cpython-38.pyc
+XRDXRFutils/__pycache__/phasesearch.cpython-38.pyc
+XRDXRFutils/__pycache__/spectra.cpython-38.pyc
+XRDXRFutils/__pycache__/utils.cpython-38.pyc
