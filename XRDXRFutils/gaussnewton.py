@@ -139,12 +139,12 @@ class GaussNewton(SpectraXRD):
 
 
     def der_f_g(self):
-        return self.I_dim * self.component_core * self.der_w(self.g)
+        return self.I_dim * self.component_core * self.der_w(self.g_dim)
 
 
     def der_f_tau(self):
         f_dim = self.component_full.sum(axis = 1, keepdims = True)
-        return f_dim * ((self.theta_dim - self.mu_dim)**2 / (2 * (self.sigma2_dim)**2)) * self.der_u(self.tau)
+        return f_dim * ((self.theta_dim - self.mu_dim)**2 / (2 * (self.sigma2_dim)**2)) * self.der_u(self.tau_dim)
 
 
     def evolution_of_parameters(self):
