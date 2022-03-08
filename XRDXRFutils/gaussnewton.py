@@ -144,7 +144,7 @@ class GaussNewton(SpectraXRD):
         return (pinv(self.Jacobian_f) @ r) # or scipy.linalg.pinv
 
 
-    def fit_GN(self, a = False, s = False, beta = False, gamma = False, sigma = False, alpha = 1):
+    def fit(self, a = False, s = False, beta = False, gamma = False, sigma = False, alpha = 1):
         """
         Performs a step of Gauss-Newton optimization. You need to choose the parameters that will be used to optimize. The other ones will be kept fixed.
         """
