@@ -18,7 +18,7 @@ class PhaseSearch(list):
     def minimize_gamma(self,n=4,alpha=1.0):
         for g in self:
             for i in range(n):
-                g.minimize_gamma(alpha=alpha)
+                g.fit_GN(gamma = True, alpha = alpha)
                 
     def overlap_area(self):
         return array([g.overlap_area() for g in self])
