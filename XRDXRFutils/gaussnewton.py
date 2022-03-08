@@ -41,11 +41,10 @@ class GaussNewton(SpectraXRD):
         self.mu, self.I = self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity)
 
         """
-        parameters tau, g --> sigma^2, gamma
+        parameters g, tau --> gamma, sigma^2
         """
-        #self.tau = full(len(self.mu), -6.21) # needed to have sigma2 = 0.04
-        self.tau = full(len(self.mu), 0.04) # needed to have sigma2 = 0.04
         self.g = ones(len(self.I)) * 0.75 # needed to have gamma = 1
+        self.tau = full(len(self.mu), 0.2) # needed to have sigma2 = 0.04
 
 
     """
@@ -86,21 +85,13 @@ class GaussNewton(SpectraXRD):
         return self.w(self.g)
 
 
-    # @staticmethod
-    # def u(x):
-    #     return GaussNewton.w(100 * x) / 100
-
-    # @staticmethod
-    # def der_u(x):
-    #     return GaussNewton.der_w(100 * x)
-
     @staticmethod
     def u(x):
-        return x
+        return x**2
 
     @staticmethod
     def der_u(x):
-        return 1
+        return 2 * x
 
     @property
     def sigma2(self):
@@ -143,9 +134,7 @@ class GaussNewton(SpectraXRD):
 
 
     def der_f_tau(self):
-        #f_dim = self.component_full.sum(axis = 1, keepdims = True)
-        #return f_dim * ((self.theta_dim - self.mu_dim)**2 / (2 * (self.sigma2_dim)**2)) * self.der_u(self.tau_dim)
-        return self.I_dim * self.component_core * self.w(self.g_dim) * 0.5 * ((self.theta_dim - self.mu_dim)**2 / (2 * (self.sigma2_dim)**2)) 
+        return self.component_full * ((self.theta_dim - self.mu_dim)**2 / (2 * self.sigma2_dim**2)) * self.der_u(self.tau_dim)
 
 
     def evolution_of_parameters(self):
@@ -155,67 +144,53 @@ class GaussNewton(SpectraXRD):
         return (pinv(self.Jacobian_f) @ r) # or scipy.linalg.pinv
 
 
-    def fit_GN_a_s_beta(self, alpha = 1):
+    def fit_GN(self, a = False, s = False, beta = False, gamma = False, sigma = False, alpha = 1):
         """
-        Optimizes on a, s, beta. Keeps gamma and sigma fixed.
+        Performs a step of Gauss-Newton optimization. You need to choose the parameters that will be used to optimize. The other ones will be kept fixed.
         """
         self.prepare_dimensional_data()
+        Jacobian_construction = []
 
-        # Derivatives with respect to a, s, beta
-        der_f_a, der_f_s, der_f_beta = self.der_f_a_s_beta()
+        # Calibration parameters
+        n_calibration = a + s + beta
+        if (n_calibration > 0):
+            der_f_a, der_f_s, der_f_beta = self.der_f_a_s_beta()
+            if a:
+                Jacobian_construction.append(der_f_a)
+            if s:
+                Jacobian_construction.append(der_f_s)
+            if beta:
+                Jacobian_construction.append(der_f_beta)
+
+        # Gamma
+        if gamma:
+            n_gamma = self.mu.shape[0]
+            Jacobian_construction.append(self.der_f_g())
+        else:
+            n_gamma = 0
+
+        # Sigma
+        if sigma:
+            Jacobian_construction.append(self.der_f_tau())
 
         # Jacobian
-        self.Jacobian_f = concatenate((der_f_a, der_f_s, der_f_beta), axis = 1)
+        if Jacobian_construction:
+            self.Jacobian_f = concatenate(Jacobian_construction, axis = 1)
+        else:
+            return
 
         # Evolution of parameters
         d_params = alpha * self.evolution_of_parameters()
-        self.opt += d_params
-
-
-    def fit_GN_a_s_gamma(self, alpha = 1):
-        """
-        Optimizes on a, s, gamma. Keeps beta and sigma fixed.
-        """
-        self.prepare_dimensional_data()
-
-        # Derivatives with respect to a, s
-        der_f_a, der_f_s, der_f_beta = self.der_f_a_s_beta()
-
-        # Jacobian
-        self.Jacobian_f = concatenate((der_f_a, der_f_s, self.der_f_g()), axis = 1)
-
-        # Evolution of parameters
-        d_params = alpha * self.evolution_of_parameters()
-        self.opt[:2] += d_params[:2]
-        self.g += d_params[2:]
-
-
-    def fit_GN_gamma(self, alpha = 1):
-        """
-        Optimizes on gamma. Keeps all the other parameters fixed.
-        """
-        self.prepare_dimensional_data()
-
-        # Jacobian
-        self.Jacobian_f = self.der_f_g()
-
-        # Evolution of parameters
-        d_params = alpha * self.evolution_of_parameters()
-        self.g += d_params
-
-
-    def fit_GN_sigma(self, alpha = 1):
-        """
-        Optimizes on sigma. Keeps all the other parameters fixed.
-        """
-        self.prepare_dimensional_data()
-
-        # Jacobian
-        self.Jacobian_f = self.der_f_tau()
-
-        # Evolution of parameters
-        d_params = alpha * self.evolution_of_parameters()
-        self.tau += d_params
+        if a:
+            self.opt[0] += d_params[0]
+        if s:
+            self.opt[1] += d_params[1]
+        if beta:
+            self.opt[2] += d_params[2]
+        if gamma:
+            self.g += d_params[n_calibration : (n_calibration + n_gamma)]
+        if sigma:
+            self.tau += d_params[(n_calibration + n_gamma) :]
 
 
     """
