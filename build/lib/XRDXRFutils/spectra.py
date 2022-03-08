@@ -48,11 +48,10 @@ class SpectraSXRF(Spectra):
     @staticmethod
     def get_metadata(xml_data):
         reflayer_index = int(xml_data.find("./xmimsim-input/composition/reference_layer").text) - 1
-        layers = xml_data.findall("./xmimsim-input/composition/layer")
-        reflayer = layers[reflayer_index]
+        reflayer = xml_data.findall("./xmimsim-input/composition/layer")[reflayer_index]
         reflayer_thickness = float(reflayer.find("thickness").text)
         try:
-            sublayer = layers[reflayer_index + 1]
+            sublayer = xml_data.findall("./xmimsim-input/composition/layer")[reflayer_index + 1]
         except IndexError:
             sublayer_thickness = 0.0
         else:
@@ -67,7 +66,7 @@ class SpectraSXRF(Spectra):
         return elements, weight_fractions, reflayer_thickness, sublayer_thickness
     
     @staticmethod
-    def get_fluorescence_lines(xml_data, time_correction = None):
+    def get_fluorescence_lines(xml_data):
         """Generator"""
         flc = xml_data.findall(".//fluorescence_line_counts")
         for element in flc:
@@ -75,11 +74,11 @@ class SpectraSXRF(Spectra):
             for fl in element.findall("fluorescence_line"):
                 line_type = fl.attrib["type"]
                 if line_type.startswith("K"):
-                    lines["K"] += float(fl.attrib["total_counts"]) * time_correction if time_correction else float(fl.attrib["total_counts"])
+                    lines["K"] += float(fl.attrib["total_counts"])
                 elif line_type.startswith("L"):
-                    lines["L"] += float(fl.attrib["total_counts"]) * time_correction if time_correction else float(fl.attrib["total_counts"])
+                    lines["L"] += float(fl.attrib["total_counts"])
                 else:
-                    lines["others"] += float(fl.attrib["total_counts"]) * time_correction if time_correction else float(fl.attrib["total_counts"])
+                    lines["others"] += float(fl.attrib["total_counts"])
                     
             yield FluorescenceSXRF(
                 symbol = element.attrib["symbol"],
@@ -89,11 +88,7 @@ class SpectraSXRF(Spectra):
 
     
     def from_file(self, xmso_filename, interaction_number = 2, shape = None, time_correction = None):
-        try:
-            xml_data = et.parse(xmso_filename)
-        except et.ParseError:
-            print(f"Error while parsing\n{xmso_filename}")
-            return None
+        xml_data = et.parse(xmso_filename)
         convoluted = xml_data.find("spectrum_conv")
         self.energy = asarray([e.text for e in convoluted.findall(".//energy")], dtype=float)
         if time_correction:
@@ -118,7 +113,7 @@ class SpectraSXRF(Spectra):
         
         self.reflayer_elements, self.weight_fractions, self.reflayer_thickness, self.sublayer_thickness = self.get_metadata(xml_data)
         
-        self.fluorescence_lines = list(self.get_fluorescence_lines(xml_data, time_correction = time_correction))
+        self.fluorescence_lines = list(self.get_fluorescence_lines(xml_data))
         
         return self
     

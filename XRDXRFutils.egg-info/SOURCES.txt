@@ -1,0 +1,15 @@
+LICENSE
+README.md
+setup.py
+XRDXRFutils/Xmendeleev.py
+XRDXRFutils/__init__.py
+XRDXRFutils/data.py
+XRDXRFutils/database.py
+XRDXRFutils/gaussnewton.py
+XRDXRFutils/phasesearch.py
+XRDXRFutils/spectra.py
+XRDXRFutils/utils.py
+XRDXRFutils.egg-info/PKG-INFO
+XRDXRFutils.egg-info/SOURCES.txt
+XRDXRFutils.egg-info/dependency_links.txt
+XRDXRFutils.egg-info/top_level.txt
