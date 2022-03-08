@@ -319,6 +319,8 @@ class DataSXRF(Data):
     def __len__(self):
         if hasattr(self, 'spe_objs'):
             return len(self.spe_objs)
+        elif hasattr(self, 'data'):
+            return len(self.data)
         return 0
     
     def set_nbins(self, nbins):
