@@ -157,7 +157,7 @@ class GaussNewton(SpectraXRD):
         try:
             evol = pinv(self.Jacobian_f) @ r # or scipy.linalg.pinv
         except:
-            evol = full_like(r, 0)
+            evol = full((self.Jacobian_f.shape[1], 1), 0)
         finally:
             return evol
 
@@ -167,18 +167,21 @@ class GaussNewton(SpectraXRD):
         Performs a step of Gauss-Newton optimization. You need to choose the parameters that will be used to optimize. The other ones will be kept fixed.
         If you set k and b, parameters a and s are used in optimization (you don't need to explicitly set them to True) and are tied by the relation given by k and b.
         """
+        is_used_relation = ((k is not None) and (b is not None))
+        if is_used_relation:
+            a = True
+            s = False
+        n_opt = a + s + beta
+        n_gamma = gamma * self.n_peaks
+        #n_sigma = sigma * self.n_peaks
+
         self.precalculations()
         Jacobian_construction = []
 
         # Calibration parameters
-        is_used_relation = ((k is not None) and (b is not None))
         if is_used_relation:
-            n_opt = 1 + beta
-            a = True
-            s = False
             der_f_a, der_f_beta = self.der_f_a_beta__when_relation_a_s(k, b)
         else:
-            n_opt = a + s + beta
             if (n_opt > 0):
                 der_f_a, der_f_s, der_f_beta = self.der_f_a_s_beta()
         if a:
@@ -190,10 +193,7 @@ class GaussNewton(SpectraXRD):
 
         # Gamma
         if gamma:
-            n_gamma = self.n_peaks
             Jacobian_construction.append(self.der_f_g())
-        else:
-            n_gamma = 0
 
         # Sigma
         if sigma:
