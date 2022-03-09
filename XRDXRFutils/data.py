@@ -335,6 +335,7 @@ class DataSXRF(Data):
             for _file in files:
                 xmso_filenames.append(os.path.join(path, _file))
         print(f"Reading SXRF data from {outdata_path}")
+        self.metedata["path"] = outdata_path
         self.spe_objs = [s for s in self.__read__(xmso_filenames) if s != None]
         
         return self
@@ -382,6 +383,7 @@ class DataSXRF(Data):
         len_data = len(self.spe_objs)
         sp = SimParameters(len_data)
         for i, s in enumerate(self.spe_objs):
+            sp.time[i] = s.time
             sp.reflayer_elements += s.reflayer_elements
             sp.weight_fractions += s.weight_fractions
             sp.reflayer_thickness[i] = s.reflayer_thickness
@@ -413,6 +415,7 @@ class DataSXRF(Data):
             dataset = f.create_dataset('reflayer_elements', data = sp.reflayer_elements)
             dataset = f.create_dataset('weight_fractions', data = sp.weight_fractions)
             dataset = f.create_dataset('energy', data = self.energy)
+            dataset = f.create_dataset('time', data = sp.time)
 
     def load_h5(self,filename):
 
@@ -426,6 +429,7 @@ class DataSXRF(Data):
                 self.reflayer_elements = f['reflayer_elements'][:]
                 self.weight_fractions = f['weight_fractions'][:]
                 self.energy = f['energy'][:]
+                self.time = f['time'][:]
 
                 for k,v in f.attrs.items():
                     self.metadata[k] = v
@@ -436,6 +440,7 @@ class SimParameters:
     """
     def __init__(self, len_data = 1):
         self.len_data = len_data
+        self.time = empty((len_data))
         self.reflayer_elements = []
         self.weight_fractions = []
         self.reflayer_thickness = empty((len_data))

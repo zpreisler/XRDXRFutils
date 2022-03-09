@@ -47,6 +47,7 @@ class SpectraSXRF(Spectra):
     
     @staticmethod
     def get_metadata(xml_data):
+        _time = float(xml_data.find('./xmimsim-input/detector/live_time').text)
         reflayer_index = int(xml_data.find("./xmimsim-input/composition/reference_layer").text) - 1
         layers = xml_data.findall("./xmimsim-input/composition/layer")
         reflayer = layers[reflayer_index]
@@ -64,7 +65,7 @@ class SpectraSXRF(Spectra):
             elements.append(int(element.find("atomic_number").text))
             weight_fractions.append(float(element.find("weight_fraction").text))
         
-        return elements, weight_fractions, reflayer_thickness, sublayer_thickness
+        return elements, weight_fractions, reflayer_thickness, sublayer_thickness, _time
     
     @staticmethod
     def get_fluorescence_lines(xml_data, time_correction = None):
@@ -118,7 +119,7 @@ class SpectraSXRF(Spectra):
             
         self.channel = arange(self.counts.__len__(),dtype='int16')
         
-        self.reflayer_elements, self.weight_fractions, self.reflayer_thickness, self.sublayer_thickness = self.get_metadata(xml_data)
+        self.reflayer_elements, self.weight_fractions, self.reflayer_thickness, self.sublayer_thickness, self.time = self.get_metadata(xml_data)
         
         self.fluorescence_lines = list(self.get_fluorescence_lines(xml_data, time_correction = time_correction))
         
