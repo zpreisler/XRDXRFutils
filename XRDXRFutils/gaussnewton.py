@@ -64,14 +64,14 @@ class GaussNewton(SpectraXRD):
         """
         Synthetic spectrum.
         """
-        self.prepare_dimensional_data()
+        self.precalculations()
         return self.component_full.sum(axis = 1)
 
     def z0(self):
         """
         Synthetic spectrum without the rescalings of peaks.
         """
-        self.prepare_dimensional_data()
+        self.precalculations()
         return (self.I * self.component_core).sum(axis = 1)
 
 
@@ -115,11 +115,11 @@ class GaussNewton(SpectraXRD):
     """
     Calculations for fit
     """
-    def prepare_dimensional_data(self):
+    def precalculations(self):
         # along the channels
-        self.theta_calc = self.theta[:]
+        self.theta_calc = self.theta.copy()
         # along the diffraction lines
-        self.sigma2_calc = self.sigma2[:]
+        self.sigma2_calc = self.sigma2.copy()
         # along both axes
         self.component_core = exp((self.theta_calc - self.mu)**2 / (-2 * self.sigma2_calc))
         self.component_full = self.I * self.gamma * self.component_core
@@ -167,7 +167,7 @@ class GaussNewton(SpectraXRD):
         Performs a step of Gauss-Newton optimization. You need to choose the parameters that will be used to optimize. The other ones will be kept fixed.
         If you set k and b, parameters a and s are used in optimization (you don't need to explicitly set them to True) and are tied by the relation given by k and b.
         """
-        self.prepare_dimensional_data()
+        self.precalculations()
         Jacobian_construction = []
 
         # Calibration parameters
