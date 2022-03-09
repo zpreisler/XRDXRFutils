@@ -1,5 +1,6 @@
 .DS_Store
 build/.DS_Store
+XRDXRFutils/__pycache__/**
 build/lib/XRDXRFutils/__init__.py
 build/lib/XRDXRFutils/data.py
 build/lib/XRDXRFutils/database.py
@@ -18,4 +19,3 @@ XRDXRFutils/__pycache__/gaussnewton.cpython-38.pyc
 XRDXRFutils/__pycache__/phasesearch.cpython-38.pyc
 XRDXRFutils/__pycache__/spectra.cpython-38.pyc
 XRDXRFutils/__pycache__/utils.cpython-38.pyc
-XRDXRFutils/__pycache__/*
