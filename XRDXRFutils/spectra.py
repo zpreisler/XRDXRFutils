@@ -71,13 +71,15 @@ class SpectraSXRF(Spectra):
         """Generator"""
         flc = xml_data.findall(".//fluorescence_line_counts")
         for element in flc:
-            lines = {"K" : 0, "L" : 0, "others" : 0}
+            lines = {"K" : 0, "L" : 0, "M" : 0, "others" : 0}
             for fl in element.findall("fluorescence_line"):
                 line_type = fl.attrib["type"]
                 if line_type.startswith("K"):
                     lines["K"] += float(fl.attrib["total_counts"]) * time_correction if time_correction else float(fl.attrib["total_counts"])
                 elif line_type.startswith("L"):
                     lines["L"] += float(fl.attrib["total_counts"]) * time_correction if time_correction else float(fl.attrib["total_counts"])
+                elif line_type.startswith("M"):
+                    lines["M"] += float(fl.attrib["total_counts"]) * time_correction if time_correction else float(fl.attrib["total_counts"])
                 else:
                     lines["others"] += float(fl.attrib["total_counts"]) * time_correction if time_correction else float(fl.attrib["total_counts"])
                     
