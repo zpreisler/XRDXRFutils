@@ -1,7 +1,9 @@
 from .spectra import SpectraXRD
 
-from numpy import exp, log, pi, array, ones, zeros, full, trapz, minimum, fabs, sign, sqrt, square, average, clip, newaxis, concatenate
+from numpy import exp, full_like, log, pi, array, ones, zeros, full, trapz, minimum, fabs, sign, sqrt, square, average, clip, newaxis, concatenate
 from numpy.linalg import pinv, inv
+
+from scipy.optimize import newton
 
 from matplotlib.pyplot import plot
 
@@ -48,8 +50,13 @@ class GaussNewton(SpectraXRD):
         parameters g, tau --> gamma, sigma^2
         """
         # Variables along the diffraction lines
-        self.g = full((1, self.n_peaks), 0.75) # needed to have gamma = 1
-        self.tau = full((1, self.n_peaks), 0.2) # needed to have sigma2 = 0.04
+        gamma_initial = 1
+        sigma_initial = 0.2
+        sigma2_initial = sigma_initial**2
+        g_initial = newton(lambda x: GaussNewton.w(x) - gamma_initial, x0 = gamma_initial)
+        tau_initial = newton(lambda x: GaussNewton.u(x) - sigma2_initial, x0 = sigma2_initial)
+        self.g = full((1, self.n_peaks), g_initial)
+        self.tau = full((1, self.n_peaks), tau_initial)
 
 
     """
@@ -63,14 +70,14 @@ class GaussNewton(SpectraXRD):
         """
         Synthetic spectrum.
         """
-        self.prepare_dimensional_data()
+        self.precalculations()
         return self.component_full.sum(axis = 1)
 
     def z0(self):
         """
         Synthetic spectrum without the rescalings of peaks.
         """
-        self.prepare_dimensional_data()
+        self.precalculations()
         return (self.I * self.component_core).sum(axis = 1)
 
 
@@ -90,13 +97,21 @@ class GaussNewton(SpectraXRD):
         return self.w(self.g)
 
 
+    # @staticmethod
+    # def u(x):
+    #     return x**2
+
+    # @staticmethod
+    # def der_u(x):
+    #     return 2 * x
+
     @staticmethod
     def u(x):
-        return x**2
+        return GaussNewton.w(100 * x) / 100
 
     @staticmethod
     def der_u(x):
-        return 2 * x
+        return GaussNewton.der_w(100 * x)
 
     @property
     def sigma2(self):
@@ -106,11 +121,11 @@ class GaussNewton(SpectraXRD):
     """
     Calculations for fit
     """
-    def prepare_dimensional_data(self):
+    def precalculations(self):
         # along the channels
-        self.theta_calc = self.theta[:]
+        self.theta_calc = self.theta.copy()
         # along the diffraction lines
-        self.sigma2_calc = self.sigma2[:]
+        self.sigma2_calc = self.sigma2.copy()
         # along both axes
         self.component_core = exp((self.theta_calc - self.mu)**2 / (-2 * self.sigma2_calc))
         self.component_full = self.I * self.gamma * self.component_core
@@ -125,6 +140,13 @@ class GaussNewton(SpectraXRD):
         der_f_beta = - aux
         return der_f_a, der_f_s, der_f_beta
 
+    def der_f_a_beta__when_relation_a_s(self, k, b):
+        der_theta_a = (180 / pi) * (b - k * self.channel) / ( (self.channel + self.opt[0])**2 + (k * self.opt[0] + b)**2 )
+        aux = (self.component_full * (self.theta_calc - self.mu) / self.sigma2_calc).sum(axis = 1, keepdims = True)
+        der_f_a = - der_theta_a * aux
+        der_f_beta = - aux
+        return der_f_a, der_f_beta
+
 
     def der_f_g(self):
         return self.I * self.component_core * self.der_w(self.g)
@@ -138,33 +160,46 @@ class GaussNewton(SpectraXRD):
         y = self.intensity
         f = self.component_full.sum(axis = 1, keepdims = True)
         r = y - f
-        return (pinv(self.Jacobian_f) @ r) # or scipy.linalg.pinv
+        try:
+            evol = pinv(self.Jacobian_f) @ r # or scipy.linalg.pinv
+        except:
+            evol = full((self.Jacobian_f.shape[1], 1), 0)
+        finally:
+            return evol
 
 
-    def fit(self, a = False, s = False, beta = False, gamma = False, sigma = False, alpha = 1):
+    def fit(self, k = None, b = None, a = False, s = False, beta = False, gamma = False, sigma = False, alpha = 1):
         """
         Performs a step of Gauss-Newton optimization. You need to choose the parameters that will be used to optimize. The other ones will be kept fixed.
+        If you set k and b, parameters a and s are used in optimization (you don't need to explicitly set them to True) and are tied by the relation given by k and b.
         """
-        self.prepare_dimensional_data()
+        is_used_relation = ((k is not None) and (b is not None))
+        if is_used_relation:
+            a = True
+            s = False
+        n_opt = a + s + beta
+        n_gamma = gamma * self.n_peaks
+        #n_sigma = sigma * self.n_peaks
+
+        self.precalculations()
         Jacobian_construction = []
 
         # Calibration parameters
-        n_calibration = a + s + beta
-        if (n_calibration > 0):
-            der_f_a, der_f_s, der_f_beta = self.der_f_a_s_beta()
-            if a:
-                Jacobian_construction.append(der_f_a)
-            if s:
-                Jacobian_construction.append(der_f_s)
-            if beta:
-                Jacobian_construction.append(der_f_beta)
+        if is_used_relation:
+            der_f_a, der_f_beta = self.der_f_a_beta__when_relation_a_s(k, b)
+        else:
+            if (n_opt > 0):
+                der_f_a, der_f_s, der_f_beta = self.der_f_a_s_beta()
+        if a:
+            Jacobian_construction.append(der_f_a)
+        if s:
+            Jacobian_construction.append(der_f_s)
+        if beta:
+            Jacobian_construction.append(der_f_beta)
 
         # Gamma
         if gamma:
-            n_gamma = self.n_peaks
             Jacobian_construction.append(self.der_f_g())
-        else:
-            n_gamma = 0
 
         # Sigma
         if sigma:
@@ -178,16 +213,14 @@ class GaussNewton(SpectraXRD):
 
         # Evolution of parameters
         d_params = alpha * self.evolution_of_parameters()
-        if a:
-            self.opt[0] += d_params[0, 0]
-        if s:
-            self.opt[1] += d_params[1, 0]
-        if beta:
-            self.opt[2] += d_params[2, 0]
+        mask_opt = [a, s, beta]
+        self.opt[mask_opt] += d_params[0:n_opt, 0]
+        if is_used_relation:
+            self.opt[1] = k * self.opt[0] + b
         if gamma:
-            self.g += d_params[n_calibration : (n_calibration + n_gamma)].T
+            self.g += d_params[n_opt : (n_opt + n_gamma)].T
         if sigma:
-            self.tau += d_params[(n_calibration + n_gamma) :].T
+            self.tau += d_params[(n_opt + n_gamma) :].T
 
 
     """
@@ -233,12 +266,14 @@ class GaussNewton(SpectraXRD):
 
 
     def component_ratio(self):
-        gamma_adjusted = self.gamma**(-sign(self.gamma - 1))
-        mask = ((self.mu >= self.theta.min()) & (self.mu <= self.theta.max()))
+        gamma = self.gamma[:]
+        theta = self.theta[:]
+        gamma_adjusted = gamma**(-sign(gamma - 1))
+        mask = ((self.mu >= theta.min()) & (self.mu <= theta.max()))
         
         #penalty = (self.I[mask] * gamma_adjusted[mask]).sum() / self.I[mask].sum()
         penalty = exp( (self.I[mask] * log(gamma_adjusted[mask])).sum() / self.I[mask].sum() )
         
-        intersection_integral = clip(self.z(), 0, self.intensity.squeeze()).sum()
-        data_integral = self.intensity.sum()
-        return penalty * (intersection_integral / data_integral)
+        integral_intersection = clip(self.z(), 0, self.intensity.squeeze()).sum()
+        integral_data = self.intensity.sum()
+        return penalty * (integral_intersection / integral_data)
