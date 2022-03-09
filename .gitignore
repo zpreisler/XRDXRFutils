@@ -1,6 +1,8 @@
 .DS_Store
 build/.DS_Store
 XRDXRFutils/__pycache__/**
+build/**
+.ipynb_checkpoints
 build/lib/XRDXRFutils/__init__.py
 build/lib/XRDXRFutils/data.py
 build/lib/XRDXRFutils/database.py
