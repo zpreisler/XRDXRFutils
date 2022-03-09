@@ -51,7 +51,8 @@ class GaussNewton(SpectraXRD):
         """
         # Variables along the diffraction lines
         gamma_initial = 1
-        sigma2_initial = 0.04
+        sigma_initial = 0.2
+        sigma2_initial = sigma_initial**2
         g_initial = newton(lambda x: GaussNewton.w(x) - gamma_initial, x0 = gamma_initial)
         tau_initial = newton(lambda x: GaussNewton.u(x) - sigma2_initial, x0 = sigma2_initial)
         self.g = full((1, self.n_peaks), g_initial)
