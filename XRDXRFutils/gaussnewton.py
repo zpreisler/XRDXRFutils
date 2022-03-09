@@ -3,6 +3,8 @@ from .spectra import SpectraXRD
 from numpy import exp, full_like, log, pi, array, ones, zeros, full, trapz, minimum, fabs, sign, sqrt, square, average, clip, newaxis, concatenate
 from numpy.linalg import pinv, inv
 
+from scipy.optimize import newton
+
 from matplotlib.pyplot import plot
 
 class GaussNewton(SpectraXRD):
@@ -48,9 +50,12 @@ class GaussNewton(SpectraXRD):
         parameters g, tau --> gamma, sigma^2
         """
         # Variables along the diffraction lines
-        self.g = full((1, self.n_peaks), 0.75) # needed to have gamma = 1
-        #self.tau = full((1, self.n_peaks), 0.2) # needed to have sigma2 = 0.04
-        self.tau = full((1, self.n_peaks), 0.04) # needed to have sigma2 = 0.04
+        gamma_initial = 1
+        sigma2_initial = 0.04
+        g_initial = newton(lambda x: GaussNewton.w(x) - gamma_initial, x0 = gamma_initial)
+        tau_initial = newton(lambda x: GaussNewton.u(x) - sigma2_initial, x0 = sigma2_initial)
+        self.g = full((1, self.n_peaks), g_initial)
+        self.tau = full((1, self.n_peaks), tau_initial)
 
 
     """
