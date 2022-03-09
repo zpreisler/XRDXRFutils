@@ -1,6 +1,6 @@
 from .spectra import SpectraXRD
 
-from numpy import exp, log, pi, array, ones, zeros, full, trapz, minimum, fabs, sign, sqrt, square, average, clip, newaxis, concatenate
+from numpy import exp, full_like, log, pi, array, ones, zeros, full, trapz, minimum, fabs, sign, sqrt, square, average, clip, newaxis, concatenate
 from numpy.linalg import pinv, inv
 
 from matplotlib.pyplot import plot
@@ -49,7 +49,8 @@ class GaussNewton(SpectraXRD):
         """
         # Variables along the diffraction lines
         self.g = full((1, self.n_peaks), 0.75) # needed to have gamma = 1
-        self.tau = full((1, self.n_peaks), 0.2) # needed to have sigma2 = 0.04
+        #self.tau = full((1, self.n_peaks), 0.2) # needed to have sigma2 = 0.04
+        self.tau = full((1, self.n_peaks), 0.04) # needed to have sigma2 = 0.04
 
 
     """
@@ -90,13 +91,21 @@ class GaussNewton(SpectraXRD):
         return self.w(self.g)
 
 
+    # @staticmethod
+    # def u(x):
+    #     return x**2
+
+    # @staticmethod
+    # def der_u(x):
+    #     return 2 * x
+
     @staticmethod
     def u(x):
-        return x**2
+        return GaussNewton.w(100 * x) / 100
 
     @staticmethod
     def der_u(x):
-        return 2 * x
+        return GaussNewton.der_w(100 * x)
 
     @property
     def sigma2(self):
@@ -145,7 +154,12 @@ class GaussNewton(SpectraXRD):
         y = self.intensity
         f = self.component_full.sum(axis = 1, keepdims = True)
         r = y - f
-        return (pinv(self.Jacobian_f) @ r) # or scipy.linalg.pinv
+        try:
+            evol = pinv(self.Jacobian_f) @ r # or scipy.linalg.pinv
+        except:
+            evol = full_like(r, 0)
+        finally:
+            return evol
 
 
     def fit(self, k = None, b = None, a = False, s = False, beta = False, gamma = False, sigma = False, alpha = 1):
