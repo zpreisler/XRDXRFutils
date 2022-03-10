@@ -335,7 +335,7 @@ class DataSXRF(Data):
             for _file in files:
                 xmso_filenames.append(os.path.join(path, _file))
         print(f"Reading SXRF data from {outdata_path}")
-        self.metedata["path"] = outdata_path
+        self.metadata["path"] = outdata_path
         self.spe_objs = [s for s in self.__read__(xmso_filenames) if s != None]
         
         return self
