@@ -66,6 +66,10 @@ class GaussNewton(SpectraXRD):
         return self.phase.get_theta(**kwargs)
 
 
+    def theta_range(self):
+        return super().theta_range().squeeze()
+
+
     def z(self):
         """
         Synthetic spectrum.
