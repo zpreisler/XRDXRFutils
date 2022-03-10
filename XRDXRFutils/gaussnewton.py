@@ -97,21 +97,21 @@ class GaussNewton(SpectraXRD):
         return self.w(self.g)
 
 
-    # @staticmethod
-    # def u(x):
-    #     return x**2
-
-    # @staticmethod
-    # def der_u(x):
-    #     return 2 * x
-
     @staticmethod
     def u(x):
-        return GaussNewton.w(100 * x) / 100
+        return x**2
 
     @staticmethod
     def der_u(x):
-        return GaussNewton.der_w(100 * x)
+        return 2 * x
+
+    # @staticmethod
+    # def u(x):
+    #     return GaussNewton.w(100 * x) / 100
+
+    # @staticmethod
+    # def der_u(x):
+    #     return GaussNewton.der_w(100 * x)
 
     @property
     def sigma2(self):
