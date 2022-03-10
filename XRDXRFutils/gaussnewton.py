@@ -1,6 +1,6 @@
 from .spectra import SpectraXRD
 
-from numpy import exp, full_like, log, pi, array, ones, zeros, full, trapz, minimum, fabs, sign, sqrt, square, average, clip, newaxis, concatenate
+from numpy import exp, log, pi, array, ones, zeros, full, full_like, trapz, minimum, std, fabs, sign, sqrt, square, average, clip, newaxis, concatenate, append
 from numpy.linalg import pinv, inv
 
 from scipy.optimize import newton
@@ -221,6 +221,17 @@ class GaussNewton(SpectraXRD):
             self.g += d_params[n_opt : (n_opt + n_gamma)].T
         if sigma:
             self.tau += d_params[(n_opt + n_gamma) :].T
+
+
+    def fit_cycle(self, max_steps = 16, error_tolerance = 10**(-4), k = None, b = None, a = False, s = False, beta = False, gamma = False, sigma = False, alpha = 1):
+        fit_errors = array([])
+        for i in range(max_steps):
+            self.fit(k, b, a, s, beta, gamma, sigma, alpha)
+            if (error_tolerance is not None):
+                fit_errors = append(fit_errors, self.fit_error())
+                if (i >= 3):
+                    if (std(fit_errors[-4:]) < error_tolerance):
+                        break
 
 
     """
