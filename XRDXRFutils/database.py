@@ -43,12 +43,13 @@ class Phase(dict):
             f &= (theta < max_theta) 
         if min_intensity:
             f &= (intensity > min_intensity)
-        theta, intensity = theta[f], intensity[f]
+        self.theta, self.intensity = theta[f], intensity[f]
 
-        if first_n_peaks is not None:
-            intensity, theta = array(sorted(zip(intensity, theta), reverse = True)).T[:, 0:first_n_peaks]
+        if (self.theta.shape[0] > 0):
+            if (first_n_peaks is not None):
+                self.intensity, self.theta = array(sorted(zip(self.intensity, self.theta), reverse = True)).T[:, 0:first_n_peaks]
+                self.theta, self.intensity = array(sorted(zip(self.theta, self.intensity))).T
 
-        self.theta, self.intensity = array(sorted(zip(theta, intensity))).T
         return self.theta, self.intensity
 
     def plot(self, colors='k', linestyles='dashed', label=None, **kwargs):
