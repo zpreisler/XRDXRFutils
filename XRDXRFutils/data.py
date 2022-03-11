@@ -1,6 +1,6 @@
 from scipy.optimize import curve_fit
 from numpy import pi, arctan
-from numpy import loadtxt, frombuffer, array, asarray, linspace, arange, trapz, flip, stack
+from numpy import loadtxt, frombuffer, array, asarray, linspace, arange, trapz, flip, stack, where
 from scipy.interpolate import interp1d
 from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
 
@@ -350,6 +350,18 @@ class DataXRF(Data):
         self.labels = stack(x,axis=2)
 
         return self
+
+    def select_labels(self,labels):
+        
+        select = []
+        x = self.metadata['labels']
+
+        for label in labels:
+            w = list(where(x == label)[0])
+            if w:
+                select += w
+
+        return x[select],self.labels[...,select]
 
 class DataXRD(Data):
     """
