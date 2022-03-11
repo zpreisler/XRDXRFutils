@@ -11,7 +11,7 @@ class GaussNewton(SpectraXRD):
     """
     Class to calculate Gauss-Newton minimization of the synthetic and the experimental spectrum.
     """
-    def __init__(self, phase, spectrum, min_theta = 0, max_theta = 53, min_intensity = 0.05):
+    def __init__(self, phase, spectrum, min_theta = 0, max_theta = 53, min_intensity = 0.05, first_n_peaks = None):
         """
         phase: tabulated phase; Phase or PhaseList class
         spectrum: experimental spectrum; Spectra class
@@ -40,7 +40,7 @@ class GaussNewton(SpectraXRD):
         tabulated theta: mu
         tabulated intensity: I
         """
-        self.mu, self.I = self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity)
+        self.mu, self.I = self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity, first_n_peaks = None)
         self.n_peaks = self.mu.shape[0]
         # Variables along the diffraction lines
         self.mu = self.mu[newaxis, :]

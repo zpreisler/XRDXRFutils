@@ -15,7 +15,7 @@ class Phase(dict):
     def __len__(self):
         return len(self['_pd_peak_intensity'][0])
 
-    def get_theta(self, l=[1.541], scale=[1.0], min_theta=None, max_theta=None, min_intensity=None):
+    def get_theta(self, l=[1.541], scale=[1.0], min_theta=None, max_theta=None, min_intensity=None, first_n_peaks = None):
 
         #FIXME
         #Recalculate when conditions are not the same
@@ -23,20 +23,18 @@ class Phase(dict):
         # if hasattr(self,'theta') and hasattr(self,'intensity'):
         #     return self.theta,self.intensity
 
-        d,i = self['_pd_peak_intensity']
+        d, i = self['_pd_peak_intensity']
 
         theta = []
         intensity = []
 
-        for _l,s in zip(l,scale):
+        for _l, s in zip(l,scale):
             g = _l / (2.0 * d)
             theta += [360.0 * arcsin(g) / pi]
             intensity += [i * s]
 
         theta = concatenate(theta)
         intensity = concatenate(intensity) / 1000.0
-        
-        theta,intensity = array(sorted(zip(theta,intensity))).T
 
         f = array([True]*len(theta))
         if min_theta:
@@ -44,12 +42,14 @@ class Phase(dict):
         if max_theta:
             f &= (theta < max_theta) 
         if min_intensity:
-            f &= intensity > min_intensity
+            f &= (intensity > min_intensity)
+        theta, intensity = theta[f], intensity[f]
 
-        self.theta = theta[f]
-        self.intensity = intensity[f]
+        if first_n_peaks is not None:
+            intensity, theta = array(sorted(zip(intensity, theta), reverse = True)).T[:, 0:first_n_peaks]
 
-        return self.theta,self.intensity
+        self.theta, self.intensity = array(sorted(zip(theta, intensity))).T
+        return self.theta, self.intensity
 
     def plot(self, colors='k', linestyles='dashed', label=None, **kwargs):
 
