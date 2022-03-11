@@ -1,8 +1,10 @@
 from scipy.optimize import curve_fit
 from numpy import pi, arctan
-from numpy import loadtxt, frombuffer, array, asarray, linspace, arange, trapz, flip
+from numpy import loadtxt, frombuffer, array, asarray, linspace, arange, trapz, flip, stack
 from scipy.interpolate import interp1d
 from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
+
+from PIL import Image
 
 from multiprocessing import Pool
 
@@ -141,8 +143,12 @@ class Data():
             for k,v in self.metadata.items():
                 f.attrs[k] = v
 
-            dataset = f.create_dataset('data',data = self.data)
-            dataset = f.create_dataset('x',data = self.x)
+            if hasattr(self,'data'):
+                dataset = f.create_dataset('data',data = self.data)
+                dataset = f.create_dataset('x',data = self.x)
+
+            if hasattr(self,'labels'):
+                dataset = f.create_dataset('labels',data = self.labels)
             
             if hasattr(self,'calibration'):
                 calibration = f.create_group('calibration')
@@ -159,11 +165,12 @@ class Data():
         print('Loading:',filename)
         with h5py.File(filename,'r') as f:
 
-            x = f['data']
-            self.data = x[:]
+            if 'data' in f:
+                self.data = f.get('data')[()]
+                self._x = f.get('x')[()]
 
-            if 'x' in f:
-                self._x = f['x'][:]
+            if 'labels' in f:
+                self.labels = f.get('labels')[()]
 
             for k,v in f.attrs.items():
                 self.metadata[k] = v
@@ -322,6 +329,27 @@ class DataXRF(Data):
         x = [read_edf(filename,n,shape) for filename in filenames]
 
         self.data = asarray(x)[::-1]
+
+    def read_tiff(self,path = None):
+        
+        filenames = glob(path + '*.tif*')
+
+        labels = []
+        for s in filenames:
+            s = s[s.rfind('/') + 1:]
+            s = s[:s.rfind('.')]
+            labels += [s]
+
+        self.metadata['labels'] = labels
+
+        x = []
+        for filename in filenames:
+            img = Image.open(filename)
+            x += [img]
+
+        self.labels = stack(x,axis=2)
+
+        return self
 
 class DataXRD(Data):
     """
