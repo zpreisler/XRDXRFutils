@@ -275,20 +275,19 @@ class GaussNewton(SpectraXRD):
 
 
     def overlap_ratio(self):
-        integral_intersection = clip(self.z(), 0, self.intensity.squeeze()).sum()
-        integral_data = self.intensity.sum()
-        return (integral_intersection / integral_data)
+        integral_intersection = self.overlap().sum()
+        integral_spectrum = clip(self.intensity, 0, None).sum()
+        return (integral_intersection / integral_spectrum)
+
+
+    def fit_penalty(self):
+        gamma = self.gamma.copy()
+        gamma_adjusted = gamma**(-sign(gamma - 1))
+        theta_min, theta_max = self.theta_range()
+        mask = ((self.mu >= theta_min) & (self.mu <= theta_max))
+        #return (self.I[mask] * gamma_adjusted[mask]).sum() / self.I[mask].sum()
+        return exp( (self.I[mask] * log(gamma_adjusted[mask])).sum() / self.I[mask].sum() )
 
 
     def component_ratio(self):
-        gamma = self.gamma[:]
-        theta = self.theta[:]
-        gamma_adjusted = gamma**(-sign(gamma - 1))
-        mask = ((self.mu >= theta.min()) & (self.mu <= theta.max()))
-        
-        #penalty = (self.I[mask] * gamma_adjusted[mask]).sum() / self.I[mask].sum()
-        penalty = exp( (self.I[mask] * log(gamma_adjusted[mask])).sum() / self.I[mask].sum() )
-        
-        integral_intersection = clip(self.z(), 0, self.intensity.squeeze()).sum()
-        integral_data = self.intensity.sum()
-        return penalty * (integral_intersection / integral_data)
+        return self.overlap_ratio() * self.fit_penalty()
