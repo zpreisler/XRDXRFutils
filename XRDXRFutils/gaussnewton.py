@@ -40,7 +40,7 @@ class GaussNewton(SpectraXRD):
         tabulated theta: mu
         tabulated intensity: I
         """
-        self.mu, self.I = self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity, first_n_peaks = None)
+        self.mu, self.I = self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity, first_n_peaks = first_n_peaks)
         self.n_peaks = self.mu.shape[0]
         # Variables along the diffraction lines
         self.mu = self.mu[newaxis, :]
