@@ -23,6 +23,7 @@ class GaussNewton(SpectraXRD):
         self.min_theta = min_theta
         self.max_theta = max_theta
         self.min_intensity = min_intensity
+        self.first_n_peaks = first_n_peaks
 
         self.label = phase.label
 
