@@ -11,7 +11,7 @@ class GaussNewton(SpectraXRD):
     """
     Class to calculate Gauss-Newton minimization of the synthetic and the experimental spectrum.
     """
-    def __init__(self, phase, spectrum, min_theta = 0, max_theta = 53, min_intensity = 0.05):
+    def __init__(self, phase, spectrum, min_theta = 0, max_theta = 53, min_intensity = 0.05, first_n_peaks = None):
         """
         phase: tabulated phase; Phase or PhaseList class
         spectrum: experimental spectrum; Spectra class
@@ -40,7 +40,7 @@ class GaussNewton(SpectraXRD):
         tabulated theta: mu
         tabulated intensity: I
         """
-        self.mu, self.I = self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity)
+        self.mu, self.I = self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity, first_n_peaks = None)
         self.n_peaks = self.mu.shape[0]
         # Variables along the diffraction lines
         self.mu = self.mu[newaxis, :]
@@ -275,20 +275,19 @@ class GaussNewton(SpectraXRD):
 
 
     def overlap_ratio(self):
-        integral_intersection = clip(self.z(), 0, self.intensity.squeeze()).sum()
-        integral_data = self.intensity.sum()
-        return (integral_intersection / integral_data)
+        integral_intersection = self.overlap().sum()
+        integral_spectrum = clip(self.intensity, 0, None).sum()
+        return (integral_intersection / integral_spectrum)
+
+
+    def fit_penalty(self):
+        gamma = self.gamma.copy()
+        gamma_adjusted = gamma**(-sign(gamma - 1))
+        theta_min, theta_max = self.theta_range()
+        mask = ((self.mu >= theta_min) & (self.mu <= theta_max))
+        #return (self.I[mask] * gamma_adjusted[mask]).sum() / self.I[mask].sum()
+        return exp( (self.I[mask] * log(gamma_adjusted[mask])).sum() / self.I[mask].sum() )
 
 
     def component_ratio(self):
-        gamma = self.gamma[:]
-        theta = self.theta[:]
-        gamma_adjusted = gamma**(-sign(gamma - 1))
-        mask = ((self.mu >= theta.min()) & (self.mu <= theta.max()))
-        
-        #penalty = (self.I[mask] * gamma_adjusted[mask]).sum() / self.I[mask].sum()
-        penalty = exp( (self.I[mask] * log(gamma_adjusted[mask])).sum() / self.I[mask].sum() )
-        
-        integral_intersection = clip(self.z(), 0, self.intensity.squeeze()).sum()
-        integral_data = self.intensity.sum()
-        return penalty * (integral_intersection / integral_data)
+        return self.overlap_ratio() * self.fit_penalty()
