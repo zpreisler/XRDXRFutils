@@ -65,7 +65,8 @@ class Container():
     
     def resample_y(self):
         
-        f = interp1d(self.x,self.y,fill_value='extrapolate')
+        #f = interp1d(self.x,self.y,fill_value='extrapolate')
+        f = interp1d(self.x,self.y,fill_value = 0.0, bounds_error=False)
         new_y = f(self.new_x)
 
         iy = []
@@ -149,6 +150,9 @@ class Data():
 
             if hasattr(self,'labels'):
                 dataset = f.create_dataset('labels',data = self.labels)
+
+            if hasattr(self,'weights'):
+                dataset = f.create_dataset('weights',data = self.weights)
             
             if hasattr(self,'calibration'):
                 calibration = f.create_group('calibration')
@@ -171,6 +175,9 @@ class Data():
 
             if 'labels' in f:
                 self.labels = f.get('labels')[()]
+
+            if 'weights' in f:
+                self.weights = f.get('weights')[()]
 
             for k,v in f.attrs.items():
                 self.metadata[k] = v
@@ -328,7 +335,8 @@ class DataXRF(Data):
 
         x = [read_edf(filename,n,shape) for filename in filenames]
 
-        self.data = asarray(x)[::-1]
+        #self.data = asarray(x)[::-1]
+        self.data = asarray(x)
 
     def read_tiff(self,path = None):
         
@@ -361,7 +369,10 @@ class DataXRF(Data):
             if w:
                 select += w
 
-        return x[select],self.labels[...,select]
+        self.metadata['labels'] = asarray(labels,dtype=object)
+        self.labels = self.labels[...,select]
+
+        return self
 
 class DataXRD(Data):
     """
@@ -429,7 +440,8 @@ def resample(x,y,nbins=1024,bounds=(0,30)):
     x = x[s]
     y = y[s]
 
-    f = interp1d(x,y,fill_value='extrapolate')
+    #f = interp1d(x,y,fill_value='extrapolate')
+    f = interp1d(x,y,fill_value = 0.0, bounds_error=False)
     
     new_x = linspace(*bounds,nbins + 1)
     new_y = f(new_x)
