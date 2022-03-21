@@ -18,22 +18,20 @@ class Calibration():
     Calibration class
     """
     def __init__(self,parent):
-
         self.metadata = {}
         self.parent = parent
-
         self.fce = parent.fce_calibration
 
-    def from_file(self,filename):
-
-        self.metadata['filename'] = filename
-
-        self.x,self.y = loadtxt(filename,unpack = True, dtype = 'float')
-        self.opt,opt_var = curve_fit(self.fce,self.x,self.y)
-
+    def from_parameters(self, opt):
+        self.opt = array(opt, dtype = 'float')
         self.parent.opt = self.opt.copy()
-
         return self
+
+    def from_file(self, filename):
+        self.metadata['filename'] = filename
+        self.x, self.y = loadtxt(filename, unpack = True, dtype = 'float')
+        opt, opt_var = curve_fit(self.fce, self.x, self.y)
+        return self.from_parameters(opt)
 
     def plot(self):
         """
@@ -119,7 +117,6 @@ class Data():
         returns: self
         """
         self.calibration = Calibration(self).from_file(filename)
-
         return self
 
     @property

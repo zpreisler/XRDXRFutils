@@ -55,7 +55,13 @@ class SpectraXRD(Spectra):
 
         return self
 
-    def calibrate_from_file(self,filename):
+
+    def calibrate_from_parameters(self, opt):
+        self.calibration.from_parameters(opt)
+
+        return self
+
+    def calibrate_from_file(self, filename):
         """
         Read data from file and fit the calibration curve
 
@@ -64,7 +70,6 @@ class SpectraXRD(Spectra):
         returns: self
         """
         self.calibration.from_file(filename)
-        self.opt = self.calibration.opt
 
         return self
 
@@ -75,6 +80,7 @@ class SpectraXRD(Spectra):
             x is a channel
         """
         return (arctan((x + a) / s)) * 180 / pi + beta
+
 
     @property
     def theta(self):
