@@ -272,14 +272,13 @@ class GaussNewton(SpectraXRD):
     def area_0(self):
         return trapz(self.z0())
 
+    def area_min_0_fit(self):
+        return trapz(minimum(self.z(), self.z0()))
 
     def overlap(self):
         m =  minimum(self.z(), self.intensity.squeeze())
         m[m < 0] = 0
         return m
-
-    def overlap_0(self):
-        return trapz(minimum(self.z(), self.z0()))
 
     def overlap_area(self):
         return trapz(self.overlap())
