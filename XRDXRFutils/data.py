@@ -99,7 +99,8 @@ class Data():
     name = 'data'
 
     def __init__(self):
-        self.calibration = Calibration(self)
+
+        #self.calibration = Calibration(self)
         self.metadata = {}
 
     @staticmethod
@@ -388,6 +389,7 @@ class DataXRD(Data):
 
     def __init__(self):
         super().__init__()
+        self.calibration = Calibration(self)
 
     @staticmethod
     def fce_calibration(x,a,s,beta):
