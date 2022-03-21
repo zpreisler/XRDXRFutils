@@ -37,28 +37,24 @@ class SpectraXRD(Spectra):
         self.counts = x
         self.channel = arange(self.counts.__len__(),dtype='int')
         self.intensity = self.relative_intensity()
-
         return self
 
     def from_file(self,filename):
         self.counts = loadtxt(filename,unpack=True,dtype='int',usecols=1)
         self.channel = arange(self.counts.__len__(),dtype='int')
         self.intensity = self.relative_intensity()
-
         return self
 
     def from_Data(self,data,x=0,y=0):
         self.counts = data.data[x,y]
         self.channel = arange(self.counts.__len__(),dtype='int')
         self.intensity = self.relative_intensity()
-        self.opt = data.calibration.opt.copy()
-
+        self.calibration.from_parameters(data.calibration.opt)
         return self
 
 
     def calibrate_from_parameters(self, opt):
         self.calibration.from_parameters(opt)
-
         return self
 
     def calibrate_from_file(self, filename):
@@ -70,7 +66,6 @@ class SpectraXRD(Spectra):
         returns: self
         """
         self.calibration.from_file(filename)
-
         return self
 
     @staticmethod

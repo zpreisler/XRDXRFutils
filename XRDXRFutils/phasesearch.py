@@ -1,5 +1,8 @@
+from .spectra import SpectraXRD
 from .gaussnewton import GaussNewton
 from numpy import array
+from multiprocessing import Pool
+from joblib import Parallel, delayed
 
 
 class PhaseSearch(list):
@@ -14,11 +17,24 @@ class PhaseSearch(list):
         for g in self:
             g.opt = self.opt
 
+    def loss(self):
+        return array([g.loss() for g in self])
+
+    def fit_error(self):
+        return array([g.fit_error() for g in self])
+
+    def area_fit(self):
+        return array([g.area_fit() for g in self])
+
+    def area_0(self):
+        return array([g.area_0() for g in self])
+
+    def area_min_0_fit(self):
+        return array([g.area_min_0_fit() for g in self])
+
     def overlap_area(self):
         return array([g.overlap_area() for g in self])
 
-    def loss(self):
-        return array([g.loss() for g in self])
 
     def select(self):
         self.idx = self.overlap_area().argmax()
@@ -29,10 +45,10 @@ class PhaseSearch(list):
         for fit_phase in self:
             fit_phase.fit_cycle(**kwargs)
 
-    def search(self, alpha = 1.0):
-        self.fit_cycle(max_steps = 4, gamma = True, alpha = alpha)
-        self.select().fit_cycle(max_steps = 4, a = True, s = True, gamma = True, alpha = alpha)
-        self.fit_cycle(max_steps = 4, gamma = True, alpha = alpha)
+    def search(self, max_steps = 4, alpha = 1):
+        self.fit_cycle(max_steps = max_steps, gamma = True, alpha = alpha)
+        self.select().fit_cycle(max_steps = max_steps, a = True, s = True, gamma = True, alpha = alpha)
+        self.fit_cycle(max_steps = max_steps, gamma = True, alpha = alpha)
         return self
 
 
@@ -40,33 +56,35 @@ class PhaseMap(list):
     """
     Class to process images
     """      
-    def from_data(self,data,phases):
-    
-        phases.get_theta(max_theta=53,min_intensity=0.05)
-        arr = data.data.reshape(-1,1280)
-
-        spectras = self.gen_spectras(arr)        
-        for spectra in spectras:
-            spectra.opt = [-1186.6, 1960.3, 51]
-        
-        self += [PhaseSearch(phases,spectra) for spectra in spectras]
-        
+    def from_data(self, data, phases):
+        phases.get_theta(max_theta = 53, min_intensity = 0.05)
+        arr = data.data.reshape(-1, 1280)
+        spectra = self.gen_spectra(arr)
+        for spectrum in spectra:
+            spectrum.calibrate_from_parameters(data.opt)
+        self += [PhaseSearch(phases, spectrum) for spectrum in spectra]
         return self
-    
+
     @staticmethod
-    def f_spectra(x):
+    def f_spectrum(x):
         return SpectraXRD().from_array(x)
 
-    def gen_spectras(self,a):
+    def gen_spectra(self, a):
         with Pool() as p:
-            spectras = p.map(self.f_spectra,a)
-        return spectras
-    
+            spectra = p.map(self.f_spectrum, a)
+        return spectra
+
     @staticmethod
     def f_search(x):
         return x.search()
-    
+
     def search(self):
         with Pool() as p:
-            result = p.map(self.f_search,self)
+            result = p.map(self.f_search, self)
+        return PhaseMap(result)
+
+    def search_2(self):
+        result = Parallel(n_jobs = -1)(
+            delayed(self.f_search)(p) for p in self
+        )
         return PhaseMap(result)
