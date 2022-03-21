@@ -99,6 +99,7 @@ class Data():
     name = 'data'
 
     def __init__(self):
+        self.calibration = Calibration(self)
         self.metadata = {}
 
     @staticmethod
@@ -108,7 +109,11 @@ class Data():
         """
         return a * x + b
 
-    def calibrate_from_file(self,filename):
+    def calibrate_from_parameters(self, opt):
+        self.calibration.from_parameters(opt)
+        return self
+
+    def calibrate_from_file(self, filename):
         """
         Read data from file and fit the calibration curve
 
@@ -116,7 +121,7 @@ class Data():
 
         returns: self
         """
-        self.calibration = Calibration(self).from_file(filename)
+        self.calibration.from_file(filename)
         return self
 
     @property
