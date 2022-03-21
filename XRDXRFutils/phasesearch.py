@@ -1,54 +1,41 @@
 from .gaussnewton import GaussNewton
 from numpy import array
 
+
 class PhaseSearch(list):
     """
-    Class to perform phase search.
+    Class to perform phase search. Multiple phases vs one experimental spectrum.
     """
-    def __init__(self,phases,spectra):
-        super().__init__([GaussNewton(phase,spectra) for phase in phases])
-        
-        self.spectra = spectra
-        self.intensity = spectra.intensity
-        
+    def __init__(self, phases, spectrum):
+        super().__init__([GaussNewton(phase, spectrum) for phase in phases])
+        self.spectrum = spectrum
+        self.intensity = spectrum.intensity
         self.opt = self[0].opt
         for g in self:
             g.opt = self.opt
-        
-    def minimize_gamma(self,n=4,alpha=1.0):
-        for g in self:
-            for i in range(n):
-                g.fit(gamma = True, alpha = alpha)
-                
+
     def overlap_area(self):
         return array([g.overlap_area() for g in self])
-    
+
     def loss(self):
         return array([g.loss() for g in self])
-    
-    def select(self):
-        idx = self.overlap_area().argmax()
-        selected = self[idx]
-        
-        self.idx = idx
-        self.selected = selected
-        
-        return selected
-    
-    def theta_correction(self,n=4):
-        for i in range(n):
-            self.select().calibrate()
-            
-    def search(self,alpha=1.0):
-        
-        self.minimize_gamma(alpha=alpha)
 
-        self.select()
-        self.theta_correction()
-        self.minimize_gamma(alpha=alpha)
-        
+    def select(self):
+        self.idx = self.overlap_area().argmax()
+        self.selected = self[self.idx]
+        return self.selected
+
+    def fit_cycle(self, **kwargs):
+        for fit_phase in self:
+            fit_phase.fit_cycle(**kwargs)
+
+    def search(self, alpha = 1.0):
+        self.fit_cycle(max_steps = 4, gamma = True, alpha = alpha)
+        self.select().fit_cycle(max_steps = 4, a = True, s = True, gamma = True, alpha = alpha)
+        self.fit_cycle(max_steps = 4, gamma = True, alpha = alpha)
         return self
-    
+
+
 class PhaseMap(list):
     """
     Class to process images

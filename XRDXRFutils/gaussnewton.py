@@ -61,6 +61,16 @@ class GaussNewton(SpectraXRD):
 
 
     """
+    Plot functions
+    """
+    def plot_spectra(self, *args, **kwargs):
+        super().plot(*args, **kwargs)
+
+    def plot(self, *args, **kwargs):
+        plot(self.theta, self.z(), *args, **kwargs)
+
+
+    """
     Utility functions
     """
     def get_theta(self,**kwargs):
@@ -228,10 +238,10 @@ class GaussNewton(SpectraXRD):
             self.tau += d_params[(n_opt + n_gamma) :].T
 
 
-    def fit_cycle(self, max_steps = 16, error_tolerance = 10**(-4), k = None, b = None, a = False, s = False, beta = False, gamma = False, sigma = False, alpha = 1):
+    def fit_cycle(self, max_steps = 16, error_tolerance = 10**(-4), **kwargs):
         fit_errors = array([])
         for i in range(max_steps):
-            self.fit(k, b, a, s, beta, gamma, sigma, alpha)
+            self.fit(**kwargs)
             if (error_tolerance is not None):
                 fit_errors = append(fit_errors, self.fit_error())
                 if (i >= 3):
