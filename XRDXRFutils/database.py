@@ -69,11 +69,10 @@ class PhaseList(list):
 
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
-
-        self.label = None
-
+        self.label = '[' + ', '.join([elem.label for elem in self]) + ']'
         if 'label' in kwargs:
             self.label = kwargs.pop('label')
+
 
     def get_theta(self,**kwargs):
 
@@ -93,6 +92,7 @@ class PhaseList(list):
 
         return self.theta,self.intensity
 
+
     def plot(self,cmap='winter',**kwargs):
 
         c = cm.get_cmap(cmap)
@@ -102,9 +102,11 @@ class PhaseList(list):
         for i,phase in enumerate(self):
             phase.plot(colors=colors[i],**kwargs)
 
+
     def random(self):
         idx = randint(self.__len__())
         return self[idx]
+
 
 class DatabaseXRD(dict):
 
@@ -146,7 +148,7 @@ class DatabaseXRD(dict):
             if key in self:
                 self[key] += PhaseList([phase])
             else:
-                self[key] = PhaseList([phase],label = i)
+                self[key] = PhaseList([phase], label = i)
                 i += 1
 
         return self
