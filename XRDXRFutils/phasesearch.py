@@ -2,6 +2,7 @@ from .spectra import SpectraXRD
 from .gaussnewton import GaussNewton
 from numpy import array
 from multiprocessing import Pool
+from joblib import Parallel, delayed
 
 
 class PhaseSearch(list):
@@ -80,4 +81,10 @@ class PhaseMap(list):
     def search(self):
         with Pool() as p:
             result = p.map(self.f_search, self)
+        return PhaseMap(result)
+
+    def search_2(self):
+        result = Parallel(n_jobs = -1)(
+            delayed(self.f_search)(p) for p in self
+        )
         return PhaseMap(result)
