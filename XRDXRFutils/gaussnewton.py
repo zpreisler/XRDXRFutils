@@ -297,6 +297,10 @@ class GaussNewton(SpectraXRD):
         # mask = ((self.mu >= theta_min) & (self.mu <= theta_max))
         # #return (self.I[mask] * gamma_adjusted[mask]).sum() / self.I[mask].sum()
         # return exp( (self.I[mask] * log(gamma_adjusted[mask])).sum() / self.I[mask].sum() )
+
+        # self.precalculations()
+        # z0 = (self.I * self.component_core).sum(axis = 1)
+        # z = self.component_full.sum(axis = 1)
         z0 = self.z0()
         z = self.z()
         rescaling = z / z0
