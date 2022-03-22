@@ -9,8 +9,8 @@ class PhaseSearch(list):
     """
     Class to perform phase search. Multiple phases vs one experimental spectrum.
     """
-    def __init__(self, phases, spectrum):
-        super().__init__([GaussNewton(phase, spectrum) for phase in phases])
+    def __init__(self, phases, spectrum, **kwargs):
+        super().__init__([GaussNewton(phase, spectrum, **kwargs) for phase in phases])
         self.spectrum = spectrum
         self.intensity = spectrum.intensity
         self.opt = self[0].opt
@@ -88,3 +88,20 @@ class PhaseMap(list):
             delayed(self.f_search)(p) for p in self
         )
         return PhaseMap(result)
+
+
+class PhaseMap_2():
+    def __init__(self, data, phases):
+        self.phases = phases
+        self.phases.get_theta(max_theta = 53, min_intensity = 0.05)
+        self.opt_initial = data.opt
+        arr_data_reshaped = data.data.reshape(-1, 1280)
+        with Pool() as p:
+            self.list_phase_search = p.map(self.gen_phase_search, arr_data_reshaped)
+
+    def gen_phase_search(self, x):
+        return PhaseSearch(
+            self.phases,
+            SpectraXRD().from_array(x).calibrate_from_parameters(self.opt_initial)
+        )
+
