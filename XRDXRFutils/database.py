@@ -20,8 +20,8 @@ class Phase(dict):
         #FIXME
         #Recalculate when conditions are not the same
 
-        # if hasattr(self,'theta') and hasattr(self,'intensity'):
-        #     return self.theta,self.intensity
+        if hasattr(self,'theta') and hasattr(self,'intensity'):
+            return self.theta,self.intensity
 
         d, i = self['_pd_peak_intensity']
 
