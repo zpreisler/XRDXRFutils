@@ -1,6 +1,6 @@
 from .spectra import SpectraXRD
 
-from numpy import exp, log, pi, array, ones, zeros, full, full_like, trapz, minimum, std, fabs, sign, sqrt, square, average, clip, newaxis, concatenate, append
+from numpy import exp, log, pi, array, ones, zeros, full, full_like, trapz, minimum, maximum, std, fabs, sign, sqrt, square, average, clip, newaxis, concatenate, append
 from numpy.linalg import pinv, inv
 
 from scipy.optimize import newton
@@ -291,12 +291,18 @@ class GaussNewton(SpectraXRD):
 
 
     def fit_penalty(self):
-        gamma = self.gamma.copy()
-        gamma_adjusted = gamma**(-sign(gamma - 1))
-        theta_min, theta_max = self.theta_range()
-        mask = ((self.mu >= theta_min) & (self.mu <= theta_max))
-        #return (self.I[mask] * gamma_adjusted[mask]).sum() / self.I[mask].sum()
-        return exp( (self.I[mask] * log(gamma_adjusted[mask])).sum() / self.I[mask].sum() )
+        # gamma = self.gamma.copy()
+        # gamma_adjusted = gamma**(-sign(gamma - 1))
+        # theta_min, theta_max = self.theta_range()
+        # mask = ((self.mu >= theta_min) & (self.mu <= theta_max))
+        # #return (self.I[mask] * gamma_adjusted[mask]).sum() / self.I[mask].sum()
+        # return exp( (self.I[mask] * log(gamma_adjusted[mask])).sum() / self.I[mask].sum() )
+        z0 = self.z0()
+        z = self.z()
+        rescaling = z / z0
+        rescaling_adjusted = rescaling**(-sign(rescaling - 1))
+        #return (z0 * rescaling_adjusted).sum() / z0.sum()
+        return exp( (z0 * log(rescaling_adjusted)).sum() / z0.sum() )
 
 
     def component_ratio(self):
