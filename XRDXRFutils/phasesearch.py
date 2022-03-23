@@ -1,13 +1,13 @@
 from .spectra import SpectraXRD
 from .gaussnewton import GaussNewton
-from numpy import array
-from multiprocessing import Pool
+from numpy import array, trapz
+#from multiprocessing import Pool
 from joblib import Parallel, delayed
 
 
 class PhaseSearch(list):
     """
-    Class to perform phase search. Multiple phases vs one experimental spectrum.
+    Class to perform phase search. One experimental spectrum vs multiple phases, all with the same calibration.
     """
     def __init__(self, phases, spectrum, **kwargs):
         super().__init__([GaussNewton(phase, spectrum, **kwargs) for phase in phases])
@@ -52,56 +52,48 @@ class PhaseSearch(list):
         return self
 
 
-class PhaseMap(list):
-    """
-    Class to process images
-    """      
-    def from_data(self, data, phases):
-        phases.get_theta(max_theta = 53, min_intensity = 0.05)
-        arr = data.data.reshape(-1, 1280)
-        spectra = self.gen_spectra(arr)
-        for spectrum in spectra:
-            spectrum.calibrate_from_parameters(data.opt)
-        self += [PhaseSearch(phases, spectrum) for spectrum in spectra]
-        return self
-
-    @staticmethod
-    def f_spectrum(x):
-        return SpectraXRD().from_array(x)
-
-    def gen_spectra(self, a):
-        with Pool() as p:
-            spectra = p.map(self.f_spectrum, a)
-        return spectra
-
-    @staticmethod
-    def f_search(x):
-        return x.search()
-
-    def search(self):
-        with Pool() as p:
-            result = p.map(self.f_search, self)
-        return PhaseMap(result)
-
-    def search_2(self):
-        result = Parallel(n_jobs = -1)(
-            delayed(self.f_search)(p) for p in self
-        )
-        return PhaseMap(result)
-
-
-class PhaseMap_2():
-    def __init__(self, data, phases):
+class PhaseMap():
+    def __init__(self, data, phases, **kwargs):
+        self.shape_data = data.shape
         self.phases = phases
-        self.phases.get_theta(max_theta = 53, min_intensity = 0.05)
+        self.phases.get_theta(**kwargs)
         self.opt_initial = data.opt
-        arr_data_reshaped = data.data.reshape(-1, 1280)
-        with Pool() as p:
-            self.list_phase_search = p.map(self.gen_phase_search, arr_data_reshaped)
+        arr_data_reshaped = data.data.reshape(-1, self.shape_data[2])
+        self.list_phase_search = Parallel(n_jobs = -1)(
+            delayed(self.gen_phase_search)(x) for x in arr_data_reshaped
+        )
 
-    def gen_phase_search(self, x):
+    def gen_phase_search(self, x, **kwargs):
         return PhaseSearch(
             self.phases,
-            SpectraXRD().from_array(x).calibrate_from_parameters(self.opt_initial)
+            SpectraXRD().from_array(x).calibrate_from_parameters(self.opt_initial),
+            **kwargs
         )
 
+    def search(self):
+        self.list_phase_search = Parallel(n_jobs = -1)(
+            delayed(ps.search)() for ps in self.list_phase_search
+        )
+        return self
+
+
+    def map_best_index(self):
+        return array([ps.idx for ps in self.list_phase_search]).reshape(self.shape_data[0:2])
+
+    def map_intensity(self):
+        return array([trapz(ps.intensity) for ps in self.list_phase_search]).reshape(self.shape_data[0:2])
+
+    def loss(self):
+        return array([ps.loss() for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
+
+    def fit_error(self):
+        return array([ps.fit_error() for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
+
+    def area_fit(self):
+        return array([ps.area_fit() for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
+
+    def area_0(self):
+        return array([ps.area_0() for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
+
+    def overlap_area(self):
+        return array([ps.overlap_area() for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
