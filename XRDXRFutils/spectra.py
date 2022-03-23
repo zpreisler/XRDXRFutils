@@ -30,7 +30,7 @@ class FluorescenceSXRF:
         self.atomic_number = atomic_number
         self.lines = lines
 
-class SpectraSXRF(Spectra):
+class SyntheticSpectraXRF(Spectra):
     def __init__(self, rl_atnum_list, skip_element = False):
         super().__init__()
         self.nbins = None

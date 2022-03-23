@@ -10,7 +10,7 @@ from multiprocessing import Pool
 from glob import glob
 import re
 import h5py
-from .spectra import SpectraSXRF
+from .spectra import SyntheticSpectraXRF
 
 class Calibration():
     """
@@ -302,7 +302,7 @@ class DataXRF(Data):
 
         self.data = asarray(x)[::-1]
 
-class DataSXRF(Data):
+class SyntheticDataXRF(Data):
     """
     Syntetic XRF data class
     """
@@ -377,7 +377,7 @@ class DataSXRF(Data):
         return self
     
     def process_file(self, filename):
-        sxrf = SpectraSXRF(self.rl_atnum_list, self.skip_element)
+        sxrf = SyntheticSpectraXRF(self.rl_atnum_list, self.skip_element)
         self.nbins and sxrf.set_nbins(self.nbins)
         s = sxrf.from_file(filename)
         return s
