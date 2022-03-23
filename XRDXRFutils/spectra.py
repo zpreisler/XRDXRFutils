@@ -32,12 +32,6 @@ class SpectraXRF(Spectra):
     def __init__(self):
         super().__init__()
 
-class FluorescenceSXRF:
-    def __init__(self, symbol, atomic_number, lines ):
-        self.symbol = symbol
-        self.atomic_number = atomic_number
-        self.lines = lines
-
 class SyntheticSpectraXRF(Spectra):
     def __init__(self, rl_atnum_list, skip_element = False):
         super().__init__()
@@ -89,6 +83,13 @@ class SyntheticSpectraXRF(Spectra):
     
     @staticmethod
     def get_fluorescence_lines(xml_data, time_correction = None):
+
+        class Container:
+            def __init__(self, symbol, atomic_number, lines ):
+                self.symbol = symbol
+                self.atomic_number = atomic_number
+                self.lines = lines
+
         """Generator"""
         flc = xml_data.findall(".//fluorescence_line_counts")
         for element in flc:
@@ -104,7 +105,7 @@ class SyntheticSpectraXRF(Spectra):
                 else:
                     lines["others"] += float(fl.attrib["total_counts"]) * time_correction if time_correction else float(fl.attrib["total_counts"])
                     
-            yield FluorescenceSXRF(
+            yield Container(
                 symbol = element.attrib["symbol"],
                 atomic_number = element.attrib["atomic_number"],
                 lines = lines
