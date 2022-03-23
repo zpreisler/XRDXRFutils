@@ -312,9 +312,15 @@ class DataSXRF(Data):
     """
     name = 'sxrf'
     
-    def __init__(self):
+    def __init__(self, rl_atnum_list, skip_element = False):
         super().__init__()
         self.nbins = None
+        for i,item in enumerate(rl_atnum_list):
+            if not isinstance(item, int):
+                raise TypeError(f'{item} at index {i} is not integer.\nIntegers are expected for Atomic Numbers')
+        self.rl_atnum_list = rl_atnum_list
+        self.skip_element = skip_element
+        self.metadata["rl_atnum_list"] = self.rl_atnum_list
     
     def __len__(self):
         if hasattr(self, 'spe_objs'):
@@ -332,6 +338,7 @@ class DataSXRF(Data):
         if not os.path.isdir(outdata_path):
             raise FileNotFoundError(f"No such file or directory: {outdata_path}")
         for path, dirs, files in os.walk(outdata_path):
+            # to do: use glob to select xmso files
             for _file in files:
                 xmso_filenames.append(os.path.join(path, _file))
         print(f"Reading SXRF data from {outdata_path}")
@@ -363,9 +370,8 @@ class DataSXRF(Data):
         
         return self
     
-    #@staticmethod
     def process_file(self, filename):
-        sxrf = SpectraSXRF()
+        sxrf = SpectraSXRF(self.rl_atnum_list, self.skip_element)
         self.nbins and sxrf.set_nbins(self.nbins)
         s = sxrf.from_file(filename)
         return s
@@ -376,19 +382,28 @@ class DataSXRF(Data):
             results = p.map(self.process_file, xmso_filenames)
         # with ThreadPoolExecutor() as executor:
             # results = executor.map(process_file, xmso_filenames)
-        
         return results
     
-    def get_sim_parameters(self):
+    def get_sim_parameters(self, local = False):
         len_data = len(self.spe_objs)
+        if local:
+            self.time = empty((len_data))
+            self.weight_fractions = zeros((len_data,len(self.rl_atnum_list)))
+            self.reflayer_thicknes = empty((len_data))
+            self.sublayer_thicknes = empty((len_data))
+            for i, s in enumerate(self.spe_objs):
+                self.time[i] = s.time
+                self.weight_fractions[i] = s.weight_fractions
+                self.reflayer_thicknes[i] = s.reflayer_thicknes
+                self.sublayer_thicknes[i] = s.sublayer_thicknes
+            return
         sp = SimParameters(len_data)
         for i, s in enumerate(self.spe_objs):
             sp.time[i] = s.time
-            sp.reflayer_elements += s.reflayer_elements
-            sp.weight_fractions += s.weight_fractions
-            sp.reflayer_thickness[i] = s.reflayer_thickness
-            sp.sublayer_thickness[i] = s.sublayer_thickness
-        sp.reflayer_elements = asarray(sp.reflayer_elements).reshape(len_data, -1)
+            # sp.reflayer_elements += s.reflayer_elements
+            sp.weight_fractions.append(s.weight_fractions)
+            sp.reflayer_thicknes[i] = s.reflayer_thicknes
+            sp.sublayer_thicknes[i] = s.sublayer_thicknes
         sp.weight_fractions = asarray(sp.weight_fractions).reshape(len_data, -1)
         return sp
         
@@ -401,32 +416,33 @@ class DataSXRF(Data):
                 filename = os.path.join(self.path, self.name + '.h5')
             else:
                 filename = os.path.join(os.getcwd(), self.name + '.h5')
-        sp = self.get_sim_parameters()
+        if not hasattr(self,'reflayer_thicknes'):
+            self.get_sim_parameters(local = True)
         print('Saving:',filename)
         with h5py.File(filename,'w') as f:
 
             for k,v in self.metadata.items():
                 f.attrs[k] = v
 
-            dataset = f.create_dataset('inputs', data = self.data)
-            dataset = f.create_dataset('targets', data = self.labels)
-            dataset = f.create_dataset('reflayer_thickness', data = sp.reflayer_thickness)
-            dataset = f.create_dataset('sublayer_thickness', data = sp.sublayer_thickness)
-            dataset = f.create_dataset('reflayer_elements', data = sp.reflayer_elements)
-            dataset = f.create_dataset('weight_fractions', data = sp.weight_fractions)
+            dataset = f.create_dataset('data', data = self.data)
+            dataset = f.create_dataset('labels', data = self.labels)
+            dataset = f.create_dataset('reflayer_thicknes', data = self.reflayer_thicknes)
+            dataset = f.create_dataset('sublayer_thicknes', data = self.sublayer_thicknes)
+            # dataset = f.create_dataset('reflayer_elements', data = sp.reflayer_elements)
+            dataset = f.create_dataset('weight_fractions', data = self.weight_fractions)
             dataset = f.create_dataset('energy', data = self.energy)
-            dataset = f.create_dataset('time', data = sp.time)
+            dataset = f.create_dataset('time', data = self.time)
 
     def load_h5(self,filename):
 
             print('Loading:',filename)
             with h5py.File(filename,'r') as f:
                 
-                self.data = f['inputs'][:]
-                self.labels = f['targets'][:]
-                self.reflayer_thickness = f['reflayer_thickness'][:]
-                self.sublayer_thickness = f['sublayer_thickness'][:]
-                self.reflayer_elements = f['reflayer_elements'][:]
+                self.data = f['data'][:]
+                self.labels = f['labels'][:]
+                self.reflayer_thicknes = f['reflayer_thicknes'][:]
+                self.sublayer_thicknes = f['sublayer_thicknes'][:]
+                # self.reflayer_elements = f['reflayer_elements'][:]
                 self.weight_fractions = f['weight_fractions'][:]
                 self.energy = f['energy'][:]
                 self.time = f['time'][:]
@@ -441,10 +457,9 @@ class SimParameters:
     def __init__(self, len_data = 1):
         self.len_data = len_data
         self.time = empty((len_data))
-        self.reflayer_elements = []
         self.weight_fractions = []
-        self.reflayer_thickness = empty((len_data))
-        self.sublayer_thickness = empty((len_data))
+        self.reflayer_thicknes = empty((len_data))
+        self.sublayer_thicknes = empty((len_data))
 
 class DataXRD(Data):
     """
