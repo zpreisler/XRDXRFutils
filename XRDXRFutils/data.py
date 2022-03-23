@@ -312,15 +312,15 @@ class DataSXRF(Data):
     """
     name = 'sxrf'
     
-    def __init__(self, rl_atnum_list, skip_element = False):
+    def __init__(self, rl_atnum_list = None, skip_element = False):
         super().__init__()
         self.nbins = None
-        for i,item in enumerate(rl_atnum_list):
-            if not isinstance(item, int):
-                raise TypeError(f'{item} at index {i} is not integer.\nIntegers are expected for Atomic Numbers')
         self.rl_atnum_list = rl_atnum_list
+        if self.rl_atnum_list:
+            for i,item in enumerate(rl_atnum_list):
+                if not isinstance(item, int):
+                    raise TypeError(f'{item} at index {i} is not integer.\nIntegers are expected for Atomic Numbers')
         self.skip_element = skip_element
-        self.metadata["rl_atnum_list"] = self.rl_atnum_list
     
     def __len__(self):
         if hasattr(self, 'spe_objs'):
@@ -333,6 +333,8 @@ class DataSXRF(Data):
         self.nbins = nbins
     
     def read(self, outdata_path):
+        if not self.rl_atnum_list:
+            raise ValueError("Atomic numbers list required to read the data\nSet 'rl_atnum_list' attribute or initialize a new instance.")
         self.path = outdata_path
         xmso_filenames = []
         if not os.path.isdir(outdata_path):
@@ -342,8 +344,9 @@ class DataSXRF(Data):
             for _file in files:
                 xmso_filenames.append(os.path.join(path, _file))
         print(f"Reading SXRF data from {outdata_path}")
-        self.metadata["path"] = outdata_path
+        self.metadata["rl_atnum_list"] = self.rl_atnum_list
         self.spe_objs = [s for s in self.__read__(xmso_filenames) if s != None]
+        self.metadata["path"] = outdata_path
         
         return self
     
@@ -362,6 +365,8 @@ class DataSXRF(Data):
             yield np_labels
     
     def get_data_and_labels(self, symbols, lines):
+        if not hasattr(self, 'spe_objs'):
+            raise RuntimeError("xmso files not readed yet")
         self.energy = self.spe_objs[0].energy
         self.data = asarray([s.counts for s in self.spe_objs])
         self.labels = asarray([l for l in self._get_labels(symbols, lines)])
@@ -377,7 +382,8 @@ class DataSXRF(Data):
         return s
     
     def __read__(self, xmso_filenames):
-        #results = [self.process_file(fname, self.nbins) for fname in xmso_filenames]
+        if not self.rl_atnum_list:
+            raise RuntimeError("missing required atomic numbers list")
         with Pool() as p:
             results = p.map(self.process_file, xmso_filenames)
         # with ThreadPoolExecutor() as executor:
@@ -385,6 +391,8 @@ class DataSXRF(Data):
         return results
     
     def get_sim_parameters(self, local = False):
+        if not hasattr(self, 'spe_objs'):
+            raise RuntimeError("xmso files not readed yet")
         len_data = len(self.spe_objs)
         if local:
             self.time = empty((len_data))
@@ -409,6 +417,8 @@ class DataSXRF(Data):
         
     
     def save_h5(self, filename = None):
+        if not hasattr(self, 'spe_objs'):
+            raise RuntimeError("xmso files not readed yet")
         if not hasattr(self, "data"):
             raise RuntimeError("Data and labels not yet genarated")
         if filename == None:
@@ -418,6 +428,7 @@ class DataSXRF(Data):
                 filename = os.path.join(os.getcwd(), self.name + '.h5')
         if not hasattr(self,'reflayer_thicknes'):
             self.get_sim_parameters(local = True)
+        self.metadata["rl_atnum_list"] = self.rl_atnum_list
         print('Saving:',filename)
         with h5py.File(filename,'w') as f:
 
