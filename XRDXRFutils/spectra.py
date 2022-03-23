@@ -1,7 +1,7 @@
 from numpy import loadtxt,arctan,pi,arange,array
 from matplotlib.pyplot import plot
 from .utils import snip,convolve
-from .data import Calibration
+from .calibration import Calibration
 
 class Spectra():
     def __init__(self):
