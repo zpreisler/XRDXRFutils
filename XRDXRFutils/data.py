@@ -1,13 +1,14 @@
 from scipy.optimize import curve_fit
 from numpy import pi, arctan
-from numpy import loadtxt, frombuffer, array, asarray, linspace, arange, trapz, flip, stack, where
+from numpy import loadtxt, frombuffer, array, asarray, linspace, arange, trapz, flip, stack, where, zeros, empty
 from scipy.interpolate import interp1d
 from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
+import os
 
 from .calibration import Calibration
+from .spectra import SyntheticSpectraXRF
 
 from PIL import Image
-
 from multiprocessing import Pool
 
 from glob import glob
@@ -378,6 +379,178 @@ class DataXRF(Data):
         self.labels = self.labels[...,select]
 
         return self
+
+class SyntheticDataXRF(Data):
+    """
+    Syntetic XRF data class
+    """
+    
+    """
+    Namespace
+    """
+    name = 'sxrf'
+    
+    def __init__(self, rl_atnum_list = None, skip_element = False):
+        super().__init__()
+        self.nbins = None
+        self.rl_atnum_list = rl_atnum_list
+        if self.rl_atnum_list:
+            for i,item in enumerate(rl_atnum_list):
+                if not isinstance(item, int):
+                    raise TypeError(f'{item} at index {i} is not integer.\nIntegers are expected for Atomic Numbers')
+        self.skip_element = skip_element
+    
+    def __len__(self):
+        if hasattr(self, 'spe_objs'):
+            return len(self.spe_objs)
+        elif hasattr(self, 'data'):
+            return len(self.data)
+        return 0
+    
+    def set_nbins(self, nbins):
+        self.nbins = nbins
+    
+    def read(self, outdata_path):
+        if not self.rl_atnum_list:
+            raise ValueError("Atomic numbers list required to read the data\nSet 'rl_atnum_list' attribute or initialize a new instance.")
+        self.rl_atnum_list = sorted(self.rl_atnum_list)
+        self.path = outdata_path
+        xmso_filenames = []
+        if not os.path.isdir(outdata_path):
+            raise FileNotFoundError(f"No such file or directory: {outdata_path}")
+        for path, dirs, files in os.walk(outdata_path):
+            # to do: use glob to select xmso files
+            for _file in files:
+                xmso_filenames.append(os.path.join(path, _file))
+        print(f"Reading SXRF data from {outdata_path}")
+        self.metadata["rl_atnum_list"] = self.rl_atnum_list
+        self.spe_objs = [s for s in self.__read__(xmso_filenames) if s != None]
+        self.metadata["path"] = outdata_path
+        
+        return self
+    
+    def _get_labels(self, symbols, lines):
+        """Generator"""
+        if len(symbols) != len(lines):
+            raise ValueError("Symbols and lines differ in length")
+        for s in self.spe_objs:
+            np_labels = zeros((len(symbols)))
+            for fluo in s.fluorescence_lines:
+                try:
+                    sym_index = symbols.index(fluo.symbol)
+                    np_labels[sym_index] = fluo.lines[lines[sym_index]]
+                except ValueError:
+                    pass
+            yield np_labels
+    
+    def get_data_and_labels(self, symbols, lines):
+        if not hasattr(self, 'spe_objs'):
+            raise RuntimeError("xmso files not readed yet")
+        self.energy = self.spe_objs[0].energy
+        self.data = asarray([s.counts for s in self.spe_objs])
+        self.labels = asarray([l for l in self._get_labels(symbols, lines)])
+        self.metadata["symbols"] = symbols
+        self.metadata["lines"] = lines
+        
+        return self
+    
+    def process_file(self, filename):
+        sxrf = SyntheticSpectraXRF(self.rl_atnum_list, self.skip_element)
+        self.nbins and sxrf.set_nbins(self.nbins)
+        s = sxrf.from_file(filename)
+        return s
+    
+    def __read__(self, xmso_filenames):
+        if not self.rl_atnum_list:
+            raise RuntimeError("missing required atomic numbers list")
+        self.rl_atnum_list = sorted(self.rl_atnum_list)
+        with Pool() as p:
+            results = p.map(self.process_file, xmso_filenames)
+        # with ThreadPoolExecutor() as executor:
+            # results = executor.map(process_file, xmso_filenames)
+        return results
+    
+    def get_sim_parameters(self, local = False):
+        if not hasattr(self, 'spe_objs'):
+            raise RuntimeError("xmso files not readed yet")
+        len_data = len(self.spe_objs)
+        if local:
+            self.time = empty((len_data))
+            self.weight_fractions = zeros((len_data,len(self.rl_atnum_list)))
+            self.reflayer_thicknes = empty((len_data))
+            self.sublayer_thicknes = empty((len_data))
+            for i, s in enumerate(self.spe_objs):
+                self.time[i] = s.time
+                self.weight_fractions[i] = s.weight_fractions
+                self.reflayer_thicknes[i] = s.reflayer_thicknes
+                self.sublayer_thicknes[i] = s.sublayer_thicknes
+            return
+        sp = SimParameters(len_data)
+        for i, s in enumerate(self.spe_objs):
+            sp.time[i] = s.time
+            # sp.reflayer_elements += s.reflayer_elements
+            sp.weight_fractions.append(s.weight_fractions)
+            sp.reflayer_thicknes[i] = s.reflayer_thicknes
+            sp.sublayer_thicknes[i] = s.sublayer_thicknes
+        sp.weight_fractions = asarray(sp.weight_fractions).reshape(len_data, -1)
+        return sp
+        
+    
+    def save_h5(self, filename = None):
+        if not hasattr(self, 'spe_objs'):
+            raise RuntimeError("xmso files not readed yet")
+        if not hasattr(self, "data"):
+            raise RuntimeError("Data and labels not yet genarated")
+        if filename == None:
+            if hasattr(self, "path"):
+                filename = os.path.join(self.path, self.name + '.h5')
+            else:
+                filename = os.path.join(os.getcwd(), self.name + '.h5')
+        if not hasattr(self,'reflayer_thicknes'):
+            self.get_sim_parameters(local = True)
+        self.metadata["rl_atnum_list"] = self.rl_atnum_list
+        print('Saving:',filename)
+        with h5py.File(filename,'w') as f:
+
+            for k,v in self.metadata.items():
+                f.attrs[k] = v
+
+            dataset = f.create_dataset('data', data = self.data)
+            dataset = f.create_dataset('labels', data = self.labels)
+            dataset = f.create_dataset('reflayer_thicknes', data = self.reflayer_thicknes)
+            dataset = f.create_dataset('sublayer_thicknes', data = self.sublayer_thicknes)
+            # dataset = f.create_dataset('reflayer_elements', data = sp.reflayer_elements)
+            dataset = f.create_dataset('weight_fractions', data = self.weight_fractions)
+            dataset = f.create_dataset('energy', data = self.energy)
+            dataset = f.create_dataset('time', data = self.time)
+
+    def load_h5(self,filename):
+
+            print('Loading:',filename)
+            with h5py.File(filename,'r') as f:
+                
+                self.data = f['data'][:]
+                self.labels = f['labels'][:]
+                self.reflayer_thicknes = f['reflayer_thicknes'][:]
+                self.sublayer_thicknes = f['sublayer_thicknes'][:]
+                # self.reflayer_elements = f['reflayer_elements'][:]
+                self.weight_fractions = f['weight_fractions'][:]
+                self.energy = f['energy'][:]
+                self.time = f['time'][:]
+
+                for k,v in f.attrs.items():
+                    self.metadata[k] = v
+
+class SimParameters:
+    """
+    Synthetic data parameters class
+    """
+    def __init__(self, len_data = 1):
+        self.len_data = len_data
+        self.time = empty((len_data))
+        self.weight_fractions = []
+        self.reflayer_thicknes = empty((len_data))
+        self.sublayer_thicknes = empty((len_data))
 
 class DataXRD(Data):
     """
