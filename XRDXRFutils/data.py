@@ -335,6 +335,7 @@ class DataSXRF(Data):
     def read(self, outdata_path):
         if not self.rl_atnum_list:
             raise ValueError("Atomic numbers list required to read the data\nSet 'rl_atnum_list' attribute or initialize a new instance.")
+        self.rl_atnum_list = sorted(self.rl_atnum_list)
         self.path = outdata_path
         xmso_filenames = []
         if not os.path.isdir(outdata_path):
@@ -384,6 +385,7 @@ class DataSXRF(Data):
     def __read__(self, xmso_filenames):
         if not self.rl_atnum_list:
             raise RuntimeError("missing required atomic numbers list")
+        self.rl_atnum_list = sorted(self.rl_atnum_list)
         with Pool() as p:
             results = p.map(self.process_file, xmso_filenames)
         # with ThreadPoolExecutor() as executor:
