@@ -1,6 +1,6 @@
 from .spectra import SpectraXRD
 
-from numpy import exp, log, pi, array, ones, zeros, full, full_like, trapz, minimum, maximum, std, fabs, sign, sqrt, square, average, clip, newaxis, concatenate, append
+from numpy import exp, log, pi, array, ones, zeros, full, full_like, trapz, minimum, maximum, std, fabs, sign, sqrt, square, average, clip, newaxis, concatenate, append, where
 from numpy.linalg import pinv, inv
 
 from scipy.optimize import newton
@@ -299,7 +299,7 @@ class GaussNewton(SpectraXRD):
         # return exp( (self.I[mask] * log(gamma_adjusted[mask])).sum() / self.I[mask].sum() )
         z0 = self.z0()
         z = self.z()
-        rescaling = np.where(z0 > 10**(-3), z / z0, 1)
+        rescaling = where(z0 > 10**(-3), z / z0, 1)
         rescaling_adjusted = rescaling**(-sign(rescaling - 1))
         #return (z0 * rescaling_adjusted).sum() / z0.sum()
         return exp( (z0 * log(rescaling_adjusted)).sum() / z0.sum() )
