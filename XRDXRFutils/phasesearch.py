@@ -44,6 +44,7 @@ class PhaseSearch(list):
     def fit_cycle(self, **kwargs):
         for fit_phase in self:
             fit_phase.fit_cycle(**kwargs)
+        return self
 
     def search(self, max_steps = 4, alpha = 1):
         self.fit_cycle(max_steps = max_steps, gamma = True, alpha = alpha)
@@ -58,9 +59,8 @@ class PhaseMap():
         self.phases = phases
         self.phases.get_theta(**kwargs)
         self.opt_initial = data.opt
-        arr_data_reshaped = data.data.reshape(-1, self.shape_data[2])
         self.list_phase_search = Parallel(n_jobs = -1)(
-            delayed(self.gen_phase_search)(x) for x in arr_data_reshaped
+            delayed(self.gen_phase_search)(x) for x in data.data.reshape(-1, self.shape_data[2])
         )
 
     def gen_phase_search(self, x, **kwargs):
@@ -76,6 +76,15 @@ class PhaseMap():
         )
         return self
 
+    def fit_cycle(self, **kwargs):
+        self.list_phase_search = Parallel(n_jobs = -1)(
+            delayed(ps.fit_cycle)(**kwargs) for ps in self.list_phase_search
+        )
+        return self
+
+
+    def opt(self):
+        return array([ps.opt for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
 
     def map_best_index(self):
         return array([ps.idx for ps in self.list_phase_search]).reshape(self.shape_data[0:2])
