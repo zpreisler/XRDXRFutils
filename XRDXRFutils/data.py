@@ -449,8 +449,10 @@ class SyntheticDataXRF(Data):
         self.energy = self.spe_objs[0].energy
         self.data = asarray([s.counts for s in self.spe_objs])
         self.labels = asarray([l for l in self._get_labels(symbols, lines)])
-        self.metadata["symbols"] = symbols
-        self.metadata["lines"] = lines
+        labels = []
+        for item in zip(symbols, lines):
+            labels.append("-".join(item))
+        self.metadata["labels"] = asarray(labels)
         
         return self
     
