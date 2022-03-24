@@ -1,7 +1,7 @@
 from .spectra import SpectraXRD
 from .gaussnewton import GaussNewton
 from numpy import array
-from multiprocessing import Pool
+from multiprocessing import Pool,cpu_count
 from joblib import Parallel, delayed
 
 
@@ -70,7 +70,9 @@ class PhaseMap(list):
         return SpectraXRD().from_array(x)
 
     def gen_spectra(self, a):
-        with Pool() as p:
+        n_cpu = cpu_count() - 1
+        print("Using: %d processes"%n_cpu)
+        with Pool(n_cpu) as p:
             spectra = p.map(self.f_spectrum, a)
         return spectra
 
@@ -79,12 +81,16 @@ class PhaseMap(list):
         return x.search()
 
     def search(self):
-        with Pool() as p:
+        n_cpu = cpu_count() - 1
+        print("Using: %d processes"%n_cpu)
+        with Pool(n_cpu) as p:
             result = p.map(self.f_search, self)
         return PhaseMap(result)
 
     def search_2(self):
-        result = Parallel(n_jobs = -1)(
+        n_cpu = cpu_count() - 1
+        print("Using: %d processes"%n_cpu)
+        result = Parallel(n_jobs = n_cpu)(
             delayed(self.f_search)(p) for p in self
         )
         return PhaseMap(result)
