@@ -526,20 +526,22 @@ class SyntheticDataXRF(Data):
 
     def load_h5(self,filename):
 
-            print('Loading:',filename)
-            with h5py.File(filename,'r') as f:
-                
-                self.data = f['data'][:]
-                self.labels = f['labels'][:]
-                self.reflayer_thicknes = f['reflayer_thicknes'][:]
-                self.sublayer_thicknes = f['sublayer_thicknes'][:]
-                # self.reflayer_elements = f['reflayer_elements'][:]
-                self.weight_fractions = f['weight_fractions'][:]
-                self.energy = f['energy'][:]
-                self.time = f['time'][:]
+        print('Loading:',filename)
+        with h5py.File(filename,'r') as f:
+            
+            self.data = f['data'][:]
+            self.labels = f['labels'][:]
+            self.reflayer_thicknes = f['reflayer_thicknes'][:]
+            self.sublayer_thicknes = f['sublayer_thicknes'][:]
+            # self.reflayer_elements = f['reflayer_elements'][:]
+            self.weight_fractions = f['weight_fractions'][:]
+            self.energy = f['energy'][:]
+            self.time = f['time'][:]
 
-                for k,v in f.attrs.items():
-                    self.metadata[k] = v
+            for k,v in f.attrs.items():
+                self.metadata[k] = v
+
+        return self
 
 class SimParameters:
     """
