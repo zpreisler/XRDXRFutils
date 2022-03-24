@@ -1,8 +1,11 @@
+from .data import DataXRD
 from .spectra import SpectraXRD
 from .gaussnewton import GaussNewton
 from numpy import array, trapz
 #from multiprocessing import Pool
 from joblib import Parallel, delayed
+import os
+import pickle
 
 
 class PhaseSearch(list):
@@ -13,15 +16,19 @@ class PhaseSearch(list):
         super().__init__([GaussNewton(phase, spectrum, **kwargs) for phase in phases])
         self.spectrum = spectrum
         self.intensity = spectrum.intensity
-        self.opt = self[0].opt
-        for g in self:
-            g.opt = self.opt
+        self.set_opt(self[0].opt)
         self.k_b = None
 
 
     ### Misc ###
     def set_relation_a_s(self, tuple_k_b):
         self.k_b = tuple_k_b
+        return self
+
+    def set_opt(self, opt):
+        self.opt = opt.copy()
+        for g in self:
+            g.opt = self.opt
 
 
     ### Fit ###
@@ -63,6 +70,9 @@ class PhaseSearch(list):
 
     def overlap_area(self):
         return array([g.overlap_area() for g in self])
+    
+    def component_ratio(self):
+        return array([g.component_ratio() for g in self])
 
 
 class PhaseMap():
@@ -74,7 +84,7 @@ class PhaseMap():
         self.opt_initial = data.opt
         self.k_b = None
         self.list_phase_search = Parallel(n_jobs = -1)(
-            delayed(self.gen_phase_search)(x) for x in data.data.reshape(-1, self.shape_data[2])
+            delayed(self.gen_phase_search)(x, **kwargs) for x in data.data.reshape(-1, self.shape_data[2])
         )
 
     def gen_phase_search(self, x, **kwargs):
@@ -84,11 +94,16 @@ class PhaseMap():
             **kwargs
         )
 
+
     ### Misc ###
     def set_relation_a_s(self, tuple_k_b):
         self.k_b = tuple_k_b
         for ps in self.list_phase_search:
             ps.set_relation_a_s(tuple_k_b)
+        return self
+
+    def get_pixel(self, i, j):
+        return self.list_phase_search[i * self.shape_data[0] + j]
 
 
     ### Fit ###
@@ -129,3 +144,54 @@ class PhaseMap():
 
     def overlap_area(self):
         return array([ps.overlap_area() for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
+
+    def component_ratio(self):
+        return array([ps.component_ratio() for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
+    
+    def component_ratio_2(self):
+        return Parallel(n_jobs = -1)(
+            delayed(ps.component_ratio)() for ps in self.list_phase_search
+        )
+
+
+class PhaseMapSave():
+    def __init__(self, phasemap, path_xrd):
+        self.path_xrd = path_xrd
+        self.opt_initial = phasemap.opt_initial
+        self.phases = phasemap.phases
+        self.k_b = phasemap.k_b
+        self.list_opt = [ps.opt for ps in phasemap.list_phase_search]
+        self.list_g = [[gn.g for gn in ps] for ps in phasemap.list_phase_search]
+        self.list_tau = [[gn.tau for gn in ps] for ps in phasemap.list_phase_search]
+        self.min_theta = phasemap.list_phase_search[0][0].min_theta
+        self.max_theta = phasemap.list_phase_search[0][0].max_theta
+        self.min_intensity = phasemap.list_phase_search[0][0].min_intensity
+        self.first_n_peaks = phasemap.list_phase_search[0][0].first_n_peaks
+
+    def reconstruct_phase_map(self):
+        if os.path.isfile(self.path_xrd + 'xrd.h5'):
+            data = DataXRD().load_h5(self.path_xrd + 'xrd.h5')
+        else:
+            data = DataXRD().read_params(self.path_xrd + 'Scanning_Parameters.txt').read(self.path_xrd)
+        data.calibrate_from_parameters(self.opt_initial)
+
+        pm = PhaseMap(data, self.phases, min_theta = self.min_theta, max_theta = self.max_theta, min_intensity = self.min_intensity, first_n_peaks = self.first_n_peaks)
+        if self.k_b is not None:
+            pm.set_relation_a_s(self.k_b)
+        for i in range(len(self.list_opt)):
+            ps = pm.list_phase_search[i]
+            ps.set_opt(self.list_opt[i])
+            for j in range(len(ps)):
+                gn = ps[j]
+                gn.g = self.list_g[i][j]
+                gn.tau = self.list_tau[i][j]
+        return pm
+
+    def save_to_file(self, filename):
+        with open(filename, 'wb') as file:
+            pickle.dump(self, file)
+
+    @staticmethod
+    def load_from_file(filename):
+        file = open(filename, 'rb')
+        return pickle.load(file)
