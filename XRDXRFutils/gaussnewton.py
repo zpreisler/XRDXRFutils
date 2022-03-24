@@ -299,7 +299,7 @@ class GaussNewton(SpectraXRD):
         # return exp( (self.I[mask] * log(gamma_adjusted[mask])).sum() / self.I[mask].sum() )
         z0 = self.z0()
         z = self.z()
-        rescaling = z / z0
+        rescaling = np.where(z0 > 10**(-3), z / z0, 1)
         rescaling_adjusted = rescaling**(-sign(rescaling - 1))
         #return (z0 * rescaling_adjusted).sum() / z0.sum()
         return exp( (z0 * log(rescaling_adjusted)).sum() / z0.sum() )
