@@ -16,7 +16,36 @@ class PhaseSearch(list):
         self.opt = self[0].opt
         for g in self:
             g.opt = self.opt
+        self.k_b = None
 
+
+    ### Misc ###
+    def set_relation_a_s(self, tuple_k_b):
+        self.k_b = tuple_k_b
+
+
+    ### Fit ###
+    def select(self):
+        self.idx = self.overlap_area().argmax()
+        self.selected = self[self.idx]
+        return self.selected
+
+    def fit_cycle(self, **kwargs):
+        for fit_phase in self:
+            fit_phase.fit_cycle(**kwargs)
+        return self
+
+    def search(self, max_steps = (4, 8, 4), alpha = 1):
+        self.fit_cycle(max_steps = max_steps[0], gamma = True, alpha = alpha)
+        if self.k_b is None:
+            self.select().fit_cycle(max_steps = max_steps[1], a = True, s = True, gamma = True, alpha = alpha)
+        else:
+            self.select().fit_cycle(max_steps = max_steps[1], k = self.k_b[0], b = self.k_b[1], gamma = True, alpha = alpha)
+        self.fit_cycle(max_steps = max_steps[2], gamma = True, alpha = alpha)
+        return self
+
+
+    ### Output ###
     def loss(self):
         return array([g.loss() for g in self])
 
@@ -36,29 +65,14 @@ class PhaseSearch(list):
         return array([g.overlap_area() for g in self])
 
 
-    def select(self):
-        self.idx = self.overlap_area().argmax()
-        self.selected = self[self.idx]
-        return self.selected
-
-    def fit_cycle(self, **kwargs):
-        for fit_phase in self:
-            fit_phase.fit_cycle(**kwargs)
-        return self
-
-    def search(self, max_steps = 4, alpha = 1):
-        self.fit_cycle(max_steps = max_steps, gamma = True, alpha = alpha)
-        self.select().fit_cycle(max_steps = max_steps, a = True, s = True, gamma = True, alpha = alpha)
-        self.fit_cycle(max_steps = max_steps, gamma = True, alpha = alpha)
-        return self
-
-
 class PhaseMap():
+    ### Initialization ###
     def __init__(self, data, phases, **kwargs):
         self.shape_data = data.shape
         self.phases = phases
         self.phases.get_theta(**kwargs)
         self.opt_initial = data.opt
+        self.k_b = None
         self.list_phase_search = Parallel(n_jobs = -1)(
             delayed(self.gen_phase_search)(x) for x in data.data.reshape(-1, self.shape_data[2])
         )
@@ -70,9 +84,17 @@ class PhaseMap():
             **kwargs
         )
 
-    def search(self):
+    ### Misc ###
+    def set_relation_a_s(self, tuple_k_b):
+        self.k_b = tuple_k_b
+        for ps in self.list_phase_search:
+            ps.set_relation_a_s(tuple_k_b)
+
+
+    ### Fit ###
+    def search(self, **kwargs):
         self.list_phase_search = Parallel(n_jobs = -1)(
-            delayed(ps.search)() for ps in self.list_phase_search
+            delayed(ps.search)(**kwargs) for ps in self.list_phase_search
         )
         return self
 
@@ -83,6 +105,7 @@ class PhaseMap():
         return self
 
 
+    ### Output ###
     def opt(self):
         return array([ps.opt for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
 
