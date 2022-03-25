@@ -11,20 +11,16 @@ class GaussNewton(SpectraXRD):
     """
     Class to calculate Gauss-Newton minimization of the synthetic and the experimental spectrum.
     """
-    def __init__(self, phase, spectrum, min_theta = 0, max_theta = 53, min_intensity = 0.05, first_n_peaks = None):
+    def __init__(self, phase, spectrum, **kwargs):
+        # kwargs will be passed to Phase.get_theta()
         """
         phase: tabulated phase; Phase or PhaseList class
         spectrum: experimental spectrum; Spectra class
         """
         super().__init__()
-
         self.phase = phase
         self.spectrum = spectrum
-        self.min_theta = min_theta
-        self.max_theta = max_theta
-        self.min_intensity = min_intensity
-        self.first_n_peaks = first_n_peaks
-
+        self.kwargs = kwargs
         self.label = phase.label
 
         """
@@ -41,7 +37,7 @@ class GaussNewton(SpectraXRD):
         tabulated theta: mu
         tabulated intensity: I
         """
-        self.mu, self.I = self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity, first_n_peaks = first_n_peaks)
+        self.mu, self.I = self.get_theta(**kwargs)
         self.n_peaks = self.mu.shape[0]
         # Variables along the diffraction lines
         self.mu = self.mu[newaxis, :]
@@ -267,13 +263,13 @@ class GaussNewton(SpectraXRD):
 
 
     def area_fit(self):
-        return trapz(self.z())
+        return self.z().sum()
 
     def area_0(self):
-        return trapz(self.z0())
+        return self.z0().sum()
 
     def area_min_0_fit(self):
-        return trapz(minimum(self.z(), self.z0()))
+        return minimum(self.z(), self.z0()).sum()
 
     def overlap(self):
         m =  minimum(self.z(), self.intensity.squeeze())
@@ -281,7 +277,7 @@ class GaussNewton(SpectraXRD):
         return m
 
     def overlap_area(self):
-        return trapz(self.overlap())
+        return self.overlap().sum()
 
 
     def overlap_ratio(self):
@@ -297,6 +293,10 @@ class GaussNewton(SpectraXRD):
         # mask = ((self.mu >= theta_min) & (self.mu <= theta_max))
         # #return (self.I[mask] * gamma_adjusted[mask]).sum() / self.I[mask].sum()
         # return exp( (self.I[mask] * log(gamma_adjusted[mask])).sum() / self.I[mask].sum() )
+
+        # self.precalculations()
+        # z0 = (self.I * self.component_core).sum(axis = 1)
+        # z = self.component_full.sum(axis = 1)
         z0 = self.z0()
         z = self.z()
         rescaling = where(z0 > 10**(-3), z / z0, 1)

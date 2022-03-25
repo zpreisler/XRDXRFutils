@@ -23,8 +23,8 @@ class Calibration():
         self.fce = parent.fce_calibration
 
     def from_parameters(self, opt):
-        self.opt = array(opt, dtype = 'float')
-        self.parent.opt = self.opt.copy()
+        self.opt = array(opt, dtype = 'float') # makes a copy
+        self.parent.opt = self.opt
         return self
 
     def from_file(self, filename):
@@ -99,8 +99,6 @@ class Data():
     name = 'data'
 
     def __init__(self):
-
-        #self.calibration = Calibration(self)
         self.metadata = {}
 
     @staticmethod
@@ -111,7 +109,7 @@ class Data():
         return a * x + b
 
     def calibrate_from_parameters(self, opt):
-        self.calibration.from_parameters(opt)
+        self.calibration = Calibration(self).from_parameters(opt)
         return self
 
     def calibrate_from_file(self, filename):
@@ -122,7 +120,7 @@ class Data():
 
         returns: self
         """
-        self.calibration.from_file(filename)
+        self.calibration = Calibration(self).from_file(filename)
         return self
 
     @property
@@ -131,8 +129,8 @@ class Data():
 
     @property
     def x(self):
-        if hasattr(self,'calibration'):
-            return self.fce_calibration(arange(self.shape[-1]),*self.calibration.opt)
+        if hasattr(self, 'calibration'):
+            return self.fce_calibration(arange(self.shape[-1]), *self.calibration.opt)
         else:
             return self._x
 
@@ -190,9 +188,9 @@ class Data():
                 self.calibration = Calibration(self)
                 for k,v in x.items():
                     setattr(self.calibration,k,v[:])
-
                 for k,v in x.attrs.items():
                     self.calibration.metadata[k] = v
+                self.opt = self.calibration.opt
 
         return self
 
@@ -389,7 +387,6 @@ class DataXRD(Data):
 
     def __init__(self):
         super().__init__()
-        self.calibration = Calibration(self)
 
     @staticmethod
     def fce_calibration(x,a,s,beta):
@@ -434,7 +431,7 @@ class DataXRD(Data):
             if i % 2 == 0:
                 y[:] = y[::-1]
 
-        self.data = flip(z, axis = [0, 1])
+        self.data = flip(z, axis = [1])
 
 def resample(x,y,nbins=1024,bounds=(0,30)):
     """

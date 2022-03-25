@@ -20,8 +20,8 @@ class Phase(dict):
         #FIXME
         #Recalculate when conditions are not the same
 
-        # if hasattr(self,'theta') and hasattr(self,'intensity'):
-        #     return self.theta,self.intensity
+        if hasattr(self,'theta') and hasattr(self,'intensity'):
+            return self.theta,self.intensity
 
         d, i = self['_pd_peak_intensity']
 
@@ -69,10 +69,15 @@ class PhaseList(list):
 
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
-        self.label = '[' + ', '.join([elem.label for elem in self]) + ']'
         if 'label' in kwargs:
-            self.label = kwargs.pop('label')
+            self.label_arg = kwargs.pop('label')
 
+    @property
+    def label(self):
+        if hasattr(self, 'label_arg'):
+            return self.label_arg
+        else:
+            return '[' + ', '.join([elem.label for elem in self]) + ']'
 
     def get_theta(self,**kwargs):
 
