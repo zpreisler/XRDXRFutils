@@ -39,6 +39,12 @@ class SpectraXRF(Spectra):
     def __init__(self):
         super().__init__()
 
+class FluoContainer:
+    def __init__(self, symbol, atomic_number, lines ):
+        self.symbol = symbol
+        self.atomic_number = atomic_number
+        self.lines = lines
+
 class SyntheticSpectraXRF(Spectra):
     def __init__(self, rl_atnum_list, skip_element = False):
         super().__init__()
@@ -106,7 +112,7 @@ class SyntheticSpectraXRF(Spectra):
                 else:
                     lines["others"] += float(fl.attrib["total_counts"]) * time_correction if time_correction else float(fl.attrib["total_counts"])
                     
-            yield Container(
+            yield FluoContainer(
                 symbol = element.attrib["symbol"],
                 atomic_number = element.attrib["atomic_number"],
                 lines = lines
@@ -150,12 +156,6 @@ class SyntheticSpectraXRF(Spectra):
             for k, v in l.lines.items():
                 l.lines[k] = v * tc
         return self
-
-class Container:
-    def __init__(self, symbol, atomic_number, lines ):
-        self.symbol = symbol
-        self.atomic_number = atomic_number
-        self.lines = lines
 
 class SpectraXRD(Spectra):
     def __init__(self):
