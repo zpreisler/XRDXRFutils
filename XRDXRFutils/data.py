@@ -388,7 +388,7 @@ class SyntheticDataXRF(Data):
     """
     Namespace
     """
-    name = 'sxrf'
+    name = 'syntxrf'
     
     def __init__(self, rl_atnum_list = None, skip_element = False):
         super().__init__()
@@ -422,7 +422,7 @@ class SyntheticDataXRF(Data):
             # to do: use glob to select xmso files
             for _file in files:
                 xmso_filenames.append(os.path.join(path, _file))
-        print(f"Reading SXRF data from {outdata_path}")
+        print(f"Reading SyntXRF data from {outdata_path}")
         self.metadata["rl_atnum_list"] = self.rl_atnum_list
         self.spe_objs = [s for s in self.__read__(xmso_filenames) if s != None]
         self.metadata["path"] = outdata_path
@@ -486,7 +486,7 @@ class SyntheticDataXRF(Data):
                 self.weight_fractions[i] = s.weight_fractions
                 self.reflayer_thicknes[i] = s.reflayer_thicknes
                 self.sublayer_thicknes[i] = s.sublayer_thicknes
-            return
+            return self
         sp = SimParameters(len_data)
         for i, s in enumerate(self.spe_objs):
             sp.time[i] = s.time
@@ -521,13 +521,13 @@ class SyntheticDataXRF(Data):
             dataset = f.create_dataset('labels', data = self.labels)
             dataset = f.create_dataset('reflayer_thicknes', data = self.reflayer_thicknes)
             dataset = f.create_dataset('sublayer_thicknes', data = self.sublayer_thicknes)
-            # dataset = f.create_dataset('reflayer_elements', data = sp.reflayer_elements)
             dataset = f.create_dataset('weight_fractions', data = self.weight_fractions)
             dataset = f.create_dataset('energy', data = self.energy)
             dataset = f.create_dataset('time', data = self.time)
+        return self
 
     def load_h5(self,filename):
-
+        self.spe_objs = []
         print('Loading:',filename)
         with h5py.File(filename,'r') as f:
             
@@ -535,7 +535,6 @@ class SyntheticDataXRF(Data):
             self.labels = f['labels'][:]
             self.reflayer_thicknes = f['reflayer_thicknes'][:]
             self.sublayer_thicknes = f['sublayer_thicknes'][:]
-            # self.reflayer_elements = f['reflayer_elements'][:]
             self.weight_fractions = f['weight_fractions'][:]
             self.energy = f['energy'][:]
             self.time = f['time'][:]
