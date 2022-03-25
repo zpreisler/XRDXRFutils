@@ -1,6 +1,6 @@
 from .spectra import SpectraXRD
 
-from numpy import exp, log, pi, array, ones, zeros, full, full_like, trapz, minimum, maximum, std, fabs, sign, sqrt, square, average, clip, newaxis, concatenate, append, where
+from numpy import sum, exp, log, pi, array, ones, zeros, full, full_like, trapz, minimum, maximum, std, fabs, sign, sqrt, square, average, clip, newaxis, concatenate, append, where
 from numpy.linalg import pinv, inv
 
 from scipy.optimize import newton
@@ -82,14 +82,25 @@ class GaussNewton(SpectraXRD):
         Synthetic spectrum.
         """
         self.precalculations()
-        return self.component_full.sum(axis = 1)
+        x = self.component_full.sum(axis = 1)
+
+        del self.component_full
+        del self.component_core
+
+        return x
+
 
     def z0(self):
         """
         Synthetic spectrum without the rescalings of peaks.
         """
         self.precalculations()
-        return (self.I * self.component_core).sum(axis = 1)
+        x = (self.I * self.component_core).sum(axis = 1)
+
+        del self.component_full
+        del self.component_core
+
+        return x
 
 
     """
@@ -134,9 +145,11 @@ class GaussNewton(SpectraXRD):
     """
     def precalculations(self):
         # along the channels
-        self.theta_calc = self.theta.copy()
+        #self.theta_calc = self.theta.copy()
+        self.theta_calc = self.theta
         # along the diffraction lines
-        self.sigma2_calc = self.sigma2.copy()
+        #self.sigma2_calc = self.sigma2.copy()
+        self.sigma2_calc = self.sigma2
         # along both axes
         self.component_core = exp((self.theta_calc - self.mu)**2 / (-2 * self.sigma2_calc))
         self.component_full = self.I * self.gamma * self.component_core
@@ -201,6 +214,8 @@ class GaussNewton(SpectraXRD):
         else:
             if (n_opt > 0):
                 der_f_a, der_f_s, der_f_beta = self.der_f_a_s_beta()
+
+
         if a:
             Jacobian_construction.append(der_f_a)
         if s:
@@ -219,7 +234,13 @@ class GaussNewton(SpectraXRD):
         # Jacobian
         if Jacobian_construction:
             self.Jacobian_f = concatenate(Jacobian_construction, axis = 1)
+
+            del Jacobian_construction
+
         else:
+
+            del self.component_core
+            del self.component_full
             return
 
         # Evolution of parameters
@@ -233,8 +254,11 @@ class GaussNewton(SpectraXRD):
         if sigma:
             self.tau += d_params[(n_opt + n_gamma) :].T
 
+        del self.component_core
+        del self.component_full
+        del d_params
 
-    def fit_cycle(self, max_steps = 16, error_tolerance = 10**(-4), **kwargs):
+    def fit_cycle(self, max_steps = 16, error_tolerance = 1e-4, **kwargs):
         fit_errors = array([])
         for i in range(max_steps):
             self.fit(**kwargs)
@@ -299,7 +323,7 @@ class GaussNewton(SpectraXRD):
         # z = self.component_full.sum(axis = 1)
         z0 = self.z0()
         z = self.z()
-        rescaling = where(z0 > 10**(-3), z / z0, 1)
+        rescaling = where(z0 > 1e-3, z / z0, 1)
         rescaling_adjusted = rescaling**(-sign(rescaling - 1))
         #return (z0 * rescaling_adjusted).sum() / z0.sum()
         return exp( (z0 * log(rescaling_adjusted)).sum() / z0.sum() )

@@ -8,6 +8,8 @@ from joblib import Parallel, delayed
 import os
 import pickle
 
+import gc
+
 
 PHASE_SEARCH__N_JOBS = -2
 
@@ -25,6 +27,8 @@ class PhaseSearch(list):
         self.intensity = spectrum.intensity
         self.set_opt(self[0].opt)
         self.k_b = None
+
+        gc.collect()
 
 
     ### Misc ###
@@ -59,6 +63,9 @@ class PhaseSearch(list):
     def fit_cycle(self, **kwargs):
         for fit_phase in self:
             fit_phase.fit_cycle(**kwargs)
+
+        gc.collect()
+
         return self
 
     def search(self, max_steps = (4, 8, 4), alpha = 1):
@@ -68,6 +75,7 @@ class PhaseSearch(list):
         else:
             self.select().fit_cycle(max_steps = max_steps[1], k = self.k_b[0], b = self.k_b[1], gamma = True, alpha = alpha)
         self.fit_cycle(max_steps = max_steps[2], gamma = True, alpha = alpha)
+
         return self
 
 
@@ -108,6 +116,8 @@ class PhaseMap():
         self.list_phase_search = Parallel(n_jobs = PHASE_SEARCH__N_JOBS)(
             delayed(self.gen_phase_search)(x) for x in data.data.reshape(-1, self.shape_data[2])
         )
+
+        gc.collect()
 
     def gen_phase_search(self, x):
         return PhaseSearch(
@@ -169,12 +179,17 @@ class PhaseMap():
         self.list_phase_search = Parallel(n_jobs = PHASE_SEARCH__N_JOBS)(
             delayed(ps.search)(**kwargs) for ps in self.list_phase_search
         )
+
+        gc.collect()
+
         return self
 
     def fit_cycle(self, **kwargs):
         self.list_phase_search = Parallel(n_jobs = PHASE_SEARCH__N_JOBS)(
             delayed(ps.fit_cycle)(**kwargs) for ps in self.list_phase_search
         )
+
+        gc.collect()
         return self
 
 
