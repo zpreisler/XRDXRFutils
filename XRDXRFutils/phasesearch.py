@@ -105,8 +105,8 @@ class PhaseMap():
             ps.set_relation_a_s(tuple_k_b)
         return self
 
-    def get_pixel(self, i, j):
-        return self.list_phase_search[i * self.shape_data[0] + j]
+    def get_pixel(self, x, y):
+        return self.list_phase_search[y * self.shape_data[1] + x]
 
 
     ### Fit ###
