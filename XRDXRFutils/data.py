@@ -393,7 +393,8 @@ class SyntheticDataXRF(DataXRF):
     """
     Namespace
     """
-    name = 'synth_xrf'
+
+    name = 'syntxrf'
     
     def __init__(self, rl_atnum_list = None, skip_element = False):
         super().__init__()
@@ -435,7 +436,7 @@ class SyntheticDataXRF(DataXRF):
             for _file in files:
                 xmso_filenames.append(os.path.join(path, _file))
 
-        print(f"Reading SXRF data from {outdata_path}")
+        print(f"Reading SyntXRF data from {outdata_path}")
         self.metadata["rl_atnum_list"] = self.rl_atnum_list
         self.spe_objs = [s for s in self.__read__(xmso_filenames) if s != None]
         self.metadata["path"] = outdata_path
@@ -537,7 +538,7 @@ class SyntheticDataXRF(DataXRF):
 
             for k,v in self.metadata.items():
                 f.attrs[k] = v
-
+            
             if hasattr(self,'data'):
                 dataset = f.create_dataset('data',data = self.data)
                 dataset = f.create_dataset('x',data = self.x)
@@ -556,11 +557,10 @@ class SyntheticDataXRF(DataXRF):
                     calibration.create_dataset(attr,data = getattr(self.calibration,attr))
                 for k,v in self.calibration.metadata.items():
                     calibration.attrs[k] = v
-
         return self
 
     def load_h5(self,filename):
-
+        self.spe_objs = []
         print('Loading:',filename)
         with h5py.File(filename,'r') as f:
 
