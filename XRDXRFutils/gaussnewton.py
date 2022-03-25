@@ -1,6 +1,6 @@
 from .spectra import SpectraXRD
 
-from numpy import exp, log, pi, array, ones, zeros, full, full_like, trapz, minimum, maximum, std, fabs, sign, sqrt, square, average, clip, newaxis, concatenate, append, where
+from numpy import exp, log, pi, array, ones, zeros, full, full_like, minimum, maximum, std, fabs, sign, sqrt, square, average, clip, newaxis, concatenate, append, where
 from numpy.linalg import pinv, inv
 
 from scipy.optimize import newton
@@ -267,13 +267,13 @@ class GaussNewton(SpectraXRD):
 
 
     def area_fit(self):
-        return trapz(self.z())
+        return self.z().sum()
 
     def area_0(self):
-        return trapz(self.z0())
+        return self.z0().sum()
 
     def area_min_0_fit(self):
-        return trapz(minimum(self.z(), self.z0()))
+        return minimum(self.z(), self.z0()).sum()
 
     def overlap(self):
         m =  minimum(self.z(), self.intensity.squeeze())
@@ -281,7 +281,7 @@ class GaussNewton(SpectraXRD):
         return m
 
     def overlap_area(self):
-        return trapz(self.overlap())
+        return self.overlap().sum()
 
 
     def overlap_ratio(self):
