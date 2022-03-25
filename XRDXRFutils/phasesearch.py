@@ -19,6 +19,7 @@ class PhaseSearch(list):
     def __init__(self, phases, spectrum, **kwargs):
         # kwargs will be chained down to Phase.get_theta()
         super().__init__([GaussNewton(phase, spectrum, **kwargs) for phase in phases])
+
         self.kwargs = kwargs
         self.spectrum = spectrum
         self.intensity = spectrum.intensity

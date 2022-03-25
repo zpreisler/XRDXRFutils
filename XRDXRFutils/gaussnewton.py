@@ -1,6 +1,6 @@
 from .spectra import SpectraXRD
 
-from numpy import exp, log, pi, array, ones, zeros, full, full_like, minimum, maximum, std, fabs, sign, sqrt, square, average, clip, newaxis, concatenate, append, where
+from numpy import exp, log, pi, array, ones, zeros, full, full_like, trapz, minimum, maximum, std, fabs, sign, sqrt, square, average, clip, newaxis, concatenate, append, where
 from numpy.linalg import pinv, inv
 
 from scipy.optimize import newton
