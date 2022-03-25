@@ -44,7 +44,7 @@ class SpectraXRD(Spectra):
         return self.from_array(counts)
 
     def from_Data(self, data, x = 0, y = 0):
-        self.calibrate_from_parameters(data.calibration.opt)
+        self.calibrate_from_parameters(data.opt)
         counts = data.data[x, y]
         return self.from_array(counts)
 
