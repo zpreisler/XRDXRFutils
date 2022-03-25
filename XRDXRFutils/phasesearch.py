@@ -8,7 +8,7 @@ import os
 import pickle
 
 
-phase_search__n_jobs = -2
+PHASE_SEARCH__N_JOBS = -2
 
 
 class PhaseSearch(list):
@@ -86,7 +86,7 @@ class PhaseMap():
         self.phases.get_theta(**kwargs)
         self.opt_initial = data.opt
         self.k_b = None
-        self.list_phase_search = Parallel(n_jobs = phase_search__n_jobs)(
+        self.list_phase_search = Parallel(n_jobs = PHASE_SEARCH__N_JOBS)(
             delayed(self.gen_phase_search)(x, **kwargs) for x in data.data.reshape(-1, self.shape_data[2])
         )
 
@@ -111,13 +111,13 @@ class PhaseMap():
 
     ### Fit ###
     def search(self, **kwargs):
-        self.list_phase_search = Parallel(n_jobs = phase_search__n_jobs)(
+        self.list_phase_search = Parallel(n_jobs = PHASE_SEARCH__N_JOBS)(
             delayed(ps.search)(**kwargs) for ps in self.list_phase_search
         )
         return self
 
     def fit_cycle(self, **kwargs):
-        self.list_phase_search = Parallel(n_jobs = phase_search__n_jobs)(
+        self.list_phase_search = Parallel(n_jobs = PHASE_SEARCH__N_JOBS)(
             delayed(ps.fit_cycle)(**kwargs) for ps in self.list_phase_search
         )
         return self
@@ -152,7 +152,7 @@ class PhaseMap():
         return array([ps.component_ratio() for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
     
     def component_ratio_2(self):
-        return Parallel(n_jobs = phase_search__n_jobs)(
+        return Parallel(n_jobs = PHASE_SEARCH__N_JOBS)(
             delayed(ps.component_ratio)() for ps in self.list_phase_search
         )
 
