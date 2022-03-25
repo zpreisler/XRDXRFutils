@@ -1,7 +1,7 @@
 from .data import DataXRD
 from .spectra import SpectraXRD
 from .gaussnewton import GaussNewton
-from numpy import array, trapz
+from numpy import array
 #from multiprocessing import Pool
 from joblib import Parallel, delayed
 import os
@@ -131,7 +131,13 @@ class PhaseMap():
         return array([ps.idx for ps in self.list_phase_search]).reshape(self.shape_data[0:2])
 
     def map_intensity(self):
-        return array([trapz(ps.intensity) for ps in self.list_phase_search]).reshape(self.shape_data[0:2])
+        return array([ps.intensity.sum() for ps in self.list_phase_search]).reshape(self.shape_data[0:2])
+
+    def map_counts(self):
+        return array([ps.spectrum.counts.sum() for ps in self.list_phase_search]).reshape(self.shape_data[0:2])
+
+    def map_counts_clean(self):
+        return array([ps.spectrum.counts_clean.sum() for ps in self.list_phase_search]).reshape(self.shape_data[0:2])
 
     def loss(self):
         return array([ps.loss() for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
