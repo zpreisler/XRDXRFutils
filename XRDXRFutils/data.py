@@ -9,6 +9,7 @@ import os
 from .calibration import Calibration
 from .spectra import SyntheticSpectraXRF
 from .utils import convolve3d,snip3d
+from .Xmendeleev import Xmendeleev
 
 from PIL import Image
 
@@ -431,11 +432,11 @@ class SyntheticDataXRF(DataXRF):
         if not os.path.isdir(outdata_path):
             raise FileNotFoundError(f"No such file or directory: {outdata_path}")
 
-        for path, dirs, files in os.walk(outdata_path):
-            # to do: use glob to select xmso files
-            for _file in files:
-                xmso_filenames.append(os.path.join(path, _file))
-
+        # for path, dirs, files in os.walk(outdata_path):
+            # # to do: use glob to select xmso files
+            # for _file in files:
+                # xmso_filenames.append(os.path.join(path, _file))
+        xmso_filenames = glob(os.path.join(outdata_path, "*/*.xmso"))
         print(f"Reading SyntXRF data from {outdata_path}")
         self.metadata["rl_atnum_list"] = self.rl_atnum_list
         self.spe_objs = [s for s in self.__read__(xmso_filenames) if s != None]
@@ -533,6 +534,19 @@ class SyntheticDataXRF(DataXRF):
         if filename == None:
             filename = self.path + '/' + self.name + '.h5'
 
+        xm = Xmendeleev()
+        if not hasattr(self, 'spe_objs'):
+            raise RuntimeError("xmso files not readed yet")
+        if not hasattr(self, "data"):
+            raise RuntimeError("Data and labels not yet genarated")
+        if filename == None:
+            if hasattr(self, "path"):
+                filename = os.path.join(self.path, self.name + '.h5')
+            else:
+                filename = os.path.join(os.getcwd(), self.name + '.h5')
+        if not hasattr(self,'reflayer_thickness'):
+            self.get_sim_parameters(local = True)
+        self.metadata["rl_atnum_list"] = asarray([xm.get_element(item).symbol for item in self.rl_atnum_list])
         print('Saving:',filename)
         with h5py.File(filename,'w') as f:
 
