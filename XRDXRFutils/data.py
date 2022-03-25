@@ -474,7 +474,7 @@ class SyntheticDataXRF(DataXRF):
         labels = []
         for item in zip(symbols, lines):
             labels.append("-".join(item))
-        self.metadata["labels"] = asarray(labels)
+        self.metadata["labels"] = labels
         
         return self
     
@@ -546,7 +546,7 @@ class SyntheticDataXRF(DataXRF):
                 filename = os.path.join(os.getcwd(), self.name + '.h5')
         if not hasattr(self,'reflayer_thickness'):
             self.get_sim_parameters(local = True)
-        self.metadata["rl_atnum_list"] = asarray([xm.get_element(item).symbol for item in self.rl_atnum_list])
+        self.metadata["rl_atnum_list"] = asarray([xm.get_element(item).symbol for item in self.rl_atnum_list],dtype = "object")
         print('Saving:',filename)
         with h5py.File(filename,'w') as f:
 
