@@ -158,8 +158,7 @@ class PhaseMap():
 
 
 class PhaseMapSave():
-    def __init__(self, phasemap, path_xrd):
-        self.path_xrd = path_xrd
+    def __init__(self, phasemap):
         self.opt_initial = phasemap.opt_initial
         self.phases = phasemap.phases
         self.k_b = phasemap.k_b
@@ -171,11 +170,11 @@ class PhaseMapSave():
         self.min_intensity = phasemap.list_phase_search[0][0].min_intensity
         self.first_n_peaks = phasemap.list_phase_search[0][0].first_n_peaks
 
-    def reconstruct_phase_map(self):
-        if os.path.isfile(self.path_xrd + 'xrd.h5'):
-            data = DataXRD().load_h5(self.path_xrd + 'xrd.h5')
+    def reconstruct_phase_map(self, path_xrd):
+        if os.path.isfile(path_xrd + 'xrd.h5'):
+            data = DataXRD().load_h5(path_xrd + 'xrd.h5')
         else:
-            data = DataXRD().read_params(self.path_xrd + 'Scanning_Parameters.txt').read(self.path_xrd)
+            data = DataXRD().read_params(path_xrd + 'Scanning_Parameters.txt').read(path_xrd)
         data.calibrate_from_parameters(self.opt_initial)
 
         pm = PhaseMap(data, self.phases, min_theta = self.min_theta, max_theta = self.max_theta, min_intensity = self.min_intensity, first_n_peaks = self.first_n_peaks)
@@ -196,5 +195,5 @@ class PhaseMapSave():
 
     @staticmethod
     def load_from_file(filename):
-        file = open(filename, 'rb')
-        return pickle.load(file)
+        with open(filename, 'rb') as file:
+            return pickle.load(file)
