@@ -1,3 +1,4 @@
+from .database import PhaseList
 from .data import DataXRD
 from .spectra import SpectraXRD
 from .gaussnewton import GaussNewton
@@ -16,7 +17,9 @@ class PhaseSearch(list):
     Class to perform phase search. One experimental spectrum vs multiple phases, all with the same calibration.
     """
     def __init__(self, phases, spectrum, **kwargs):
+        # kwargs will be chained down to Phase.get_theta()
         super().__init__([GaussNewton(phase, spectrum, **kwargs) for phase in phases])
+        self.kwargs = kwargs
         self.spectrum = spectrum
         self.intensity = spectrum.intensity
         self.set_opt(self[0].opt)
@@ -32,6 +35,18 @@ class PhaseSearch(list):
         self.opt = opt.copy()
         for g in self:
             g.opt = self.opt
+
+
+    ### Construction ###
+    def add_phases(self, phases):
+        list_to_add = [GaussNewton(phase, self.spectrum, **self.kwargs) for phase in phases]
+        for gn in list_to_add:
+            gn.opt = self.opt
+        self += list_to_add
+
+    def remove_phases(self, list_i):
+        for i in list_i:
+            self.pop(i)
 
 
     ### Fit ###
@@ -81,20 +96,23 @@ class PhaseSearch(list):
 class PhaseMap():
     ### Initialization ###
     def __init__(self, data, phases, **kwargs):
+        # kwargs will be chained down to Phase.get_theta()
+        self.kwargs = kwargs
         self.shape_data = data.shape
         self.phases = phases
         self.phases.get_theta(**kwargs)
+        self.n_phases_primary = None
         self.opt_initial = data.opt
         self.k_b = None
         self.list_phase_search = Parallel(n_jobs = PHASE_SEARCH__N_JOBS)(
-            delayed(self.gen_phase_search)(x, **kwargs) for x in data.data.reshape(-1, self.shape_data[2])
+            delayed(self.gen_phase_search)(x) for x in data.data.reshape(-1, self.shape_data[2])
         )
 
-    def gen_phase_search(self, x, **kwargs):
+    def gen_phase_search(self, x):
         return PhaseSearch(
             self.phases,
             SpectraXRD().from_array(x).calibrate_from_parameters(self.opt_initial),
-            **kwargs
+            **self.kwargs
         )
 
 
@@ -109,8 +127,44 @@ class PhaseMap():
         return self.list_phase_search[y * self.shape_data[1] + x]
 
 
+    ### Construction ###
+    def add_phases(self, phases):
+        print(f'Current phases: {self.phases.label}', flush = True)
+        list_labels_present = [p.label for p in self.phases]
+        phases_sel = PhaseList([p for p in phases if p.label not in list_labels_present])
+        print(f'Adding {phases_sel.label}...', flush = True)
+        self.phases += phases_sel
+        for ps in self.list_phase_search:
+            ps.add_phases(phases_sel)
+        print(f'New phases: {self.phases.label}')
+
+    def remove_phases(self, labels_phase):
+        list_labels_present = [p.label for p in self.phases]
+        print(f'Current phases: {self.phases.label}')
+        list_i = []
+        for label in labels_phase:
+            try:
+                i = list_labels_present.index(label)
+                if i < self.n_phases_primary:
+                    print(f'{label} cannot be removed because it was used to set the calibration.')
+                else:
+                    list_i.append(i)
+            except ValueError:
+                print(f'{label} is not present among the stored phases.')
+        print(f'Phases to be removed: {[self.phases[i].label for i in list_i]}')
+
+        if list_i:
+            list_i.sort(reverse = True)
+            for i in list_i:
+                self.phases.pop(i)
+            for ps in self.list_phase_search:
+                ps.remove_phases(list_i)
+        print(f'New phases: {self.phases.label}')
+
+
     ### Fit ###
     def search(self, **kwargs):
+        self.n_phases_primary = len(self.phases)
         self.list_phase_search = Parallel(n_jobs = PHASE_SEARCH__N_JOBS)(
             delayed(ps.search)(**kwargs) for ps in self.list_phase_search
         )
@@ -157,24 +211,22 @@ class PhaseMap():
     def component_ratio(self):
         return array([ps.component_ratio() for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
     
-    def component_ratio_2(self):
-        return Parallel(n_jobs = PHASE_SEARCH__N_JOBS)(
-            delayed(ps.component_ratio)() for ps in self.list_phase_search
-        )
+    # def component_ratio_2(self):
+    #     return Parallel(n_jobs = PHASE_SEARCH__N_JOBS)(
+    #         delayed(ps.component_ratio)() for ps in self.list_phase_search
+    #     )
 
 
 class PhaseMapSave():
     def __init__(self, phasemap):
         self.opt_initial = phasemap.opt_initial
         self.phases = phasemap.phases
+        self.n_phases_primary = phasemap.n_phases_primary
         self.k_b = phasemap.k_b
         self.list_opt = [ps.opt for ps in phasemap.list_phase_search]
         self.list_g = [[gn.g for gn in ps] for ps in phasemap.list_phase_search]
         self.list_tau = [[gn.tau for gn in ps] for ps in phasemap.list_phase_search]
-        self.min_theta = phasemap.list_phase_search[0][0].min_theta
-        self.max_theta = phasemap.list_phase_search[0][0].max_theta
-        self.min_intensity = phasemap.list_phase_search[0][0].min_intensity
-        self.first_n_peaks = phasemap.list_phase_search[0][0].first_n_peaks
+        self.kwargs = phasemap.kwargs
 
     def reconstruct_phase_map(self, path_xrd):
         if os.path.isfile(path_xrd + 'xrd.h5'):
@@ -183,7 +235,8 @@ class PhaseMapSave():
             data = DataXRD().read_params(path_xrd + 'Scanning_Parameters.txt').read(path_xrd)
         data.calibrate_from_parameters(self.opt_initial)
 
-        pm = PhaseMap(data, self.phases, min_theta = self.min_theta, max_theta = self.max_theta, min_intensity = self.min_intensity, first_n_peaks = self.first_n_peaks)
+        pm = PhaseMap(data, self.phases, **self.kwargs)
+        pm.n_phases_primary = self.n_phases_primary
         if self.k_b is not None:
             pm.set_relation_a_s(self.k_b)
         for i in range(len(self.list_opt)):

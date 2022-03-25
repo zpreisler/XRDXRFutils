@@ -49,8 +49,8 @@ class SpectraXRD(Spectra):
         return self.from_array(counts)
 
     def calculate_signals(self, n = 21, std = 3, m = 32):
-        self.background = snip(convolve(self.counts, n = n, std = std), m = m)
-        self.counts_clean = self.counts - self.background
+        background = snip(convolve(self.counts, n = n, std = std), m = m)
+        self.counts_clean = self.counts - background
         self.rescaling = self.counts_clean.max()
         self.intensity = self.counts_clean / self.rescaling
 
