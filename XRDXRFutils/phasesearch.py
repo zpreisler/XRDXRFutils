@@ -1,8 +1,8 @@
-from .database import PhaseList
+from .database import Phase, PhaseList
 from .data import DataXRD
 from .spectra import SpectraXRD
 from .gaussnewton import GaussNewton
-from numpy import array
+from numpy import array, nanargmax
 #from multiprocessing import Pool
 from joblib import Parallel, delayed
 import os
@@ -136,6 +136,26 @@ class PhaseMap():
 
     def get_pixel(self, x, y):
         return self.list_phase_search[y * self.shape_data[1] + x]
+
+
+    def extract_best_phases(self):
+        arr_overlap_area = array([ps.overlap_area() for ps in self.list_phase_search])
+        list_phases = []
+
+        for idx_phase in range(len(self.phases)):
+            idx_point = nanargmax(arr_overlap_area[:, idx_phase])
+            gn = self.list_phase_search[idx_point][idx_phase]
+            mu, I = gn.get_theta(**self.kwargs)
+            I_new = I * gn.gamma.squeeze()
+            I_new /= I_new.max()
+
+            phase_new = Phase(gn.phase)
+            phase_new.theta = mu
+            phase_new.intensity = I_new
+            phase_new.label = gn.phase.label
+            list_phases.append(phase_new)
+
+        return PhaseList(list_phases)
 
 
     ### Construction ###
