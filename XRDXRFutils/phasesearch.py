@@ -176,10 +176,10 @@ class PhaseMap():
         for label in labels_phase:
             try:
                 i = list_labels_present.index(label)
-                if i < self.n_phases_primary:
-                    print(f'{label} cannot be removed because it was used to set the calibration.')
-                else:
-                    list_i.append(i)
+                # if i < self.n_phases_primary:
+                #     print(f'{label} cannot be removed because it was used to set the calibration.')
+                # else:
+                list_i.append(i)
             except ValueError:
                 print(f'{label} is not present among the stored phases.')
         print(f'Phases to be removed: {[self.phases[i].label for i in list_i]}')
