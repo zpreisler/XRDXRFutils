@@ -2,7 +2,7 @@ from .database import Phase, PhaseList
 from .data import DataXRD
 from .spectra import SpectraXRD
 from .gaussnewton import GaussNewton
-from numpy import array, full, newaxis, concatenate, nanargmax
+from numpy import array, full, nanargmin, nanargmax, newaxis, concatenate
 from numpy.linalg import pinv
 from scipy.optimize import newton
 #from multiprocessing import Pool
@@ -65,10 +65,13 @@ class PhaseSearch(list):
         return GaussNewton.w(self.g)
 
     def calculate_gamma_initial(self):
-        gamma_initial = 1 / len(self)
-        g_initial = newton(lambda x: GaussNewton.w(x) - gamma_initial, x0 = gamma_initial)
-        # horizontal: phases
-        self.g = full((1, len(self)), g_initial)
+        if len(self) > 0:
+            gamma_initial = 1 / len(self)
+            g_initial = newton(lambda x: GaussNewton.w(x) - gamma_initial, x0 = gamma_initial)
+            # horizontal: phases
+            self.g = full((1, len(self)), g_initial)
+        else:
+            self.g = None
 
     def precalculations(self):
         # vertical: channels; horizontal: phases
@@ -79,7 +82,7 @@ class PhaseSearch(list):
         del self.z_phases
         del self.z_components
 
-    def z_components(self):
+    def z_decomposed(self):
         self.precalculations()
         value = self.z_components
         self.del_precalculations()
@@ -87,7 +90,7 @@ class PhaseSearch(list):
 
     def z(self):
         self.precalculations()
-        value = self.z_components().sum(axis = 1)
+        value = self.z_components.sum(axis = 1)
         self.del_precalculations()
         return value
 
@@ -108,7 +111,7 @@ class PhaseSearch(list):
             self.precalculations()
             self.Jacobian_f = GaussNewton.der_w(self.g) * self.z_phases
             d_params = alpha * self.evolution_of_parameters()
-            self.g += d_params
+            self.g += d_params.T
             self.del_precalculations()
             del self.Jacobian_f
             del d_params
@@ -199,11 +202,13 @@ class PhaseMap():
 
 
     def extract_best_phases(self):
-        arr_overlap_area = array([ps.overlap_area() for ps in self.list_phase_search])
+        #arr_overlap_area = array([ps.overlap_area() for ps in self.list_phase_search])
+        arr_fit_error = array([ps.fit_error() for ps in self.list_phase_search])
         list_phases = []
 
         for idx_phase in range(len(self.phases)):
-            idx_point = nanargmax(arr_overlap_area[:, idx_phase])
+            #idx_point = nanargmax(arr_overlap_area[:, idx_phase])
+            idx_point = nanargmin(arr_fit_error[:, idx_phase])
             gn = self.list_phase_search[idx_point][idx_phase]
             mu, I = gn.get_theta(**self.kwargs)
             I_new = I * gn.gamma.squeeze()
