@@ -56,6 +56,9 @@ class GaussNewton(SpectraXRD):
         self.tau = full((1, self.n_peaks), tau_initial)
 
 
+    #def __del__(self):
+
+
     """
     Plot functions
     """
