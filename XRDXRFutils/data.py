@@ -431,7 +431,7 @@ class DataXRD(Data):
             if i % 2 == 0:
                 y[:] = y[::-1]
 
-        self.data = flip(z, axis = [0, 1])
+        self.data = z
 
 def resample(x,y,nbins=1024,bounds=(0,30)):
     """
