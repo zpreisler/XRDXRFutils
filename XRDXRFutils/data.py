@@ -104,7 +104,7 @@ class Data():
 
     def __init__(self):
 
-        #self.calibration = Calibration(self)
+        self.calibration = Calibration(self)
         self.metadata = {}
 
     @staticmethod
@@ -514,6 +514,7 @@ class SyntheticDataXRF(DataXRF):
         if not hasattr(self,'reflayer_thicknes'):
             self.get_sim_parameters(local = True)
         self.metadata["reflayer_elements"] = asarray([xm.get_element(item).symbol for item in self.rl_atnum_list],dtype = "object")
+        self.metadata["notes"] = "weight fractions columns ordered like reflayer_elements"
         print('Saving:',filename)
         with h5py.File(filename,'w') as f:
 
