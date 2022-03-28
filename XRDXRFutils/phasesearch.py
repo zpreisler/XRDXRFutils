@@ -2,7 +2,9 @@ from .database import Phase, PhaseList
 from .data import DataXRD
 from .spectra import SpectraXRD
 from .gaussnewton import GaussNewton
-from numpy import array, nanargmax
+from numpy import array, full, newaxis, concatenate, nanargmax
+from numpy.linalg import pinv
+from scipy.optimize import newton
 #from multiprocessing import Pool
 from joblib import Parallel, delayed
 import os
@@ -11,7 +13,7 @@ import pickle
 import gc
 
 
-PHASE_SEARCH__N_JOBS = -2
+PHASE_SEARCH__N_JOBS = -1
 
 
 class PhaseSearch(list):
@@ -27,8 +29,9 @@ class PhaseSearch(list):
         self.intensity = spectrum.intensity
         self.set_opt(self[0].opt)
         self.k_b = None
+        self.calculate_gamma_initial()
 
-        gc.collect()
+        #gc.collect()
 
 
     ### Misc ###
@@ -38,8 +41,8 @@ class PhaseSearch(list):
 
     def set_opt(self, opt):
         self.opt = opt.copy()
-        for g in self:
-            g.opt = self.opt
+        for gn in self:
+            gn.opt = self.opt
 
 
     ### Construction ###
@@ -48,10 +51,67 @@ class PhaseSearch(list):
         for gn in list_to_add:
             gn.opt = self.opt
         self += list_to_add
+        self.calculate_gamma_initial()
 
     def remove_phases(self, list_i):
         for i in list_i:
             self.pop(i)
+        self.calculate_gamma_initial()
+
+
+    ### Fit experimental phases ###
+    @property
+    def gamma(self):
+        return GaussNewton.w(self.g)
+
+    def calculate_gamma_initial(self):
+        gamma_initial = 1 / len(self)
+        g_initial = newton(lambda x: GaussNewton.w(x) - gamma_initial, x0 = gamma_initial)
+        # horizontal: phases
+        self.g = full((1, len(self)), g_initial)
+
+    def precalculations(self):
+        # vertical: channels; horizontal: phases
+        self.z_phases = concatenate([gn.z()[:, newaxis] for gn in self], axis = 1)
+        self.z_components = self.gamma * self.z_phases
+
+    def del_precalculations(self):
+        del self.z_phases
+        del self.z_components
+
+    def z_components(self):
+        self.precalculations()
+        value = self.z_components
+        self.del_precalculations()
+        return value
+
+    def z(self):
+        self.precalculations()
+        value = self.z_components().sum(axis = 1)
+        self.del_precalculations()
+        return value
+
+
+    def evolution_of_parameters(self):
+        y = self.intensity[:, newaxis]
+        f = self.z_components.sum(axis = 1, keepdims = True)
+        r = y - f
+        try:
+            evol = pinv(self.Jacobian_f) @ r # or scipy.linalg.pinv
+        except:
+            evol = full((self.Jacobian_f.shape[1], 1), 0)
+        finally:
+            return evol
+
+    def fit_experimental_phases(self, alpha = 1):
+        if len(self) > 0:
+            self.precalculations()
+            self.Jacobian_f = GaussNewton.der_w(self.g) * self.z_phases
+            d_params = alpha * self.evolution_of_parameters()
+            self.g += d_params
+            self.del_precalculations()
+            del self.Jacobian_f
+            del d_params
 
 
     ### Fit ###
@@ -61,10 +121,10 @@ class PhaseSearch(list):
         return self.selected
 
     def fit_cycle(self, **kwargs):
-        for fit_phase in self:
-            fit_phase.fit_cycle(**kwargs)
+        for gn in self:
+            gn.fit_cycle(**kwargs)
 
-        gc.collect()
+        #gc.collect()
 
         return self
 
@@ -81,25 +141,25 @@ class PhaseSearch(list):
 
     ### Output ###
     def loss(self):
-        return array([g.loss() for g in self])
+        return array([gn.loss() for gn in self])
 
     def fit_error(self):
-        return array([g.fit_error() for g in self])
+        return array([gn.fit_error() for gn in self])
 
     def area_fit(self):
-        return array([g.area_fit() for g in self])
+        return array([gn.area_fit() for gn in self])
 
     def area_0(self):
-        return array([g.area_0() for g in self])
+        return array([gn.area_0() for gn in self])
 
     def area_min_0_fit(self):
-        return array([g.area_min_0_fit() for g in self])
+        return array([gn.area_min_0_fit() for gn in self])
 
     def overlap_area(self):
-        return array([g.overlap_area() for g in self])
+        return array([gn.overlap_area() for gn in self])
     
     def component_ratio(self):
-        return array([g.component_ratio() for g in self])
+        return array([gn.component_ratio() for gn in self])
 
 
 class PhaseMap():
