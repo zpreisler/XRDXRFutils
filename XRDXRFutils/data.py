@@ -5,6 +5,7 @@ from scipy.interpolate import interp1d
 from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
 from os.path import basename
 import os
+from numpy import newaxis
 
 from .calibration import Calibration
 from .spectra import SyntheticSpectraXRF
@@ -553,6 +554,10 @@ class SyntheticDataXRF(DataXRF):
             self.get_sim_parameters(local = True)
         self.metadata["reflayer_elements"] = asarray([xm.get_element(item).symbol for item in self.rl_atnum_list],dtype = "object")
         self.metadata["notes"] = "weight fractions columns ordered like reflayer_elements"
+        # add new axis
+        if self.data.ndim == 2:
+            self.data = self.data[newaxis,:,:]
+            self.labels = self.labels[newaxis,:,:]
         print('Saving:',filename)
         with h5py.File(filename,'w') as f:
 
