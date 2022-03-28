@@ -250,6 +250,7 @@ class GaussNewton(SpectraXRD):
             self.tau += d_params[(n_opt + n_gamma) :].T
 
         self.del_precalculations()
+        del self.Jacobian_f
         del d_params
 
     def fit_cycle(self, max_steps = 16, error_tolerance = 1e-4, **kwargs):
