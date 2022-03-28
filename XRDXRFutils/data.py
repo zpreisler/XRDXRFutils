@@ -425,7 +425,7 @@ class SyntheticDataXRF(DataXRF):
                 # xmso_filenames.append(os.path.join(path, _file))
         xmso_filenames = glob(os.path.join(outdata_path, "*/*.xmso"))
         print(f"Reading SyntXRF data from {outdata_path}")
-        self.metadata["rl_atnum_list"] = self.rl_atnum_list
+        self.metadata["reflayer_elements"] = self.rl_atnum_list
         self.spe_objs = [s for s in self.__read__(xmso_filenames) if s != None]
         self.metadata["path"] = outdata_path
         
@@ -513,7 +513,7 @@ class SyntheticDataXRF(DataXRF):
                 filename = os.path.join(os.getcwd(), self.name + '.h5')
         if not hasattr(self,'reflayer_thicknes'):
             self.get_sim_parameters(local = True)
-        self.metadata["rl_atnum_list"] = asarray([xm.get_element(item).symbol for item in self.rl_atnum_list],dtype = "object")
+        self.metadata["reflayer_elements"] = asarray([xm.get_element(item).symbol for item in self.rl_atnum_list],dtype = "object")
         print('Saving:',filename)
         with h5py.File(filename,'w') as f:
 
