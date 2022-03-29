@@ -28,8 +28,11 @@ class GaussNewton(SpectraXRD):
         """
         self.opt = spectrum.opt.copy()
         # Variables along the channels
-        self.channel = spectrum.channel[:, newaxis]
-        self.intensity = spectrum.intensity[:, newaxis]
+        #self.channel = spectrum.channel[:, newaxis]
+        #self.intensity = spectrum.intensity[:, newaxis]
+
+        self.channel = spectrum.channel#[:, newaxis]
+        self.intensity = spectrum.intensity#[:, newaxis]
 
         """
         Phases
@@ -40,8 +43,8 @@ class GaussNewton(SpectraXRD):
         self.mu, self.I = self.get_theta(**kwargs)
         self.n_peaks = self.mu.shape[0]
         # Variables along the diffraction lines
-        self.mu = self.mu[newaxis, :]
-        self.I = self.I[newaxis, :]
+        #self.mu = self.mu[newaxis, :]
+        #self.I = self.I[newaxis, :]
 
         """
         parameters g, tau --> gamma, sigma^2
@@ -92,9 +95,12 @@ class GaussNewton(SpectraXRD):
         """
         #self.precalculations()
 
-        component_core = exp((self.theta - self.mu)**2 / (-2 * self.sigma2))
+        mu = self.mu[newaxis, :]
+        I = self.I[newaxis, :]
+        #component_core = exp((self.theta - self.mu)**2 / (-2 * self.sigma2))
+        component_core = exp((self.theta - mu)**2 / (-2 * self.sigma2))
 
-        x = (self.I * component_core).sum(axis = 1)
+        x = (I * component_core).sum(axis = 1)
 
         #del self.component_full
         #del self.component_core
@@ -148,8 +154,11 @@ class GaussNewton(SpectraXRD):
         # along the diffraction lines
         self.sigma2_calc = self.sigma2
         # along both axes
-        self.component_core = exp((self.theta_calc - self.mu)**2 / (-2 * self.sigma2_calc))
-        self.component_full = self.I * self.gamma * self.component_core
+        mu = self.mu[newaxis,:]
+        I = self.I[newaxis,:]
+
+        self.component_core = exp((self.theta_calc - mu)**2 / (-2 * self.sigma2_calc))
+        self.component_full = I * self.gamma * self.component_core
 
     def del_precalculations(self):
         del self.theta_calc
@@ -159,10 +168,14 @@ class GaussNewton(SpectraXRD):
 
 
     def der_f_a_s_beta(self):
-        der_theta_a = (180 / pi) * self.opt[1] / ((self.channel + self.opt[0])**2 + self.opt[1]**2)
-        der_theta_s = (-180 / pi) * (self.channel + self.opt[0]) / ((self.channel + self.opt[0])**2 + self.opt[1]**2)
 
-        aux = (self.component_full * (self.theta_calc - self.mu) / self.sigma2_calc).sum(axis = 1, keepdims = True)
+        mu = self.mu[newaxis,:]
+        channel = self.channel[:, newaxis]
+
+        der_theta_a = (180 / pi) * self.opt[1] / ((channel + self.opt[0])**2 + self.opt[1]**2)
+        der_theta_s = (-180 / pi) * (channel + self.opt[0]) / ((channel + self.opt[0])**2 + self.opt[1]**2)
+
+        aux = (self.component_full * (self.theta_calc - mu) / self.sigma2_calc).sum(axis = 1, keepdims = True)
         der_f_a = - der_theta_a * aux
         der_f_s = - der_theta_s * aux
         der_f_beta = - aux
@@ -170,25 +183,39 @@ class GaussNewton(SpectraXRD):
         return der_f_a, der_f_s, der_f_beta
 
     def der_f_a_beta__when_relation_a_s(self, k, b):
-        der_theta_a = (180 / pi) * (b - k * self.channel) / ( (self.channel + self.opt[0])**2 + (k * self.opt[0] + b)**2 )
-        aux = (self.component_full * (self.theta_calc - self.mu) / self.sigma2_calc).sum(axis = 1, keepdims = True)
+
+        mu = self.mu[newaxis,:]
+        channel = self.channel[:, newaxis]
+
+        der_theta_a = (180 / pi) * (b - k * channel) / ( (channel + self.opt[0])**2 + (k * self.opt[0] + b)**2 )
+        aux = (self.component_full * (self.theta_calc - mu) / self.sigma2_calc).sum(axis = 1, keepdims = True)
         der_f_a = - der_theta_a * aux
         der_f_beta = - aux
+
         return der_f_a, der_f_beta
 
 
     def der_f_g(self):
-        return self.I * self.component_core * self.der_w(self.g)
+
+        I = self.I[newaxis,:]
+
+        return I * self.component_core * self.der_w(self.g)
 
 
     def der_f_tau(self):
-        return self.component_full * ((self.theta_calc - self.mu)**2 / (2 * self.sigma2_calc**2)) * self.der_u(self.tau)
+
+        mu = self.mu[newaxis,:]
+
+        return self.component_full * ((self.theta_calc - mu)**2 / (2 * self.sigma2_calc**2)) * self.der_u(self.tau)
 
 
     def evolution_of_parameters(self):
-        y = self.intensity
+
+        #self.intensity = spectrum.intensity#[:, newaxis]
+        y = self.intensity[:,newaxis]
         f = self.component_full.sum(axis = 1, keepdims = True)
         r = y - f
+
         try:
             evol = pinv(self.Jacobian_f) @ r # or scipy.linalg.pinv
         except:
@@ -279,13 +306,15 @@ class GaussNewton(SpectraXRD):
         plot(self.theta,self.z(),*args,**kwargs)
 
     def loss(self):
-        return ((self.intensity.squeeze() - self.z())**2).mean()
+        #return ((self.intensity.squeeze() - self.z())**2).mean()
+        return ((self.intensity - self.z())**2).mean()
 
     def loss_0(self):
         return ((self.spectrum.rescaling * (self.spectrum.intensity - self.z()))**2).mean()
 
     def fit_error(self):
-        return sqrt(average(square(self.intensity.squeeze() - self.z())))
+        #return sqrt(average(square(self.intensity.squeeze() - self.z())))
+        return sqrt(average(square(self.intensity - self.z())))
         #return sqrt(((self.intensity.squeeze() - self.z())**2).mean())
 
     def area_fit(self):
@@ -298,7 +327,8 @@ class GaussNewton(SpectraXRD):
         return minimum(self.z(), self.z0()).sum()
 
     def overlap(self):
-        m =  minimum(self.z(), self.intensity.squeeze())
+        #m =  minimum(self.z(), self.intensity.squeeze())
+        m =  minimum(self.z(), self.intensity)
         m[m < 0] = 0
         return m
 
