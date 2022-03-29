@@ -28,7 +28,7 @@ class PhaseSearch(list):
         self.intensity = spectrum.intensity
         self.set_opt(self[0].opt)
         self.k_b = None
-        self.calculate_gamma_initial()
+        self.calculate_chi_initial()
 
         #gc.collect()
 
@@ -50,23 +50,23 @@ class PhaseSearch(list):
         for gn in list_to_add:
             gn.opt = self.opt
         self += list_to_add
-        self.calculate_gamma_initial()
+        self.calculate_chi_initial()
 
     def remove_phases(self, list_i):
         for i in list_i:
             self.pop(i)
-        self.calculate_gamma_initial()
+        self.calculate_chi_initial()
 
 
     ### Fit experimental phases ###
     @property
-    def gamma(self):
+    def chi(self):
         return GaussNewton.w(self.g)
 
-    def calculate_gamma_initial(self):
+    def calculate_chi_initial(self):
         if len(self) > 0:
-            gamma_initial = 1 / len(self)
-            g_initial = newton(lambda x: GaussNewton.w(x) - gamma_initial, x0 = gamma_initial)
+            chi_initial = 1 / len(self)
+            g_initial = newton(lambda x: GaussNewton.w(x) - chi_initial, x0 = chi_initial)
             # horizontal: phases
             self.g = full((1, len(self)), g_initial)
         else:
@@ -75,7 +75,7 @@ class PhaseSearch(list):
     def precalculations(self):
         # vertical: channels; horizontal: phases
         self.z_phases = concatenate([gn.z()[:, newaxis] for gn in self], axis = 1)
-        self.z_components = self.gamma * self.z_phases
+        self.z_components = self.chi * self.z_phases
 
     def del_precalculations(self):
         del self.z_phases
@@ -161,7 +161,7 @@ class PhaseSearch(list):
         return array([gn.loss() for gn in self])
 
     def loss_0(self):
-        return array([g.loss_0() for g in self])
+        return array([gn.loss_0() for gn in self])
 
     def fit_error(self):
         return array([gn.fit_error() for gn in self])
@@ -353,8 +353,8 @@ class PhaseMap():
     def component_ratio(self):
         return array([ps.component_ratio() for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
 
-    def gamma_experimental_phases(self):
-        return array([ps.gamma for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
+    def chi(self):
+        return array([ps.chi for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
 
     # def component_ratio_2(self):
     #     return Parallel(n_jobs = PHASE_SEARCH__N_JOBS)(
