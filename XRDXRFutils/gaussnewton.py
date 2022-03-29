@@ -97,8 +97,10 @@ class GaussNewton(SpectraXRD):
 
         mu = self.mu[newaxis, :]
         I = self.I[newaxis, :]
+
+        theta = self.theta[:,newaxis]
         #component_core = exp((self.theta - self.mu)**2 / (-2 * self.sigma2))
-        component_core = exp((self.theta - mu)**2 / (-2 * self.sigma2))
+        component_core = exp((theta - mu)**2 / (-2 * self.sigma2))
 
         x = (I * component_core).sum(axis = 1)
 
@@ -150,9 +152,9 @@ class GaussNewton(SpectraXRD):
     """
     def precalculations(self):
         # along the channels
-        self.theta_calc = self.theta
+        self.theta_calc = self.theta[:,newaxis]
         # along the diffraction lines
-        self.sigma2_calc = self.sigma2
+        self.sigma2_calc = self.sigma2[:,newaxis]
         # along both axes
         mu = self.mu[newaxis,:]
         I = self.I[newaxis,:]
@@ -314,7 +316,8 @@ class GaussNewton(SpectraXRD):
 
     def fit_error(self):
         #return sqrt(average(square(self.intensity.squeeze() - self.z())))
-        return sqrt(average(square(self.intensity - self.z())))
+        intensity = self.intensity#[:,newaxis]
+        return sqrt(average(square(intensity - self.z())))
         #return sqrt(((self.intensity.squeeze() - self.z())**2).mean())
 
     def area_fit(self):
