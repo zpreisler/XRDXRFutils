@@ -99,6 +99,8 @@ class GaussNewton(SpectraXRD):
         I = self.I[newaxis, :]
 
         theta = self.theta[:,newaxis]
+        #sigma2 = self.sigma2[:,newaxis]
+
         #component_core = exp((self.theta - self.mu)**2 / (-2 * self.sigma2))
         component_core = exp((theta - mu)**2 / (-2 * self.sigma2))
 
@@ -154,7 +156,8 @@ class GaussNewton(SpectraXRD):
         # along the channels
         self.theta_calc = self.theta[:,newaxis]
         # along the diffraction lines
-        self.sigma2_calc = self.sigma2[:,newaxis]
+        #self.sigma2_calc = self.sigma2[:,newaxis]
+        self.sigma2_calc = self.sigma2
         # along both axes
         mu = self.mu[newaxis,:]
         I = self.I[newaxis,:]
