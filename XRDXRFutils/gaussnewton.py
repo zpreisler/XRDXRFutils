@@ -256,6 +256,7 @@ class GaussNewton(SpectraXRD):
         del self.Jacobian_f
         del d_params
 
+
     def fit_cycle(self, max_steps = 16, error_tolerance = 1e-4, **kwargs):
         fit_errors = array([])
         for i in range(max_steps):

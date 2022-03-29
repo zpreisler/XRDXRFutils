@@ -2,7 +2,7 @@ from .database import Phase, PhaseList
 from .data import DataXRD
 from .spectra import SpectraXRD
 from .gaussnewton import GaussNewton
-from numpy import array, full, nanargmin, nanargmax, newaxis, concatenate
+from numpy import array, full, nanargmin, nanargmax, newaxis, append, concatenate, sqrt, average, square, std
 from numpy.linalg import pinv
 from scipy.optimize import newton
 #from multiprocessing import Pool
@@ -115,6 +115,21 @@ class PhaseSearch(list):
             self.del_precalculations()
             del self.Jacobian_f
             del d_params
+        return self
+
+    def fit_cycle_experimental_phases(self, max_steps = 8, error_tolerance = None, alpha = 1):
+        fit_errors = array([])
+        for i in range(max_steps):
+            self.fit_experimental_phases(alpha = alpha)
+            if (error_tolerance is not None):
+                fit_errors = append(fit_errors, self.fit_error())
+                if (i >= 3):
+                    if (std(fit_errors[-4:]) < error_tolerance):
+                        break
+        return self
+
+    def error__fit_experimental_phases(self):
+        return sqrt(average(square(self.intensity.squeeze() - self.z())))
 
 
     ### Fit ###
@@ -266,12 +281,20 @@ class PhaseMap():
         )
 
         gc.collect()
-
         return self
 
     def fit_cycle(self, **kwargs):
         self.list_phase_search = Parallel(n_jobs = PHASE_SEARCH__N_JOBS)(
             delayed(ps.fit_cycle)(**kwargs) for ps in self.list_phase_search
+        )
+
+        gc.collect()
+        return self
+
+
+    def fit_cycle_experimental_phases(self, **kwargs):
+        self.list_phase_search = Parallel(n_jobs = PHASE_SEARCH__N_JOBS)(
+            delayed(ps.fit_cycle_experimental_phases)(**kwargs) for ps in self.list_phase_search
         )
 
         gc.collect()
@@ -311,7 +334,10 @@ class PhaseMap():
 
     def component_ratio(self):
         return array([ps.component_ratio() for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
-    
+
+    def gamma_experimental_phases(self):
+        return array([ps.gamma for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
+
     # def component_ratio_2(self):
     #     return Parallel(n_jobs = PHASE_SEARCH__N_JOBS)(
     #         delayed(ps.component_ratio)() for ps in self.list_phase_search
