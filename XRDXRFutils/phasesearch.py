@@ -2,25 +2,24 @@ from .database import PhaseList
 from .data import DataXRD
 from .spectra import SpectraXRD
 from .gaussnewton import GaussNewton
-from numpy import array
+from numpy import array,sqrt
 #from multiprocessing import Pool
 from joblib import Parallel, delayed
 import os
 import pickle
+import pathlib
 
 import gc
 
-
 PHASE_SEARCH__N_JOBS = -2
-
 
 class PhaseSearch(list):
     """
     Class to perform phase search. One experimental spectrum vs multiple phases, all with the same calibration.
     """
-    def __init__(self, phases, spectrum, **kwargs):
+    def __init__(self, phases, spectrum, sigma_initial = 0.2, **kwargs):
         # kwargs will be chained down to Phase.get_theta()
-        super().__init__([GaussNewton(phase, spectrum, **kwargs) for phase in phases])
+        super().__init__([GaussNewton(phase, spectrum, sigma_initial = sigma_initial, **kwargs) for phase in phases])
 
         self.kwargs = kwargs
         self.spectrum = spectrum
@@ -83,6 +82,9 @@ class PhaseSearch(list):
     def loss(self):
         return array([g.loss() for g in self])
 
+    def loss_0(self):
+        return array([g.loss_0() for g in self])
+
     def fit_error(self):
         return array([g.fit_error() for g in self])
 
@@ -104,8 +106,13 @@ class PhaseSearch(list):
 
 class PhaseMap():
     ### Initialization ###
-    def __init__(self, data, phases, **kwargs):
+    def __init__(self, data, phases, sigma_initial = 0.2, **kwargs):
         # kwargs will be chained down to Phase.get_theta()
+
+        print('sigma initial:',sigma_initial)
+
+        self.sigma_initial = sigma_initial
+
         self.kwargs = kwargs
         self.shape_data = data.shape
         self.phases = phases
@@ -113,6 +120,7 @@ class PhaseMap():
         self.n_phases_primary = None
         self.opt_initial = data.opt
         self.k_b = None
+
         self.list_phase_search = Parallel(n_jobs = PHASE_SEARCH__N_JOBS)(
             delayed(self.gen_phase_search)(x) for x in data.data.reshape(-1, self.shape_data[2])
         )
@@ -120,9 +128,11 @@ class PhaseMap():
         gc.collect()
 
     def gen_phase_search(self, x):
+
         return PhaseSearch(
             self.phases,
             SpectraXRD().from_array(x).calibrate_from_parameters(self.opt_initial),
+            sigma_initial = self.sigma_initial,
             **self.kwargs
         )
 
@@ -130,8 +140,8 @@ class PhaseMap():
     ### Misc ###
     def set_relation_a_s(self, tuple_k_b):
         self.k_b = tuple_k_b
-        for ps in self.list_phase_search:
-            ps.set_relation_a_s(tuple_k_b)
+        for phase_search in self.list_phase_search:
+            phase_search.set_relation_a_s(tuple_k_b)
         return self
 
     def get_pixel(self, x, y):
@@ -195,25 +205,33 @@ class PhaseMap():
 
     ### Output ###
     def opt(self):
-        return array([ps.opt for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
+        return array([phase_search.opt for phase_search in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
 
     def map_best_index(self):
         return array([ps.idx for ps in self.list_phase_search]).reshape(self.shape_data[0:2])
 
     def map_intensity(self):
-        return array([ps.intensity.sum() for ps in self.list_phase_search]).reshape(self.shape_data[0:2])
+        return array([ps.intensity.sum() for ps in self.list_phase_search]).reshape(self.shape_data[0],self.shape_data[1])
 
     def map_counts(self):
         return array([ps.spectrum.counts.sum() for ps in self.list_phase_search]).reshape(self.shape_data[0:2])
 
-    def map_counts_clean(self):
-        return array([ps.spectrum.counts_clean.sum() for ps in self.list_phase_search]).reshape(self.shape_data[0:2])
+    def map_rescaling(self):
+        return array([phase_search.spectrum.rescaling for phase_search in self.list_phase_search]).reshape(self.shape_data[0],self.shape_data[1])
+
+    #def map_counts_clean(self):
+    #    return array([ps.spectrum.counts_clean.sum() for ps in self.list_phase_search]).reshape(self.shape_data[0:2])
 
     def loss(self):
         return array([ps.loss() for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
 
+    def loss_0(self):
+        return array([phase_search.loss_0() for phase_search in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
+
     def fit_error(self):
-        return array([ps.fit_error() for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
+        #return array([ps.fit_error() for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
+
+        return sqrt(array([phase_search.loss() for phase_search in self.list_phase_search])).reshape((self.shape_data[0],self.shape_data[1],-1))
 
     def area_fit(self):
         return array([ps.area_fit() for ps in self.list_phase_search]).reshape((self.shape_data[0], self.shape_data[1], -1))
@@ -265,6 +283,9 @@ class PhaseMapSave():
         return pm
 
     def save_to_file(self, filename):
+
+        pathlib.Path(filename).parents[0].mkdir(parents=True,exist_ok=True)
+
         with open(filename, 'wb') as file:
             pickle.dump(self, file)
 

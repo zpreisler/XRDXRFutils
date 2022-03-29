@@ -50,9 +50,10 @@ class SpectraXRD(Spectra):
 
     def calculate_signals(self, n = 21, std = 3, m = 32):
         background = snip(convolve(self.counts, n = n, std = std), m = m)
-        self.counts_clean = self.counts - background
-        self.rescaling = self.counts_clean.max()
-        self.intensity = self.counts_clean / self.rescaling
+        #self.counts_clean = self.counts - self.background
+        counts = self.counts - background
+        self.rescaling = counts.max()
+        self.intensity = counts / self.rescaling
 
     def calibrate_from_parameters(self, opt):
         self.calibration.from_parameters(opt)
@@ -76,7 +77,6 @@ class SpectraXRD(Spectra):
             x is a channel
         """
         return (arctan((x + a) / s)) * 180 / pi + beta
-
 
     @property
     def theta(self):
