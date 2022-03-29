@@ -11,7 +11,7 @@ class GaussNewton(SpectraXRD):
     """
     Class to calculate Gauss-Newton minimization of the synthetic and the experimental spectrum.
     """
-    def __init__(self, phase, spectrum, **kwargs):
+    def __init__(self, phase, spectrum, sigma_initial = 0.2, **kwargs):
         # kwargs will be passed to Phase.get_theta()
         """
         phase: tabulated phase; Phase or PhaseList class
@@ -48,7 +48,7 @@ class GaussNewton(SpectraXRD):
         """
         # Variables along the diffraction lines
         gamma_initial = 1
-        sigma_initial = 0.2
+        #sigma_initial = 0.2
         sigma2_initial = sigma_initial**2
         g_initial = newton(lambda x: GaussNewton.w(x) - gamma_initial, x0 = gamma_initial)
         tau_initial = newton(lambda x: GaussNewton.u(x) - sigma2_initial, x0 = sigma2_initial)
@@ -67,7 +67,6 @@ class GaussNewton(SpectraXRD):
 
     def plot(self, *args, **kwargs):
         plot(self.theta, self.z(), *args, **kwargs)
-
 
     """
     Utility functions
@@ -92,11 +91,17 @@ class GaussNewton(SpectraXRD):
 
     def z0(self):
         """
-        Synthetic spectrum without the rescalings of peaks.
+        Synthetic spectrum with gamma=1 for all peaks.
         """
-        self.precalculations()
-        x = (self.I * self.component_core).sum(axis = 1)
-        self.del_precalculations()
+        #self.precalculations()
+
+        component_core = exp((self.theta - self.mu)**2 / (-2 * self.sigma2))
+
+        x = (self.I * component_core).sum(axis = 1)
+
+        #del self.component_full
+        #del self.component_core
+
         return x
 
 
@@ -159,10 +164,12 @@ class GaussNewton(SpectraXRD):
     def der_f_a_s_beta(self):
         der_theta_a = (180 / pi) * self.opt[1] / ((self.channel + self.opt[0])**2 + self.opt[1]**2)
         der_theta_s = (-180 / pi) * (self.channel + self.opt[0]) / ((self.channel + self.opt[0])**2 + self.opt[1]**2)
+
         aux = (self.component_full * (self.theta_calc - self.mu) / self.sigma2_calc).sum(axis = 1, keepdims = True)
         der_f_a = - der_theta_a * aux
         der_f_s = - der_theta_s * aux
         der_f_beta = - aux
+
         return der_f_a, der_f_s, der_f_beta
 
     def der_f_a_beta__when_relation_a_s(self, k, b):
@@ -267,7 +274,6 @@ class GaussNewton(SpectraXRD):
                     if (std(fit_errors[-4:]) < error_tolerance):
                         break
 
-
     """
     Evaluation of the results
     """
@@ -277,13 +283,15 @@ class GaussNewton(SpectraXRD):
     def plot(self,*args,**kwargs):
         plot(self.theta,self.z(),*args,**kwargs)
 
-
     def loss(self):
-        return sum(square(self.intensity.squeeze() - self.z()))
+        return ((self.intensity.squeeze() - self.z())**2).mean()
+
+    def loss_0(self):
+        return ((self.spectrum.rescaling * (self.spectrum.intensity - self.z()))**2).mean()
 
     def fit_error(self):
         return sqrt(average(square(self.intensity.squeeze() - self.z())))
-
+        #return sqrt(((self.intensity.squeeze() - self.z())**2).mean())
 
     def area_fit(self):
         return self.z().sum()
@@ -302,12 +310,10 @@ class GaussNewton(SpectraXRD):
     def overlap_area(self):
         return self.overlap().sum()
 
-
     def overlap_ratio(self):
         integral_intersection = self.overlap().sum()
         integral_spectrum = clip(self.intensity, 0, None).sum()
         return (integral_intersection / integral_spectrum)
-
 
     def fit_penalty(self):
         # gamma = self.gamma.copy()
