@@ -22,13 +22,14 @@ class PhaseSearch(list):
         super().__init__([GaussNewton(phase, spectrum, sigma_initial = sigma_initial, **kwargs) for phase in phases])
 
         self.kwargs = kwargs
+
         self.spectrum = spectrum
         self.intensity = spectrum.intensity
+
         self.set_opt(self[0].opt)
         self.k_b = None
 
-        gc.collect()
-
+        #gc.collect()
 
     ### Misc ###
     def set_relation_a_s(self, tuple_k_b):
@@ -63,7 +64,6 @@ class PhaseSearch(list):
         for fit_phase in self:
             fit_phase.fit_cycle(**kwargs)
 
-        gc.collect()
 
         return self
 
@@ -104,7 +104,67 @@ class PhaseSearch(list):
         return array([g.component_ratio() for g in self])
 
 
-class PhaseMap():
+class PhaseRow(list):
+    def __init__(self, data, phases, row, sigma_initial = 0.2, **kwargs):
+
+        self.kwargs = kwargs
+
+        self.shape_data = data.shape
+        self.opt_initial = data.opt
+
+        self.phases = phases
+        self.phases.get_theta(**kwargs)
+
+        for i in range(data.shape[0]):
+            spectrum = SpectraXRD().from_Data(data,i,0)
+            self += [PhaseSearch(phases,spectrum)]
+            #self.list_phase_search += [PhaseSearch(phases,spectrum)]
+
+    def search(self, **kwargs):
+        for phases in self:
+            phases.search(**kwargs)
+
+        return self
+
+    def fit_cycle(self, **kwargs):
+        for phases in self:
+            phases.fit_cycle(**kwargs)
+
+        return self
+
+class PhaseBlock(list):
+    def __init__(self, spectra, phases, sigma_initial = 0.2, **kwargs):
+
+        self.kwargs = kwargs
+
+        #self.shape_data = data.shape
+        #self.opt_initial = data.opt
+
+        self.phases = phases
+        self.phases.get_theta(**kwargs)
+
+        #for spectrum in spectra:
+            #spectrum = SpectraXRD().from_Data(data,i,0)
+        #    self += [PhaseSearch(phases,spectrum)]
+            #self.list_phase_search += [PhaseSearch(phases,spectrum)]
+
+        self += [PhaseSearch(phases,spectrum,sigma_initial) for spectrum in spectra]
+
+    def search(self, **kwargs):
+        for i,spectrum in enumerate(self):
+            print(i)
+            spectrum.search(**kwargs)
+
+        return self
+
+    def fit_cycle(self, **kwargs):
+        for spectrum in self:
+            spectrum.fit_cycle(**kwargs)
+
+        return self
+
+
+class PhaseMap(list):
     ### Initialization ###
     def __init__(self, data, phases, sigma_initial = 0.2, **kwargs):
         # kwargs will be chained down to Phase.get_theta()
@@ -121,11 +181,19 @@ class PhaseMap():
         self.opt_initial = data.opt
         self.k_b = None
 
-        self.list_phase_search = Parallel(n_jobs = PHASE_SEARCH__N_JOBS)(
-            delayed(self.gen_phase_search)(x) for x in data.data.reshape(-1, self.shape_data[2])
-        )
+        #self.list_phase_search = Parallel(n_jobs = PHASE_SEARCH__N_JOBS)(
+        #    delayed(self.gen_phase_search)(x) for x in data.data.reshape(-1, self.shape_data[2])
+        #)
 
-        gc.collect()
+        self.list_phase_search = []
+
+        for i in range(data.shape[0]):
+            for j in range(data.shape[1]):
+                spectrum = SpectraXRD().from_Data(data,i,j)
+                self += [PhaseSearch(phases,spectrum)]
+                #self.list_phase_search += [PhaseSearch(phases,spectrum)]
+
+        #gc.collect()
 
     def gen_phase_search(self, x):
 
@@ -210,7 +278,6 @@ class PhaseMap():
             delayed(ps.search)(**kwargs) for ps in self.list_phase_search
         )
 
-        gc.collect()
 
         return self
 
@@ -219,7 +286,6 @@ class PhaseMap():
             delayed(ps.fit_cycle)(**kwargs) for ps in self.list_phase_search
         )
 
-        gc.collect()
         return self
 
 

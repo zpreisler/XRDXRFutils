@@ -18,6 +18,7 @@ class GaussNewton(SpectraXRD):
         spectrum: experimental spectrum; Spectra class
         """
         super().__init__()
+
         self.phase = phase
         self.spectrum = spectrum
         self.kwargs = kwargs
