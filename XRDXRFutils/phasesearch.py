@@ -151,8 +151,7 @@ class PhaseBlock(list):
         self += [PhaseSearch(phases,spectrum,sigma_initial) for spectrum in spectra]
 
     def search(self, **kwargs):
-        for i,spectrum in enumerate(self):
-            print(i)
+        for spectrum in self:
             spectrum.search(**kwargs)
 
         return self
