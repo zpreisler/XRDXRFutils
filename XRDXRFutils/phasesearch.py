@@ -70,6 +70,7 @@ class PhaseSearch(list):
         self.selected = self[self.idx]
         return self.selected
 
+
     def fit_cycle(self, **kwargs):
         for gn in self:
             gn.fit_cycle(**kwargs)
@@ -78,6 +79,7 @@ class PhaseSearch(list):
 
         return self
 
+
     def search(self, max_steps = (4, 8, 4), alpha = 1):
         self.fit_cycle(max_steps = max_steps[0], gamma = True, alpha = alpha)
         if self.k_b is None:
@@ -85,6 +87,8 @@ class PhaseSearch(list):
         else:
             self.select().fit_cycle(max_steps = max_steps[1], k = self.k_b[0], b = self.k_b[1], gamma = True, alpha = alpha)
         self.fit_cycle(max_steps = max_steps[2], gamma = True, alpha = alpha)
+
+        #gc.collect()
 
         return self
 
