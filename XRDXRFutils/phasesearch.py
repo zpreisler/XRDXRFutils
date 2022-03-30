@@ -13,6 +13,7 @@ import gc
 
 PHASE_SEARCH__N_JOBS = -2
 
+#class PhaseSearch(list):
 class PhaseSearch(list):
     """
     Class to perform phase search. One experimental spectrum vs multiple phases, all with the same calibration.
@@ -21,37 +22,38 @@ class PhaseSearch(list):
         # kwargs will be chained down to Phase.get_theta()
         super().__init__([GaussNewton(phase, spectrum, sigma_initial = sigma_initial, **kwargs) for phase in phases])
 
-        self.kwargs = kwargs
+#        self.kwargs = kwargs
 
         self.spectrum = spectrum
         self.intensity = spectrum.intensity
 
         self.set_opt(self[0].opt)
-        self.k_b = None
+#        self.k_b = None
 
         #gc.collect()
 
     ### Misc ###
-    def set_relation_a_s(self, tuple_k_b):
-        self.k_b = tuple_k_b
-        return self
+#    def set_relation_a_s(self, tuple_k_b):
+#        self.k_b = tuple_k_b
+#        return self
 
     def set_opt(self, opt):
+
         self.opt = opt.copy()
         for g in self:
             g.opt = self.opt
 
 
     ### Construction ###
-    def add_phases(self, phases):
-        list_to_add = [GaussNewton(phase, self.spectrum, **self.kwargs) for phase in phases]
-        for gn in list_to_add:
-            gn.opt = self.opt
-        self += list_to_add
+#    def add_phases(self, phases):
+#        list_to_add = [GaussNewton(phase, self.spectrum, **self.kwargs) for phase in phases]
+#        for gn in list_to_add:
+#            gn.opt = self.opt
+#        self += list_to_add
 
-    def remove_phases(self, list_i):
-        for i in list_i:
-            self.pop(i)
+#    def remove_phases(self, list_i):
+#        for i in list_i:
+#            self.pop(i)
 
 
     ### Fit ###
@@ -61,48 +63,51 @@ class PhaseSearch(list):
         return self.selected
 
     def fit_cycle(self, **kwargs):
-        for fit_phase in self:
-            fit_phase.fit_cycle(**kwargs)
-
+        for phase in self:
+            phase.fit_cycle(**kwargs)
 
         return self
 
     def search(self, max_steps = (4, 8, 4), alpha = 1):
+
         self.fit_cycle(max_steps = max_steps[0], gamma = True, alpha = alpha)
-        if self.k_b is None:
-            self.select().fit_cycle(max_steps = max_steps[1], a = True, s = True, gamma = True, alpha = alpha)
-        else:
-            self.select().fit_cycle(max_steps = max_steps[1], k = self.k_b[0], b = self.k_b[1], gamma = True, alpha = alpha)
+
+        #if self.k_b is None:
+
+        self.select().fit_cycle(max_steps = max_steps[1], a = True, s = True, gamma = True, alpha = alpha)
+        #else:
+        #    self.select().fit_cycle(max_steps = max_steps[1], k = self.k_b[0], b = self.k_b[1], gamma = True, alpha = alpha)
+
         self.fit_cycle(max_steps = max_steps[2], gamma = True, alpha = alpha)
 
         return self
 
 
     ### Output ###
-    def loss(self):
-        return array([g.loss() for g in self])
-
-    def loss_0(self):
-        return array([g.loss_0() for g in self])
-
-    def fit_error(self):
-        return array([g.fit_error() for g in self])
-
-    def area_fit(self):
-        return array([g.area_fit() for g in self])
-
-    def area_0(self):
-        return array([g.area_0() for g in self])
-
-    def area_min_0_fit(self):
-        return array([g.area_min_0_fit() for g in self])
-
+#    def loss(self):
+#        return array([g.loss() for g in self])
+#
+#    def loss_0(self):
+#        return array([g.loss_0() for g in self])
+#
+#    def fit_error(self):
+#        return array([g.fit_error() for g in self])
+#
+#    def area_fit(self):
+#        return array([g.area_fit() for g in self])
+#
+#    def area_0(self):
+#        return array([g.area_0() for g in self])
+#
+#    def area_min_0_fit(self):
+#        return array([g.area_min_0_fit() for g in self])
+#
     def overlap_area(self):
         return array([g.overlap_area() for g in self])
-    
-    def component_ratio(self):
-        return array([g.component_ratio() for g in self])
-
+#    
+#    def component_ratio(self):
+#        return array([g.component_ratio() for g in self])
+#
 
 class PhaseRow(list):
     def __init__(self, data, phases, row, sigma_initial = 0.2, **kwargs):
@@ -135,12 +140,12 @@ class PhaseRow(list):
 class PhaseBlock(list):
     def __init__(self, spectra, phases, sigma_initial = 0.2, **kwargs):
 
-        self.kwargs = kwargs
+        #self.kwargs = kwargs
 
         #self.shape_data = data.shape
         #self.opt_initial = data.opt
 
-        self.phases = phases
+        #self.phases = phases
         #self.phases.get_theta(**kwargs)
 
         #for spectrum in spectra:
@@ -151,6 +156,7 @@ class PhaseBlock(list):
         self += [PhaseSearch(phases,spectrum,sigma_initial) for spectrum in spectra]
 
     def search(self, **kwargs):
+
         for spectrum in self:
             spectrum.search(**kwargs)
 

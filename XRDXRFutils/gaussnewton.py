@@ -1,4 +1,4 @@
-from .spectra import SpectraXRD
+from .spectra import SpectraXRD, FastSpectraXRD
 
 from numpy import sum, exp, log, pi, array, ones, zeros, full, full_like, trapz, minimum, maximum, std, fabs, sign, sqrt, square, average, clip, newaxis, concatenate, append, where
 from numpy.linalg import pinv, inv
@@ -7,7 +7,9 @@ from scipy.optimize import newton
 
 from matplotlib.pyplot import plot
 
-class GaussNewton(SpectraXRD):
+import gc
+
+class GaussNewton(FastSpectraXRD):
     """
     Class to calculate Gauss-Newton minimization of the synthetic and the experimental spectrum.
     """
@@ -21,12 +23,14 @@ class GaussNewton(SpectraXRD):
 
         self.phase = phase
         self.spectrum = spectrum
-        self.kwargs = kwargs
+
+        #self.kwargs = kwargs
         self.label = phase.label
 
         """
         Spectrum
         """
+
         self.opt = spectrum.opt.copy()
         # Variables along the channels
         #self.channel = spectrum.channel[:, newaxis]
@@ -272,7 +276,6 @@ class GaussNewton(SpectraXRD):
         # Jacobian
         if Jacobian_construction:
             self.Jacobian_f = concatenate(Jacobian_construction, axis = 1)
-            del Jacobian_construction
 
         else:
             self.del_precalculations()
@@ -290,7 +293,12 @@ class GaussNewton(SpectraXRD):
             self.tau += d_params[(n_opt + n_gamma) :].T
 
         self.del_precalculations()
-        del d_params
+
+        del self.Jacobian_f
+
+        #gc.collect()
+
+        return self
 
     def fit_cycle(self, max_steps = 16, error_tolerance = 1e-4, **kwargs):
         fit_errors = array([])
@@ -301,6 +309,8 @@ class GaussNewton(SpectraXRD):
                 if (i >= 3):
                     if (std(fit_errors[-4:]) < error_tolerance):
                         break
+
+        return self
 
     """
     Evaluation of the results
@@ -337,6 +347,7 @@ class GaussNewton(SpectraXRD):
         #m =  minimum(self.z(), self.intensity.squeeze())
         m =  minimum(self.z(), self.intensity)
         m[m < 0] = 0
+
         return m
 
     def overlap_area(self):
