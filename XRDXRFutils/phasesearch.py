@@ -13,7 +13,7 @@ import pathlib
 
 import gc
 
-PHASE_SEARCH__N_JOBS = -1
+PHASE_SEARCH__N_JOBS = -2
 
 class PhaseSearch(list):
     """
