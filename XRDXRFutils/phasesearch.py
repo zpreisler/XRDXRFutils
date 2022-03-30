@@ -141,7 +141,7 @@ class PhaseBlock(list):
         #self.opt_initial = data.opt
 
         self.phases = phases
-        self.phases.get_theta(**kwargs)
+        #self.phases.get_theta(**kwargs)
 
         #for spectrum in spectra:
             #spectrum = SpectraXRD().from_Data(data,i,0)
