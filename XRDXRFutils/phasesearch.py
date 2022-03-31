@@ -294,13 +294,22 @@ class PhaseMap():
             phase_search.set_relation_a_s(tuple_k_b)
         return self
 
+
+    def get_x_y_from_index(self, idx):
+        y, x = divmod(idx, self.shape_data[1])
+        return x, y
+
+    def get_index_from_x_y(self, x, y):
+        return y * self.shape_data[1] + x
+
     def get_pixel(self, x, y):
-        return self.list_phase_search[y * self.shape_data[1] + x]
+        return self.list_phase_search[self.get_index_from_x_y(x, y)]
 
 
     def extract_best_phases(self):
         #arr_overlap_area = array([ps.overlap_area() for ps in self.list_phase_search])
         arr_fit_error = array([ps.fit_error() for ps in self.list_phase_search])
+        list_points = []
         list_phases = []
 
         for idx_phase in range(len(self.phases)):
@@ -315,9 +324,10 @@ class PhaseMap():
             phase_new.theta = mu
             phase_new.intensity = I_new
             phase_new.label = gn.phase.label
+            list_points.append(idx_point)
             list_phases.append(phase_new)
 
-        return PhaseList(list_phases)
+        return list_points, PhaseList(list_phases)
 
 
     """
@@ -458,6 +468,7 @@ class PhaseMapSave():
         self.list_g = [[gn.g for gn in ps] for ps in phasemap.list_phase_search]
         self.list_tau = [[gn.tau for gn in ps] for ps in phasemap.list_phase_search]
         self.kwargs = phasemap.kwargs
+        self.sigma_initial = phasemap.sigma_initial
 
     def reconstruct_phase_map(self, path_xrd):
         if os.path.isfile(path_xrd + 'xrd.h5'):
@@ -467,6 +478,7 @@ class PhaseMapSave():
         data.calibrate_from_parameters(self.opt_initial)
 
         pm = PhaseMap(data, self.phases, **self.kwargs)
+        pm.sigma_initial = self.sigma_initial
         if self.k_b is not None:
             pm.set_relation_a_s(self.k_b)
         for i in range(len(self.list_opt)):
