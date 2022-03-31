@@ -63,7 +63,8 @@ class GaussNewton(SpectraXRD):
     Plot functions
     """
     def plot_spectrum(self, *args, **kwargs):
-        super().plot(*args, **kwargs)
+        #super().plot(*args, **kwargs)
+        plot(self.theta.squeeze(), self.intensity.squeeze(), *args, **kwargs)
 
     def plot(self, *args, **kwargs):
         plot(self.theta, self.z(), *args, **kwargs)
