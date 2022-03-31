@@ -58,15 +58,15 @@ class PhaseSearch(list):
 
     ### Fit ###
     def select(self):
+
         self.idx = self.overlap_area().argmax()
         self.selected = self[self.idx]
+
         return self.selected
 
     def fit_cycle(self, **kwargs):
         for phase in self:
             phase.fit_cycle(**kwargs)
-
-        return self
 
     def search(self, max_steps = (4, 8, 4), alpha = 1):
 
@@ -79,8 +79,6 @@ class PhaseSearch(list):
         #    self.select().fit_cycle(max_steps = max_steps[1], k = self.k_b[0], b = self.k_b[1], gamma = True, alpha = alpha)
 
         self.fit_cycle(max_steps = max_steps[2], gamma = True, alpha = alpha)
-
-        return self
 
 
     ### Output ###
@@ -129,13 +127,9 @@ class PhaseRow(list):
         for phases in self:
             phases.search(**kwargs)
 
-        return self
-
     def fit_cycle(self, **kwargs):
         for phases in self:
             phases.fit_cycle(**kwargs)
-
-        return self
 
 class PhaseBlock(list):
     def __init__(self, spectra, phases, sigma_initial = 0.2, **kwargs):
@@ -160,14 +154,9 @@ class PhaseBlock(list):
         for spectrum in self:
             spectrum.search(**kwargs)
 
-        return self
-
     def fit_cycle(self, **kwargs):
         for spectrum in self:
             spectrum.fit_cycle(**kwargs)
-
-        return self
-
 
 class PhaseMap(list):
     ### Initialization ###
@@ -384,3 +373,35 @@ class PhaseMapSave():
     def load_from_file(filename):
         with open(filename, 'rb') as file:
             return pickle.load(file)
+
+
+class PhaseMap(list):
+    """
+    Class to process images
+    """
+    def from_data(self, data, phases):
+        phases.get_theta(max_theta = 53, min_intensity = 0.05)
+        arr = data.data.reshape(-1, 1280)
+        spectra = self.gen_spectra(arr)
+        for spectrum in spectra:
+            spectrum.calibrate_from_parameters(data.opt)
+        self += [PhaseSearch(phases, spectrum) for spectrum in spectra]
+        return self
+
+    @staticmethod
+    def f_spectrum(x):
+        return SpectraXRD().from_array(x)
+
+    def gen_spectra(self, a):
+        with Pool() as p:
+            spectra = p.map(self.f_spectrum, a)
+        return spectra
+
+    @staticmethod
+    def f_search(x):
+        return x.search()
+
+    def search(self):
+        with Pool() as p:
+            result = p.map(self.f_search, self)
+        return PhaseMap(result)
