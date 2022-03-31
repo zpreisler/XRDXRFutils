@@ -52,9 +52,9 @@ class Phase(dict):
 
         return self.theta, self.intensity
 
-    def plot(self, colors='k', linestyles='dashed', label=None, **kwargs):
+    def plot(self, colors = 'k', linestyles = 'dashed', label = None, lineheight = None, **kwargs):
 
-        if not hasattr(self,'theta'):
+        if not hasattr(self, 'theta'):
             self.get_theta()
 
         if label is None:
@@ -63,7 +63,10 @@ class Phase(dict):
             except:
                 label = self['_chemical_formula_sum']
 
-        vlines(self.theta,0,self.intensity, colors=colors, linestyles=linestyles, label=label, **kwargs)
+        if lineheight is None:
+            vlines(self.theta, 0, self.intensity, colors = colors, linestyles = linestyles, label = label, **kwargs)
+        else:
+            vlines(self.theta, 0, lineheight, colors = colors, linestyles = linestyles, label = label, **kwargs)
 
 class PhaseList(list):
 
