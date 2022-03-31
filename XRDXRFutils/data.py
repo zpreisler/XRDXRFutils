@@ -7,8 +7,10 @@ import os
 
 from .calibration import Calibration
 from .spectra import SyntheticSpectraXRF
+from .utils import convolve3d,snip3d
 
 from PIL import Image
+
 from multiprocessing import Pool
 
 from glob import glob
@@ -101,6 +103,20 @@ class Data():
         else:
             return self._x
 
+    def remove_background(self, n = 21, std = 3, m = 32):
+
+        print('Removing background')
+
+        background = snip3d(convolve3d(self.data,n = n, std = std), m = m)
+        data = self.data - background
+
+        self.rescaling = data.max(axis=2,keepdims=True)
+        self.intensity = data / self.rescaling
+
+        print('Done')
+
+        return self
+
     def save_h5(self,filename = None):
 
         if filename == None:
@@ -121,6 +137,12 @@ class Data():
 
             if hasattr(self,'weights'):
                 dataset = f.create_dataset('weights',data = self.weights)
+
+            if hasattr(self,'rescaling'):
+                dataset = f.create_dataset('rescaling',data = self.rescaling)
+
+            if hasattr(self,'intensity'):
+                dataset = f.create_dataset('intensity',data = self.intensity)
             
             if hasattr(self,'calibration'):
                 calibration = f.create_group('calibration')
@@ -146,6 +168,12 @@ class Data():
 
             if 'weights' in f:
                 self.weights = f.get('weights')[()]
+
+            if 'rescaling' in f:
+                self.rescaling = f.get('rescaling')[()]
+
+            if 'intensity' in f:
+                self.intensity = f.get('intensity')[()]
 
             for k,v in f.attrs.items():
                 self.metadata[k] = v
@@ -392,7 +420,9 @@ class SyntheticDataXRF(Data):
         return self
     
     def _get_labels(self, symbols, lines):
-        """Generator"""
+        """
+        Generator
+        """
         if len(symbols) != len(lines):
             raise ValueError("Symbols and lines differ in length")
         for s in self.spe_objs:

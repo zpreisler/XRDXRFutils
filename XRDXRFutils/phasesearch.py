@@ -279,7 +279,7 @@ class PhaseMap():
 
         return PhaseSearch(
             self.phases,
-            SpectraXRD().from_array(x).calibrate_from_parameters(self.opt_initial),
+            SpectraXRD().from_array(x).calibrate_from_parameters(self.opt_initial).remove_background(),
             sigma_initial = self.sigma_initial,
             **self.kwargs
         )
