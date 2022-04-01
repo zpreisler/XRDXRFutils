@@ -4,7 +4,6 @@ from .spectra import SpectraXRD,FastSpectraXRD
 from .gaussnewton import GaussNewton
 from numpy import array, full, zeros, nanargmin, nanargmax, newaxis, append, concatenate, sqrt, average, square, std
 from numpy.linalg import pinv
-#from scipy.optimize import newton
 from multiprocessing import Pool
 from joblib import Parallel, delayed
 import os
@@ -12,65 +11,6 @@ import pickle
 import pathlib
 
 import gc
-
-PHASE_SEARCH__N_JOBS = -2
-
-class GammaSearch(list):
-    """
-    Iterate gamma.
-    """
-    def __init__(self, phases, spectrum, sigma = 0.2, **kwargs):
-        super().__init__([GaussNewton(phase, spectrum, sigma = sigma, **kwargs) for phase in phases])
-
-        self.spectrum = spectrum
-        self.intensity = spectrum.intensity
-
-        self.opt = self[0].opt.copy()
-        for gaussnewton in self:
-            gaussnewton.opt = self.opt
-
-
-class Container():
-    def __init__(self,phases,spectrum,sigma):
-
-        self.phases = phases
-        self.spectrum = spectrum
-        self.sigma = sigma
-
-class GammaMap(list):
-    """
-    Construct gamma phase maps.
-    """
-    def __init__(self,data,phases,sigma = 0.2, **kwargs):
-        
-        self.phases = phases
-
-        d = data.shape[0] * data.shape[1]
-        containers = [Container(phases, FastSpectraXRD().fromDataf(data,i), sigma) for i in range(d)]
-
-        self.gamma_search = [GammaSearch(phases)]
-
-
-    @staticmethod
-    def f_spectrum(x):
-        return GammaSearch(x.phases,x.spectrum,x.sigma)
-
-    def gen_phase_search(self, x):
-
-        with Pool(26) as p:
-            phase_search = p.map(self.f_spectrum, x)
-
-        return phase_search
-
-    @staticmethod
-    def f_search(x):
-        return x.search()
-
-    def search(self):
-        with Pool(-2) as p:
-            result = p.map(self.f_search, self)
-        return PhaseMap(result)
-        
 
 class PhaseSearch(list):
     """
@@ -177,7 +117,6 @@ class PhaseSearch(list):
     def del_precalculations(self):
         del self.z_phases
         del self.z_components
-
 
     def z_decomposed(self):
         self.precalculations()

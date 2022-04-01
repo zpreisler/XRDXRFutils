@@ -111,7 +111,6 @@ class GaussNewton(SpectraXRD):
     def gamma(self):
         return self.w(self.g)
 
-
     @staticmethod
     def u(x):
         return x**2
@@ -120,18 +119,9 @@ class GaussNewton(SpectraXRD):
     def der_u(x):
         return 2 * x
 
-    # @staticmethod
-    # def u(x):
-    #     return GaussNewton.w(100 * x) / 100
-
-    # @staticmethod
-    # def der_u(x):
-    #     return GaussNewton.der_w(100 * x)
-
     @property
     def sigma2(self):
         return self.u(self.tau)
-
 
     """
     Calculations for fit
@@ -150,7 +140,6 @@ class GaussNewton(SpectraXRD):
         del self.sigma2_calc
         del self.component_full
         del self.component_core
-
 
     def der_f_a_s_beta(self):
         der_theta_a = (180 / pi) * self.opt[1] / ((self.channel + self.opt[0])**2 + self.opt[1]**2)
