@@ -11,7 +11,7 @@ class GaussNewton(SpectraXRD):
     """
     Class to calculate Gauss-Newton minimization of the synthetic and the experimental spectrum.
     """
-    def __init__(self, phase, spectrum, sigma_initial = 0.2, **kwargs):
+    def __init__(self, phase, spectrum, sigma = 0.2, **kwargs):
         # kwargs will be passed to Phase.get_theta()
         """
         phase: tabulated phase; Phase or PhaseList class
@@ -20,7 +20,6 @@ class GaussNewton(SpectraXRD):
         super().__init__()
         self.phase = phase
         self.spectrum = spectrum
-        self.kwargs = kwargs
         self.label = phase.label
 
         """
@@ -28,8 +27,10 @@ class GaussNewton(SpectraXRD):
         """
         self.opt = spectrum.opt.copy()
         # Variables along the channels
+
         self.channel = spectrum.channel[:, newaxis]
         self.intensity = spectrum.intensity[:, newaxis]
+        #self.intensity = spectrum.intensity
 
         """
         Phases
@@ -46,18 +47,8 @@ class GaussNewton(SpectraXRD):
         """
         parameters g, tau --> gamma, sigma^2
         """
-        # Variables along the diffraction lines
-        gamma_initial = 1
-        #sigma_initial = 0.2
-        sigma2_initial = sigma_initial**2
-        g_initial = newton(lambda x: GaussNewton.w(x) - gamma_initial, x0 = gamma_initial)
-        tau_initial = newton(lambda x: GaussNewton.u(x) - sigma2_initial, x0 = sigma2_initial)
-        self.g = full((1, self.n_peaks), g_initial)
-        self.tau = full((1, self.n_peaks), tau_initial)
-
-
-    #def __del__(self):
-
+        self.g = full((1, self.n_peaks), self.iw(1))
+        self.tau = full((1, self.n_peaks), sigma)
 
     """
     Plot functions
@@ -94,14 +85,9 @@ class GaussNewton(SpectraXRD):
         """
         Synthetic spectrum with gamma=1 for all peaks.
         """
-        #self.precalculations()
 
         component_core = exp((self.theta - self.mu)**2 / (-2 * self.sigma2))
-
         x = (self.I * component_core).sum(axis = 1)
-
-        #del self.component_full
-        #del self.component_core
 
         return x
 
@@ -109,6 +95,10 @@ class GaussNewton(SpectraXRD):
     """
     Redefined variables
     """
+    @staticmethod
+    def iw(x):
+        return (4 * x**2 -1) / (4 * x)
+
     @staticmethod
     def w(x):
         return 0.5 * (sqrt(x**2 + 1) + x)

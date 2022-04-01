@@ -176,9 +176,20 @@ class SpectraXRD(Spectra):
 
         self.channel = arange(self.counts.__len__(), dtype = 'int')
 
-        return self#.from_array(counts)
+        return self
 
-    #def calculate_signals(self, n = 21, std = 3, m = 32):
+    def fromDataf(self, data, i):
+
+        self.calibrate_from_parameters(data.opt)
+
+        self.counts = data.data.reshape(-1,1280)[i]
+        self.rescaling = data.rescaling.reshape(-1)[i]
+        self.intensity = data.intensity.reshape(-1,1280)[i]
+
+        self.channel = arange(self.counts.__len__(), dtype = 'int')
+
+        return self
+
     def remove_background(self, n = 21, std = 3, m = 32):
 
         background = snip(convolve(self.counts, n = n, std = std), m = m)
@@ -226,8 +237,21 @@ class SpectraXRD(Spectra):
         plot(self.theta,self.intensity,*args,**kwargs)
 
 class FastSpectraXRD():
+
     def __init__(self):
         pass
+
+    def fromDataf(self, data, i):
+
+        self.opt = data.opt.copy()
+
+        self.counts = data.data.reshape(-1,1280)[i]
+        self.rescaling = data.rescaling.flatten()[i]
+        self.intensity = data.intensity.reshape(-1,1280)[i]
+
+        self.channel = arange(self.counts.__len__(), dtype = 'int')
+
+        return self
 
     @staticmethod
     def fce_calibration(x,a,s,beta):
@@ -248,5 +272,3 @@ class FastSpectraXRD():
 
     def plot(self,*args,**kwargs):
         plot(self.theta,self.intensity,*args,**kwargs)
-
-
