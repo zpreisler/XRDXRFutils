@@ -7,7 +7,7 @@ from scipy.optimize import newton
 
 from matplotlib.pyplot import plot
 
-class GaussNewton(SpectraXRD):
+class GaussNewton(FastSpectraXRD):
     """
     Class to calculate Gauss-Newton minimization of the synthetic and the experimental spectrum.
     """
@@ -30,7 +30,6 @@ class GaussNewton(SpectraXRD):
 
         self.channel = spectrum.channel[:, newaxis]
         self.intensity = spectrum.intensity[:, newaxis]
-        #self.intensity = spectrum.intensity
 
         """
         Phases
@@ -80,12 +79,10 @@ class GaussNewton(SpectraXRD):
         self.del_precalculations()
         return x
 
-
     def z0(self):
         """
         Synthetic spectrum with gamma=1 for all peaks.
         """
-
         component_core = exp((self.theta - self.mu)**2 / (-2 * self.sigma2))
         x = (self.I * component_core).sum(axis = 1)
 
@@ -127,21 +124,25 @@ class GaussNewton(SpectraXRD):
     Calculations for fit
     """
     def precalculations(self):
+
         # along the channels
         self.theta_calc = self.theta
         # along the diffraction lines
         self.sigma2_calc = self.sigma2
         # along both axes
+
         self.component_core = exp((self.theta_calc - self.mu)**2 / (-2 * self.sigma2_calc))
         self.component_full = self.I * self.gamma * self.component_core
 
     def del_precalculations(self):
+
         del self.theta_calc
         del self.sigma2_calc
         del self.component_full
         del self.component_core
 
     def der_f_a_s_beta(self):
+
         der_theta_a = (180 / pi) * self.opt[1] / ((self.channel + self.opt[0])**2 + self.opt[1]**2)
         der_theta_s = (-180 / pi) * (self.channel + self.opt[0]) / ((self.channel + self.opt[0])**2 + self.opt[1]**2)
 
@@ -153,20 +154,19 @@ class GaussNewton(SpectraXRD):
         return der_f_a, der_f_s, der_f_beta
 
     def der_f_a_beta__when_relation_a_s(self, k, b):
+
         der_theta_a = (180 / pi) * (b - k * self.channel) / ( (self.channel + self.opt[0])**2 + (k * self.opt[0] + b)**2 )
         aux = (self.component_full * (self.theta_calc - self.mu) / self.sigma2_calc).sum(axis = 1, keepdims = True)
         der_f_a = - der_theta_a * aux
         der_f_beta = - aux
-        return der_f_a, der_f_beta
 
+        return der_f_a, der_f_beta
 
     def der_f_g(self):
         return self.I * self.component_core * self.der_w(self.g)
 
-
     def der_f_tau(self):
         return self.component_full * ((self.theta_calc - self.mu)**2 / (2 * self.sigma2_calc**2)) * self.der_u(self.tau)
-
 
     def evolution_of_parameters(self):
         y = self.intensity
@@ -178,7 +178,6 @@ class GaussNewton(SpectraXRD):
             evol = full((self.Jacobian_f.shape[1], 1), 0)
         finally:
             return evol
-
 
     def fit(self, k = None, b = None, a = False, s = False, beta = False, gamma = False, sigma = False, alpha = 1):
         """
@@ -202,7 +201,6 @@ class GaussNewton(SpectraXRD):
         else:
             if (n_opt > 0):
                 der_f_a, der_f_s, der_f_beta = self.der_f_a_s_beta()
-
 
         if a:
             Jacobian_construction.append(der_f_a)
@@ -240,9 +238,8 @@ class GaussNewton(SpectraXRD):
             self.tau += d_params[(n_opt + n_gamma) :].T
 
         self.del_precalculations()
-        del self.Jacobian_f
-        del d_params
 
+        del self.Jacobian_f
 
     def fit_cycle(self, max_steps = 16, error_tolerance = 1e-4, **kwargs):
         fit_errors = array([])
@@ -293,23 +290,13 @@ class GaussNewton(SpectraXRD):
         return (integral_intersection / integral_spectrum)
 
     def fit_penalty(self):
-        # gamma = self.gamma.copy()
-        # gamma_adjusted = gamma**(-sign(gamma - 1))
-        # theta_min, theta_max = self.theta_range()
-        # mask = ((self.mu >= theta_min) & (self.mu <= theta_max))
-        # #return (self.I[mask] * gamma_adjusted[mask]).sum() / self.I[mask].sum()
-        # return exp( (self.I[mask] * log(gamma_adjusted[mask])).sum() / self.I[mask].sum() )
-
-        # self.precalculations()
-        # z0 = (self.I * self.component_core).sum(axis = 1)
-        # z = self.component_full.sum(axis = 1)
         z0 = self.z0()
         z = self.z()
+
         rescaling = where(z0 > 1e-3, z / z0, 1)
         rescaling_adjusted = rescaling**(-sign(rescaling - 1))
-        #return (z0 * rescaling_adjusted).sum() / z0.sum()
-        return exp( (z0 * log(rescaling_adjusted)).sum() / z0.sum() )
 
+        return exp( (z0 * log(rescaling_adjusted)).sum() / z0.sum() )
 
     def component_ratio(self):
         return self.overlap_ratio() * self.fit_penalty()
