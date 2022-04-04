@@ -29,6 +29,7 @@ class GammaSearch(list):
 
     def select(self):
 
+        #self.idx = (self.overlap3_area() * self.spectrum.rescaling).argmax()
         self.idx = self.overlap3_area().argmax()
         self.selected = self[self.idx]
 

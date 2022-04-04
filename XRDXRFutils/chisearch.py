@@ -24,10 +24,11 @@ class ChiSearch(list):
 
         self.spectrum = spectrum
         self.intensity = spectrum.intensity
+        self.intensity2 = spectrum.intensity2
+        self.intensity3 = spectrum.intensity3
 
         chi = 1 / len(self)
         self.g = full((1, len(self)), self.iw(chi))
-
 
     """
     Redefined variables
@@ -70,7 +71,7 @@ class ChiSearch(list):
         z_phases = concatenate([gauss_newton.z()[:, newaxis] for gauss_newton in self], axis = 1)
         z_components = self.chi * z_phases
 
-        value = self.z_components.sum(axis = 1)
+        value = z_components.sum(axis = 1)
 
         return value
 
@@ -152,8 +153,19 @@ class ChiSearch(list):
 
     def search(self, alpha = 1):
 
+        self.intensity = self.intensity3
+        for gauss_newton in self:
+            gauss_newton.channel = gauss_newton.channel3
+            gauss_newton.intensity = gauss_newton.intensity3
+
         self.fit_cycle(3, chi = True, alpha = alpha)
         self.fit_cycle(6, a = True, s = True, alpha = alpha)
+
+        self.intensity = self.spectrum.intensity
+        for gauss_newton in self:
+            gauss_newton.channel = gauss_newton.spectrum.channel
+            gauss_newton.intensity = gauss_newton.spectrum.intensity
+
         self.fit_cycle(3, chi = True, alpha = alpha)
 
         return self
@@ -205,6 +217,9 @@ class ChiMap(list):
         x.shape = self.shape
 
         return x
+
+    def chi(self):
+        return array([phase_search.chi[0] for phase_search in self]).reshape(self.shape)
 
     def opt(self):
         return array([phase_search.opt for phase_search in self]).reshape(self.shape)
