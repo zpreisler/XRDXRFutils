@@ -28,8 +28,6 @@ class ChiSearch(list):
         chi = 1 / len(self)
         self.g = full((1, len(self)), self.iw(chi))
 
-    def overlap_area(self):
-        return array([gauss_newton.overlap_area() for gauss_newton in self])
 
     """
     Redefined variables
@@ -160,6 +158,24 @@ class ChiSearch(list):
 
         return self
 
+    def area(self):
+        return array([gauss_newton.area() for gauss_newton in self])
+
+    def area0(self):
+        return array([gauss_newton.area0() for gauss_newton in self])
+
+    def overlap_area(self):
+        return array([gauss_newton.overlap_area() for gauss_newton in self])
+
+    def L1loss(self):
+        return array([gauss_newton.L1loss() for gauss_newton in self])
+
+    def MSEloss(self):
+        return array([gauss_newton.MSEloss() for gauss_newton in self])
+
+    def overlap3_area(self):
+        return array([gauss_newton.overlap3_area() for gauss_newton in self])
+
 class ChiMap(list):
     """
     Construct gamma phase maps.
@@ -167,6 +183,7 @@ class ChiMap(list):
     def from_data(self,data,phases,sigma = 0.2, **kwargs):
         
         self.phases = phases
+        self.shape = (data.shape[0] , data.shape[1], -1)
 
         d = data.shape[0] * data.shape[1]
         spectra = [FastSpectraXRD().fromDataf(data,i) for i in range(d)]
@@ -182,4 +199,36 @@ class ChiMap(list):
     def search(self):
         with Pool(50) as p:
             result = p.map(self.f_search, self)
-        return ChiMap(result)
+        x = ChiMap(result)
+
+        x.phases = self.phases
+        x.shape = self.shape
+
+        return x
+
+    def opt(self):
+        return array([phase_search.opt for phase_search in self]).reshape(self.shape)
+
+    def area(self):
+        return array([phase_search.area() for phase_search in self]).reshape(self.shape)
+
+    def area0(self):
+        return array([phase_search.area0() for phase_search in self]).reshape(self.shape)
+
+    def overlap_area(self):
+        return array([phase_search.overlap_area() for phase_search in self]).reshape(self.shape)
+
+    def L1loss(self):
+        return array([phase_search.L1loss() for phase_search in self]).reshape(self.shape)
+
+    def MSEloss(self):
+        return array([phase_search.MSEloss() for phase_search in self]).reshape(self.shape)
+
+    def selected(self):
+        return array([phase_search.idx for phase_search in self]).reshape(self.shape)
+
+    def get_index(self,x,y):
+        return x + y * self.shape[1]
+
+    def get_pixel(self,x,y):
+        return self[x + y * self.shape[1]]

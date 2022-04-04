@@ -1,6 +1,6 @@
 from .spectra import SpectraXRD, FastSpectraXRD
 
-from numpy import sum, exp, log, pi, array, ones, zeros, full, full_like, trapz, minimum, maximum, std, fabs, sign, sqrt, square, average, clip, newaxis, concatenate, append, where, arange
+from numpy import fabs, sum, exp, log, pi, array, ones, zeros, full, full_like, trapz, minimum, maximum, std, fabs, sign, sqrt, square, average, clip, newaxis, concatenate, append, where, arange
 from numpy.linalg import pinv, inv
 
 from scipy.optimize import newton
@@ -14,10 +14,10 @@ class GaussNewton(FastSpectraXRD):
     Class to calculate Gauss-Newton minimization of the synthetic and the experimental spectrum.
     """
     def __init__(self, phase, spectrum, sigma = 0.2, **kwargs):
-        # kwargs will be passed to Phase.get_theta()
+
         """
         phase: tabulated phase; Phase or PhaseList class
-        spectrum: experimental spectrum; Spectra class
+        spectrum: experimental spectrum; FastSpectraXRD class
         """
         super().__init__()
 
@@ -280,7 +280,7 @@ class GaussNewton(FastSpectraXRD):
         r = y - f
 
         try:
-            evol = pinv(Jacobian_f) @ r # or scipy.linalg.pinv
+            evol = pinv(Jacobian_f) @ r
 
         except:
             evol = full((Jacobian_f.shape[1], 1), 0)
@@ -306,8 +306,8 @@ class GaussNewton(FastSpectraXRD):
 
         return self
 
-    def fit_cycle(self, max_steps = 8, **kwargs):
-        for i in range(max_steps):
+    def fit_cycle(self, steps = 8, **kwargs):
+        for i in range(steps):
             self.fit(**kwargs)
 
         return self
@@ -328,6 +328,36 @@ class GaussNewton(FastSpectraXRD):
 
         return m
 
-    def overlap_area(self):
+    def area(self):
+        return self.z().sum()
 
+    def area0(self):
+        return self.z0().sum()
+
+    def overlap_area(self):
         return self.overlap().sum()
+
+    def L1loss(self):
+        return (fabs(self.intensity - self.z())).mean()
+
+    def MSEloss(self):
+        return ((self.intensity - self.z())**2).mean()
+
+    def overlap3(self):
+        """
+        Noise reduction for the overlap
+        """
+
+        self.channel = self.channel3
+        self.intensity = self.intensity3
+
+        m = minimum(self.z(), self.intensity)
+        m = where(m < 0, 0, m)
+
+        self.channel = self.spectrum.channel
+        self.intensity = self.spectrum.intensity
+
+        return m
+
+    def overlap3_area(self):
+        return self.overlap3().sum()
