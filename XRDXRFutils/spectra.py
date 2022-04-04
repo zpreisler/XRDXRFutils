@@ -249,7 +249,14 @@ class FastSpectraXRD():
         self.rescaling = data.rescaling.flatten()[i]
         self.intensity = data.intensity.reshape(-1,1280)[i]
 
-        self.channel = arange(self.counts.__len__(), dtype = 'int')
+        self.intensity1 = 0.5 * (self.intensity[::2] + self.intensity[1::2])
+        self.intensity2 = 0.5 * (self.intensity1[::2] + self.intensity1[1::2])
+        self.intensity3 = 0.5 * (self.intensity2[::2] + self.intensity2[1::2])
+
+        self.channel = arange(1280)
+        self.channel1 = arange(0.5,1280,2)
+        self.channel2 = arange(1.5,1280,4)
+        self.channel3 = arange(3.5,1280,8)
 
         return self
 
@@ -264,7 +271,6 @@ class FastSpectraXRD():
     @property
     def theta(self):
         return self.fce_calibration(self.channel, *self.opt)
-        #return self.fce_calibration(arange(1280), *self.opt)
 
     def theta_range(self):
         x = array([self.channel[0], self.channel[-1]])

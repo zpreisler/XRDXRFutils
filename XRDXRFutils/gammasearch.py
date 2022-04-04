@@ -17,6 +17,7 @@ class GammaSearch(list):
     Iterate gamma.
     """
     def __init__(self, phases, spectrum, sigma = 0.2, **kwargs):
+
         super().__init__([GaussNewton(phase, spectrum, sigma = sigma, **kwargs) for phase in phases])
 
         self.spectrum = spectrum
@@ -39,15 +40,22 @@ class GammaSearch(list):
 
         return self
 
-    def search(self, max_steps = (3, 6, 3), alpha = 1):
+    def search(self, alpha = 1):
 
-        self.fit_cycle(max_steps = max_steps[0], gamma = True, alpha = alpha)
-        self.select().fit_cycle(max_steps = max_steps[1], a = True, s = True, gamma = True, alpha = alpha)
-        self.fit_cycle(max_steps = max_steps[2], gamma = True, alpha = alpha)
+        self.fit_cycle(max_steps = 4, gamma = True, alpha = alpha, downsample = 3)
+
+        selected = self.select()
+        selected.fit_cycle(max_steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 3)
+        selected.fit_cycle(max_steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 2)
+        selected.fit_cycle(max_steps = 2, a = True, s = True, gamma = True, alpha = alpha)
+
+        self.fit_cycle(max_steps = 1, gamma = True, alpha = alpha,downsample = 3)
+        self.fit_cycle(max_steps = 1, gamma = True, alpha = alpha,downsample = 2)
+        self.fit_cycle(max_steps = 2, gamma = True, alpha = alpha)
 
         return self
 
-    def search_kb(self, max_steps = (3, 6, 3), alpha = 1):
+    def search_kb(self, max_steps = (3, 6, 4), alpha = 1):
 
         k,b = self.kb
 
@@ -85,4 +93,3 @@ class GammaMap(list):
         with Pool(50) as p:
             result = p.map(self.f_search, self)
         return GammaMap(result)
- 

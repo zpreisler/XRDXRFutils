@@ -1,6 +1,6 @@
 from .spectra import SpectraXRD, FastSpectraXRD
 
-from numpy import sum, exp, log, pi, array, ones, zeros, full, full_like, trapz, minimum, maximum, std, fabs, sign, sqrt, square, average, clip, newaxis, concatenate, append, where
+from numpy import sum, exp, log, pi, array, ones, zeros, full, full_like, trapz, minimum, maximum, std, fabs, sign, sqrt, square, average, clip, newaxis, concatenate, append, where, arange
 from numpy.linalg import pinv, inv
 
 from scipy.optimize import newton
@@ -33,17 +33,18 @@ class GaussNewton(FastSpectraXRD):
         self.opt = spectrum.opt.copy()
 
         # Variables along the channels
-        #self.channel = spectrum.channel[:, newaxis]
-        #self.intensity = spectrum.intensity[:, newaxis]
 
         self.channel = spectrum.channel
         self.intensity = spectrum.intensity
 
-        self.channel = 0.5 * (self.channel[::2] + self.channel[1::2])
-        self.intensity = 0.5 * (self.intensity[::2] + self.intensity[1::2])
+        self.channel1 = spectrum.channel1
+        self.intensity1 = spectrum.intensity1
 
-        self.channel = 0.5 * (self.channel[::2] + self.channel[1::2])
-        self.intensity = 0.5 * (self.intensity[::2] + self.intensity[1::2])
+        self.channel2 = spectrum.channel2
+        self.intensity2 = spectrum.intensity2
+
+        self.channel3 = spectrum.channel3
+        self.intensity3 = spectrum.intensity3
 
         """
         Phases
@@ -119,10 +120,15 @@ class GaussNewton(FastSpectraXRD):
         """
         Synthetic spectrum.
         """
+        theta = self.theta[:,newaxis]
 
-        self.precalculations()
-        x = self.component_full.sum(axis = 1)
-        self.del_precalculations()
+        mu = self.mu[newaxis,:]
+        I = self.I[newaxis,:]
+
+        component_core = exp((theta - mu)**2 / (-2 * self.sigma2))
+        component_full = I * self.gamma * component_core
+
+        x = component_full.sum(axis = 1)
 
         return x
 
@@ -130,7 +136,6 @@ class GaussNewton(FastSpectraXRD):
         """
         Synthetic spectrum with gamma=1 for all peaks.
         """
-
         mu = self.mu[newaxis, :]
         I = self.I[newaxis, :]
 
@@ -144,22 +149,18 @@ class GaussNewton(FastSpectraXRD):
     """
     Calculations for fit
     """
-    def precalculations(self):
+    def calculate_components(self):
 
-        # along the channels
         self.theta_calc = self.theta[:,newaxis]
-        # along the diffraction lines
-        #self.sigma2_calc = self.sigma2[:,newaxis]
         self.sigma2_calc = self.sigma2
 
-        # along both axes
         mu = self.mu[newaxis,:]
         I = self.I[newaxis,:]
 
         self.component_core = exp((self.theta_calc - mu)**2 / (-2 * self.sigma2_calc))
         self.component_full = I * self.gamma * self.component_core
 
-    def del_precalculations(self):
+    def del_components(self):
 
         del self.theta_calc
         del self.sigma2_calc
@@ -171,22 +172,28 @@ class GaussNewton(FastSpectraXRD):
         mu = self.mu[newaxis,:]
         channel = self.channel[:, newaxis]
 
-        der_theta_a = (180 / pi) * self.opt[1] / ((channel + self.opt[0])**2 + self.opt[1]**2)
-        der_theta_s = (-180 / pi) * (channel + self.opt[0]) / ((channel + self.opt[0])**2 + self.opt[1]**2)
+        a,s,beta = self.opt
+
+        der_theta_a = (180 / pi) * s / ((channel + a)**2 + s**2)
+        der_theta_s = (-180 / pi) * (channel + a) / ((channel + a)**2 + s**2)
 
         aux = (self.component_full * (self.theta_calc - mu) / self.sigma2_calc).sum(axis = 1, keepdims = True)
+
         der_f_a = - der_theta_a * aux
         der_f_s = - der_theta_s * aux
         der_f_beta = - aux
 
         return der_f_a, der_f_s, der_f_beta
 
-    def der_f_a_beta__when_relation_a_s(self, k, b):
+    def der_f_a_beta_when_relation_a_s(self, k, b):
 
         mu = self.mu[newaxis,:]
         channel = self.channel[:, newaxis]
 
-        der_theta_a = (180 / pi) * (b - k * channel) / ( (channel + self.opt[0])**2 + (k * self.opt[0] + b)**2 )
+        a,s,beta = self.opt
+
+        der_theta_a = (180 / pi) * (b - k * channel) / ( (channel + a)**2 + (k * a + b)**2 )
+
         aux = (self.component_full * (self.theta_calc - mu) / self.sigma2_calc).sum(axis = 1, keepdims = True)
         der_f_a = - der_theta_a * aux
         der_f_beta = - aux
@@ -206,41 +213,42 @@ class GaussNewton(FastSpectraXRD):
 
         return self.component_full * ((self.theta_calc - mu)**2 / (2 * self.sigma2_calc**2)) * self.der_u(self.tau)
 
-    def evolution_of_parameters(self):
-
-        #self.intensity = spectrum.intensity#[:, newaxis]
-        y = self.intensity[:,newaxis]
-        f = self.component_full.sum(axis = 1, keepdims = True)
-        r = y - f
-
-        try:
-            evol = pinv(self.Jacobian_f) @ r # or scipy.linalg.pinv
-        except:
-            evol = full((self.Jacobian_f.shape[1], 1), 0)
-        finally:
-            return evol
-
-
-    def fit(self, k = None, b = None, a = False, s = False, beta = False, gamma = False, sigma = False, alpha = 1):
+    def fit(self, k = None, b = None, a = False, s = False, beta = False, gamma = False, sigma = False, alpha = 1,downsample = None):
         """
         Performs a step of Gauss-Newton optimization. You need to choose the parameters that will be used to optimize. The other ones will be kept fixed.
         If you set k and b, parameters a and s are used in optimization (you don't need to explicitly set them to True) and are tied by the relation given by k and b.
         """
 
+        if downsample == 1:
+            self.intensity = self.intensity1
+            self.channel = self.channel1
+
+        elif downsample == 2:
+            self.intensity = self.intensity2
+            self.channel = self.channel2
+
+        elif downsample == 3:
+            self.intensity = self.intensity3
+            self.channel = self.channel3
+
         is_used_relation = ((k is not None) and (b is not None))
+
         if is_used_relation:
+
             a = True
             s = False
+
         n_opt = a + s + beta
         n_gamma = gamma * self.n_peaks
-        #n_sigma = sigma * self.n_peaks
 
-        self.precalculations()
+        self.calculate_components()
+
         Jacobian_construction = []
 
         # Calibration parameters
         if is_used_relation:
-            der_f_a, der_f_beta = self.der_f_a_beta__when_relation_a_s(k, b)
+            der_f_a, der_f_beta = self.der_f_a_beta_when_relation_a_s(k, b)
+
         else:
             if (n_opt > 0):
                 der_f_a, der_f_s, der_f_beta = self.der_f_a_s_beta()
@@ -262,27 +270,39 @@ class GaussNewton(FastSpectraXRD):
             Jacobian_construction.append(self.der_f_tau())
 
         # Jacobian
-        if Jacobian_construction:
-            self.Jacobian_f = concatenate(Jacobian_construction, axis = 1)
+        Jacobian_f = concatenate(Jacobian_construction, axis = 1)
 
-        else:
-            self.del_precalculations()
-            return
+        """
+        Iterate
+        """
+        y = self.intensity[:,newaxis]
+        f = self.component_full.sum(axis = 1, keepdims = True)
+        r = y - f
 
-        # Evolution of parameters
-        d_params = alpha * self.evolution_of_parameters()
+        try:
+            evol = pinv(Jacobian_f) @ r # or scipy.linalg.pinv
+
+        except:
+            evol = full((Jacobian_f.shape[1], 1), 0)
+
+        d_params = alpha * evol
+
         mask_opt = [a, s, beta]
         self.opt[mask_opt] += d_params[0:n_opt, 0]
+
         if is_used_relation:
             self.opt[1] = k * self.opt[0] + b
+
         if gamma:
             self.g += d_params[n_opt : (n_opt + n_gamma)].T
+
         if sigma:
             self.tau += d_params[(n_opt + n_gamma) :].T
 
-        self.del_precalculations()
+        self.del_components()
 
-        del self.Jacobian_f
+        self.channel = self.spectrum.channel
+        self.intensity = self.spectrum.intensity
 
         return self
 
