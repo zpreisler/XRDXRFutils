@@ -263,8 +263,8 @@ class FastSpectraXRD():
 
     @property
     def theta(self):
-        #return self.fce_calibration(self.channel, *self.opt)
-        return self.fce_calibration(arange(1280), *self.opt)
+        return self.fce_calibration(self.channel, *self.opt)
+        #return self.fce_calibration(arange(1280), *self.opt)
 
     def theta_range(self):
         x = array([self.channel[0], self.channel[-1]])
