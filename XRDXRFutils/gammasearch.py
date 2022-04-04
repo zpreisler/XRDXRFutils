@@ -60,14 +60,16 @@ class GammaSearch(list):
 
         k,b = self.kb
 
-        self.fit_cycle(steps = 3, gamma = True, alpha = alpha)
+        self.fit_cycle(steps = 4, gamma = True, alpha = alpha,downsample = 3)
 
         selected = self.select()
-        selected.fit_cycle(steps = 6,
-                k = k, b = b,
-                gamma = True, alpha = alpha)
+        selected.fit_cycle(steps = 2, k = k, b = b, gamma = True, alpha = alpha,downsample = 3)
+        selected.fit_cycle(steps = 2, k = k, b = b, gamma = True, alpha = alpha,downsample = 2)
+        selected.fit_cycle(steps = 2, k = k, b = b, gamma = True, alpha = alpha)
 
-        self.fit_cycle(steps = 4, gamma = True, alpha = alpha)
+        self.fit_cycle(steps = 1, gamma = True, alpha = alpha,downsample = 3)
+        self.fit_cycle(steps = 1, gamma = True, alpha = alpha,downsample = 2)
+        self.fit_cycle(steps = 2, gamma = True, alpha = alpha)
 
         return self
 
@@ -112,6 +114,20 @@ class GammaMap(list):
     def search(self):
         with Pool(50) as p:
             result = p.map(self.f_search, self)
+        x = GammaMap(result)
+
+        x.phases = self.phases
+        x.shape = self.shape
+
+        return x
+
+    @staticmethod
+    def f_search_kb(x):
+        return x.search_kb()
+
+    def search_kb(self):
+        with Pool(50) as p:
+            result = p.map(self.f_search_kb, self)
         x = GammaMap(result)
 
         x.phases = self.phases
