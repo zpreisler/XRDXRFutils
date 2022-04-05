@@ -64,8 +64,7 @@ class Phase(dict):
 
             if '_chemical_formula_sum' in self:
                 file.write('_chemical_formula_sum  ' + self['_chemical_formula_sum'] +'\n')
-            if '_chemical_name_common' in self:
-                file.write('_chemical_name_common  ' + self['_chemical_name_common'] +'\n')
+
             if '_chemical_name_mineral' in self:
                 file.write('_chemical_name_mineral  ' + self['_chemical_name_mineral'] +'\n')
 
