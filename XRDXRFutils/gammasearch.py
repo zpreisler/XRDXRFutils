@@ -25,7 +25,7 @@ class GammaSearch(list):
 
         self.opt = self[0].opt.copy()
         for gaussnewton in self:
-            gaussnewton.opt = self.opt
+            gaussnewton.opt = self.opt.copy()
 
     def select(self):
 
@@ -45,7 +45,13 @@ class GammaSearch(list):
 
         self.fit_cycle(steps = 4, gamma = True, alpha = alpha, downsample = 3)
 
+        self.fit_cycle(steps = 1, a = True, s = True, gamma = True, alpha = alpha, downsample = 2)
+
         selected = self.select()
+        for gaussnewton in self:
+            gaussnewton.opt = selected.opt
+        self.opt = selected.opt
+
         selected.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 3)
         selected.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 2)
         selected.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha)

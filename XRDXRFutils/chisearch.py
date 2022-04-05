@@ -2,7 +2,7 @@ from .database import Phase, PhaseList
 from .data import DataXRD
 from .spectra import SpectraXRD,FastSpectraXRD
 from .gaussnewton import GaussNewton
-from .gammamap import GammaMap,GammaSearch
+from .gammasearch import GammaMap,GammaSearch
 from numpy import array, full, zeros, nanargmin, nanargmax, newaxis, append, concatenate, sqrt, average, square, std
 from numpy.linalg import pinv
 from multiprocessing import Pool
