@@ -2,7 +2,7 @@ from .database import Phase, PhaseList
 from .data import DataXRD
 from .spectra import SpectraXRD,FastSpectraXRD
 from .gaussnewton import GaussNewton
-from numpy import array, full, zeros, nanargmin, nanargmax, newaxis, append, concatenate, sqrt, average, square, std
+from numpy import array, full, zeros, nanargmin, nanargmax, newaxis, append, concatenate, sqrt, average, square, std, asarray
 from numpy.linalg import pinv
 from multiprocessing import Pool
 from joblib import Parallel, delayed
@@ -62,23 +62,6 @@ class GammaSearch(list):
 
         return self
 
-    def search_kb(self, alpha = 1):
-
-        k,b = self.kb
-
-        self.fit_cycle(steps = 4, gamma = True, alpha = alpha,downsample = 3)
-
-        selected = self.select()
-        selected.fit_cycle(steps = 2, k = k, b = b, gamma = True, alpha = alpha,downsample = 3)
-        selected.fit_cycle(steps = 2, k = k, b = b, gamma = True, alpha = alpha,downsample = 2)
-        selected.fit_cycle(steps = 2, k = k, b = b, gamma = True, alpha = alpha)
-
-        self.fit_cycle(steps = 1, gamma = True, alpha = alpha,downsample = 3)
-        self.fit_cycle(steps = 1, gamma = True, alpha = alpha,downsample = 2)
-        self.fit_cycle(steps = 2, gamma = True, alpha = alpha)
-
-        return self
-
     def area(self):
         return array([gauss_newton.area() for gauss_newton in self])
 
@@ -128,18 +111,20 @@ class GammaMap(list):
         return x
 
     @staticmethod
-    def f_search_kb(x):
-        return x.search_kb()
+    def f_metrics(x):
+        return x.L1loss(), x.MSEloss(), x.overlap3_area()
 
-    def search_kb(self):
+    def metrics(self):
+
         with Pool(50) as p:
-            result = p.map(self.f_search_kb, self)
-        x = GammaMap(result)
+            results = p.map(self.f_metrics,self)
+        results = asarray(results)
 
-        x.phases = self.phases
-        x.shape = self.shape
+        L1loss = results[:,0,:].reshape(self.shape)
+        MSEloss = results[:,1,:].reshape(self.shape)
+        overlap3_area = results[:,2,:].reshape(self.shape)
 
-        return x
+        return L1loss, MSEloss, overlap3_area
 
     def opt(self):
         return array([phase_search.opt for phase_search in self]).reshape(self.shape)
