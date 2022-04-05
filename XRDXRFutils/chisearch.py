@@ -2,6 +2,7 @@ from .database import Phase, PhaseList
 from .data import DataXRD
 from .spectra import SpectraXRD,FastSpectraXRD
 from .gaussnewton import GaussNewton
+from .gammamap import GammaMap,GammaSearch
 from numpy import array, full, zeros, nanargmin, nanargmax, newaxis, append, concatenate, sqrt, average, square, std
 from numpy.linalg import pinv
 from multiprocessing import Pool
@@ -188,7 +189,8 @@ class ChiSearch(list):
     def overlap3_area(self):
         return array([gauss_newton.overlap3_area() for gauss_newton in self])
 
-class ChiMap(list):
+#class ChiMap(list):
+class ChiMap(GammaMap):
     """
     Construct gamma phase maps.
     """
