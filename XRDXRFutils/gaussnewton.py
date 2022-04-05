@@ -1,5 +1,7 @@
 from .spectra import SpectraXRD, FastSpectraXRD
 
+from .database import Phase,PhaseList
+
 from numpy import fabs, sum, exp, log, pi, array, ones, zeros, full, full_like, trapz, minimum, maximum, std, fabs, sign, sqrt, square, average, clip, newaxis, concatenate, append, where, arange
 from numpy.linalg import pinv, inv
 
@@ -361,3 +363,18 @@ class GaussNewton(FastSpectraXRD):
 
     def overlap3_area(self):
         return self.overlap3().sum()
+
+    def make_phase(self):
+
+        mu, I = self.get_theta()
+        new_I = I * self.gamma[0]
+        new_I /= new_I.max()
+        
+        new_phase = PhaseList(self.phase)
+        
+        new_phase.theta = mu
+        new_phase.intensity = new_I
+        
+        #new_phase.label = self.label
+
+        return new_phase
