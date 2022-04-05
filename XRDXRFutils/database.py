@@ -2,7 +2,7 @@
 
 from matplotlib.pyplot import plot,figure,subplots,xlim,ylim,vlines,legend,fill_between,cm
 
-from numpy import loadtxt,arcsin,pi,array,asarray,minimum,concatenate,linspace,arange
+from numpy import loadtxt,arcsin,sin,pi,array,asarray,minimum,concatenate,linspace,arange
 from numpy.random import randint
 from glob import glob
 import warnings
@@ -51,6 +51,34 @@ class Phase(dict):
                 self.theta, self.intensity = array(sorted(zip(self.theta, self.intensity))).T
 
         return self.theta, self.intensity
+
+    def thetas2d(self):
+        g = sin(pi * self.theta / 360)
+        d = 1.541874 / (2 * g)
+
+        return d
+
+    def safe_cif(self,name):
+
+        with open(name,'w') as file:
+
+            if '_chemical_formula_sum' in self:
+                file.write('_chemical_formula_sum  ' + self['_chemical_formula_sum'] +'\n')
+            if '_chemical_name_common' in self:
+                file.write('_chemical_name_common  ' + self['_chemical_name_common'] +'\n')
+            if '_chemical_name_mineral' in self:
+                file.write('_chemical_name_mineral  ' + self['_chemical_name_mineral'] +'\n')
+
+            file.write('loop_\n')
+            file.write('_pd_peak_d_spacing\n')
+            file.write('_pd_peak_intensity\n')
+
+            for d,I in zip(self.thetas2d(), self.intensity * 1000):
+
+                d = format(d, '.6f')
+                I = format(I, '.2f')
+
+                file.write('     ' + str(d) + f'{str(I):>14}' +'\n')
 
     def plot(self, colors = 'k', linestyles = 'dashed', label = None, lineheight = None, **kwargs):
 
