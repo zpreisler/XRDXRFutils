@@ -55,10 +55,9 @@ class Phase(dict):
     def thetas2d(self):
         g = sin(pi * self.theta / 360)
         d = 1.541874 / (2 * g)
-
         return d
 
-    def safe_cif(self,name):
+    def save_cif(self,name):
 
         with open(name,'w') as file:
 
@@ -96,6 +95,7 @@ class Phase(dict):
             vlines(self.theta, 0, lineheight, colors = colors, linestyles = linestyles, label = label, **kwargs)
 
 class PhaseList(list):
+#class PhaseList(Phase):
 
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
@@ -137,11 +137,38 @@ class PhaseList(list):
         for i,phase in enumerate(self):
             phase.plot(colors=colors[i],**kwargs)
 
-
     def random(self):
         idx = randint(self.__len__())
         return self[idx]
 
+    def thetas2d(self):
+        g = sin(pi * self.theta / 360)
+        d = 1.541874 / (2 * g)
+        return d
+
+    def save_cif(self,name):
+        """
+        FIXME: take from Phase class.
+        """
+
+        with open(name,'w') as file:
+
+            if '_chemical_formula_sum' in self:
+                file.write('_chemical_formula_sum  ' + self['_chemical_formula_sum'] +'\n')
+
+            if '_chemical_name_mineral' in self:
+                file.write('_chemical_name_mineral  ' + self['_chemical_name_mineral'] +'\n')
+
+            file.write('loop_\n')
+            file.write('_pd_peak_d_spacing\n')
+            file.write('_pd_peak_intensity\n')
+
+            for d,I in zip(self.thetas2d(), self.intensity * 1000):
+
+                d = format(d, '.6f')
+                I = format(I, '.2f')
+
+                file.write('     ' + str(d) + f'{str(I):>14}' +'\n')
 
 class DatabaseXRD(dict):
 
