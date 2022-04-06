@@ -161,15 +161,16 @@ class ChiSearch(GammaSearch):
             gauss_newton.channel = gauss_newton.channel3
             gauss_newton.intensity = gauss_newton.intensity3
 
-        self.fit_cycle(3, chi = True, alpha = alpha)
+        self.fit_cycle(4, chi = True, alpha = alpha)
         self.fit_cycle(6, a = True, s = True, alpha = alpha)
+        self.fit_cycle(2, chi = True, alpha = alpha)
 
         self.intensity = self.spectrum.intensity
         for gauss_newton in self:
             gauss_newton.channel = gauss_newton.spectrum.channel
             gauss_newton.intensity = gauss_newton.spectrum.intensity
 
-        self.fit_cycle(3, chi = True, alpha = alpha)
+        self.fit_cycle(4, chi = True, alpha = alpha)
 
         return self
 
