@@ -96,6 +96,13 @@ class Data():
     def shape(self):
         return self.data.shape
 
+    def get_x_y(self, i):
+        y, x = divmod(i, self.shape[1])
+        return x, y
+
+    def get_index(self, x, y):
+        return x + y * self.shape[1]
+
     @property
     def x(self):
         if hasattr(self, 'calibration'):

@@ -153,8 +153,12 @@ class GammaMap(list):
     def get_index(self,x,y):
         return x + y * self.shape[1]
 
+    def get_x_y(self, i):
+        y, x = divmod(i, self.shape[1])
+        return x, y
+
     def get_pixel(self,x,y):
-        return self[x + y * self.shape[1]]
+        return self[self.get_index(x, y)]
 
     def select_phases(self,criterio,offset=-8):
         new_phases = []
