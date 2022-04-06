@@ -5,7 +5,7 @@ from .gaussnewton import GaussNewton
 from .gammasearch import GammaMap,GammaSearch
 from numpy import array, full, zeros, nanargmin, nanargmax, newaxis, append, concatenate, sqrt, average, square, std
 from numpy.linalg import pinv
-from multiprocessing import Pool
+from multiprocessing import Pool,cpu_count
 from joblib import Parallel, delayed
 import os
 import pickle
@@ -213,7 +213,11 @@ class ChiMap(GammaMap):
         return x.search()
 
     def search(self):
-        with Pool(50) as p:
+
+        n_cpu = cpu_count() - 2
+        print('Using %d cpu'%n_cpu)
+
+        with Pool(n_cpu) as p:
             result = p.map(self.f_search, self)
 
         x = ChiMap(result)
