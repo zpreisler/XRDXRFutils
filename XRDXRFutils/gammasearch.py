@@ -160,27 +160,17 @@ class GammaMap(list):
     def get_pixel(self,x,y):
         return self[self.get_index(x, y)]
 
-    def select_phases(self,criterio,offset=-8):
-        new_phases = []
-        for idx,phase in enumerate(self.phases):
+    def select_phases(self,criterion,offset=-8):
+        phases_new = PhaseList([])
 
-            point = criterio[:,:,idx].flatten().argsort()[offset]
+        for idx in range(len(self.phases)):
+            point = criterion[:,:,idx].flatten().argsort()[offset]
             gauss_newton = self[point][idx]
+            phase_new = gauss_newton.make_phase()
+            phase_new['name'] = 'created_%d'%idx
+            phase_new['point'] = point
 
-            mu, I = gauss_newton.get_theta()
-            new_I = I * gauss_newton.gamma[0]
-            new_I /= new_I.max()
-            
-            new_phase = Phase(phase)
-            
-            new_phase.theta = mu
-            new_phase.intensity = new_I
-            
-            new_phase['name'] = 'created_%d'%idx
-            new_phase['point'] = point
-            
-            new_phase.label = gauss_newton.label
-            
-            new_phases += [new_phase]
+            if phase_new:
+                phases_new.append(phase_new)
 
-        return new_phases
+        return phases_new
