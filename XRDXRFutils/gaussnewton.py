@@ -25,6 +25,7 @@ class GaussNewton(FastSpectraXRD):
 
         self.phase = phase
         self.spectrum = spectrum
+        self.kwargs = kwargs
 
         self.label = phase.label
 
@@ -364,17 +365,60 @@ class GaussNewton(FastSpectraXRD):
     def overlap3_area(self):
         return self.overlap3().sum()
 
+
     def make_phase(self):
+        """
+        Creates experimental phases from the phases used to create the given instance of GaussNewton.
+        If 'phase' attribute is of type Phase, the function returns a Phase.
+        If 'phase' attribute is of type PhaseList, the function returns a PhaseList.
+        Please, note that this function exludes peaks that lay outside the angle range of experimental signal.
+        This is because they can have anomalously high value in order to fit the last bit of signal. This dwarfs all the other peaks.
+        Also, if the given instance of GaussNewton is called with a value of 'min_intensity', this function selects the peaks with relative intensity above that threshold.
+        If a phase has no selected peaks, it is not added to the results.
+        """
+        if type(self.phase) == Phase:
+            pl = PhaseList([self.phase])
+        elif type(self.phase) == PhaseList:
+            pl = self.phase
+        else:
+            raise Exception('Invalid phase')
 
-        mu, I = self.get_theta()
-        new_I = I * self.gamma[0]
-        new_I /= new_I.max()
-        
-        new_phase = PhaseList(self.phase)
-        
-        new_phase.theta = mu
-        new_phase.intensity = new_I
-        
-        #new_phase.label = self.label
+        pl_new = PhaseList([])
+        index_count = 0
 
-        return new_phase
+        for phase in pl:
+            mu, I = phase.get_theta()
+            phase_len = mu.shape[0]
+
+            gamma = self.gamma.squeeze()[index_count : (index_count + phase_len)]
+            index_count += phase_len
+
+            I_new = I * gamma
+            I_new /= I_new.max()
+
+            # Selects only the peaks that lay inside the angle range of experimental signal.
+            # Otherwise, external peaks can have anomalously high value in order to fit the last bit of signal. This dwarfs all the other peaks.
+            theta_min, theta_max = self.theta_range()
+            mask_theta = ((mu >= theta_min) & (mu <= theta_max))
+            mu = mu[mask_theta]
+            I_new = I_new[mask_theta]
+
+            # Selects only the peaks with relative intensity above the chosen threshold.
+            if 'min_intensity' in self.kwargs:
+                mask_intensity = (I_new >= self.kwargs['min_intensity'])
+                mu = mu[mask_intensity]
+                I_new = I_new[mask_intensity]
+
+            phase_new = Phase(phase)
+            phase_new.theta = mu
+            phase_new.intensity = I_new
+            phase_new.label = phase.label
+
+            # If a phase has no selected peaks, it is not added to the results.
+            if len(mu) > 0:
+                pl_new.append(phase_new)
+
+        if len(pl_new) == 1:
+            return pl_new[0]
+        else:
+            return pl_new
