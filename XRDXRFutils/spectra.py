@@ -170,25 +170,16 @@ class SpectraXRD(Spectra):
 
         self.calibrate_from_parameters(data.opt)
 
-        self.counts = data.data[x, y]
-        self.rescaling = data.rescaling[x, y]
-        self.intensity = data.intensity[x, y]
+        self.counts = data.data[y, x]
+        self.rescaling = data.rescaling[y, x]
+        self.intensity = data.intensity[y, x]
 
         self.channel = arange(self.counts.__len__(), dtype = 'int')
 
         return self
 
-    def fromDataf(self, data, i):
-
-        self.calibrate_from_parameters(data.opt)
-
-        self.counts = data.data.reshape(-1,1280)[i]
-        self.rescaling = data.rescaling.reshape(-1)[i]
-        self.intensity = data.intensity.reshape(-1,1280)[i]
-
-        self.channel = arange(self.counts.__len__(), dtype = 'int')
-
-        return self
+    def from_Dataf(self, data, i):
+        return self.from_Data(data, *data.get_x_y(i))
 
     def remove_background(self, n = 21, std = 3, m = 32):
 
@@ -240,25 +231,29 @@ class FastSpectraXRD():
 
     def __init__(self):
         pass
+    
 
-    def fromDataf(self, data, i):
+    def from_Data(self, data, x, y):
 
         self.opt = data.opt.copy()
 
-        self.counts = data.data.reshape(-1,1280)[i]
-        self.rescaling = data.rescaling.flatten()[i]
-        self.intensity = data.intensity.reshape(-1,1280)[i]
+        self.counts = data.data[y, x]
+        self.rescaling = data.rescaling[y, x]
+        self.intensity = data.intensity[y, x]
 
         self.intensity1 = 0.5 * (self.intensity[::2] + self.intensity[1::2])
         self.intensity2 = 0.5 * (self.intensity1[::2] + self.intensity1[1::2])
         self.intensity3 = 0.5 * (self.intensity2[::2] + self.intensity2[1::2])
 
-        self.channel = arange(1280)
-        self.channel1 = arange(0.5,1280,2)
-        self.channel2 = arange(1.5,1280,4)
-        self.channel3 = arange(3.5,1280,8)
+        self.channel = arange(data.shape[2])
+        self.channel1 = arange(0.5, data.shape[2], 2)
+        self.channel2 = arange(1.5, data.shape[2], 4)
+        self.channel3 = arange(3.5, data.shape[2], 8)
 
         return self
+
+    def from_Dataf(self, data, i):
+        return self.from_Data(data, *data.get_x_y(i))
 
     @staticmethod
     def fce_calibration(x,a,s,beta):
