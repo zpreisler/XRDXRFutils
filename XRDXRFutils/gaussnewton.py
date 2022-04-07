@@ -366,14 +366,15 @@ class GaussNewton(FastSpectraXRD):
         return self.overlap3().sum()
 
 
-    def make_phase(self):
+    def make_phases(self):
         """
         Creates experimental phases from the phases used to create the given instance of GaussNewton.
-        If 'phase' attribute is of type Phase, the function returns a Phase.
-        If 'phase' attribute is of type PhaseList, the function returns a PhaseList.
+        An instance of GaussNewton can be created with a Phase or a PhaseList passed as the argument 'phase'.
+        In any case, this function returns a PhaseList of the experimental phases.
+
         Please, note that this function exludes peaks that lay outside the angle range of experimental signal.
         This is because they can have anomalously high value in order to fit the last bit of signal. This dwarfs all the other peaks.
-        Also, if the given instance of GaussNewton is called with a value of 'min_intensity', this function selects the peaks with relative intensity above that threshold.
+        Also, if the given instance of GaussNewton is created with a value of 'min_intensity', this function selects the peaks with relative intensity above that threshold.
         If a phase has no selected peaks, it is not added to the results.
         """
         if type(self.phase) == Phase:
@@ -420,10 +421,4 @@ class GaussNewton(FastSpectraXRD):
             if len(mu) > 0:
                 pl_new.append(phase_new)
 
-        if is_pl: # If the function was called with PhaseList, return a PhaseList
-            return pl_new
-        else: # If the function was called with a Phase, return a Phase if available, otherwise return an empty PhaseList
-            if len(pl_new) == 1:
-                return pl_new[0]
-            else:
-                return pl_new
+        return pl_new
