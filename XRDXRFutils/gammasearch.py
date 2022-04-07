@@ -92,7 +92,7 @@ class GammaMap(list):
         d = data.shape[0] * data.shape[1]
         spectra = [FastSpectraXRD().from_Dataf(data,i) for i in range(d)]
 
-        self += [GammaSearch(phases,spectrum,sigma) for spectrum in spectra]
+        self += [GammaSearch(phases, spectrum, sigma, **kwargs) for spectrum in spectra]
 
         return self
 
@@ -160,17 +160,16 @@ class GammaMap(list):
     def get_pixel(self,x,y):
         return self[self.get_index(x, y)]
 
-    def select_phases(self,criterion,offset=-8):
-        phases_new = PhaseList([])
+    def select_phases(self, criterion, offset = -8):
+        phases_new = []
 
-        for idx in range(len(self.phases)):
-            point = criterion[:,:,idx].flatten().argsort()[offset]
+        for idx in range(len(self)):
+            point = criterion[:, :, idx].flatten().argsort()[offset]
             gauss_newton = self[point][idx]
-            phase_new = gauss_newton.make_phase()
-            phase_new['name'] = 'created_%d'%idx
-            phase_new['point'] = point
+            phases_made = gauss_newton.make_phases()
+            for phase in phases_made:
+                phase['name'] = 'created_%d'%idx
+                phase['point'] = point
+                phases_new += phase
 
-            if phase_new:
-                phases_new.append(phase_new)
-
-        return phases_new
+        return PhaseList(phases_new)
