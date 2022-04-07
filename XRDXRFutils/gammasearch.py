@@ -92,7 +92,7 @@ class GammaMap(list):
         d = data.shape[0] * data.shape[1]
         spectra = [FastSpectraXRD().fromDataf(data,i) for i in range(d)]
 
-        self += [GammaSearch(phases,spectrum,sigma) for spectrum in spectra]
+        self += [GammaSearch(phases, spectrum, sigma, **kwargs) for spectrum in spectra]
 
         return self
 
