@@ -378,10 +378,12 @@ class GaussNewton(FastSpectraXRD):
         """
         if type(self.phase) == Phase:
             pl = PhaseList([self.phase])
+            is_pl = False
         elif type(self.phase) == PhaseList:
             pl = self.phase
+            is_pl = True
         else:
-            raise Exception('Invalid phase')
+            raise Exception('Invalid phase type')
 
         pl_new = PhaseList([])
         index_count = 0
@@ -418,7 +420,10 @@ class GaussNewton(FastSpectraXRD):
             if len(mu) > 0:
                 pl_new.append(phase_new)
 
-        if len(pl_new) == 1:
-            return pl_new[0]
-        else:
+        if is_pl: # If the function was called with PhaseList, return a PhaseList
             return pl_new
+        else: # If the function was called with a Phase, return a Phase if available, otherwise return an empty PhaseList
+            if len(pl_new) == 1:
+                return pl_new[0]
+            else:
+                return pl_new
