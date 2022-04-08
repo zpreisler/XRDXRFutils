@@ -8,6 +8,7 @@ from numpy.linalg import pinv
 from multiprocessing import Pool, cpu_count
 from functools import partial
 from joblib import Parallel, delayed
+from platform import system
 import os
 import pickle
 import pathlib
@@ -215,10 +216,16 @@ class ChiMap(GammaMap):
         return x.fit_cycle(**kwargs)
 
     def fit_cycle(self, **kwargs):
-        n_cpu = cpu_count() - 2
-        print('Using %d cpu'%n_cpu)
-        with Pool(n_cpu) as p:
-            result = p.map(partial(self.f_fit_cycle, kwargs = kwargs), self)
+        if system() == 'Darwin':
+            n_cpu = cpu_count()
+            print(f'Using {n_cpu} CPUs')
+            result = Parallel(n_jobs = n_cpu)( delayed(cs.fit_cycle)(**kwargs) for cs in self )
+        else:
+            n_cpu = cpu_count() - 2
+            print(f'Using {n_cpu} CPUs')
+            with Pool(n_cpu) as p:
+                result = p.map(partial(self.f_fit_cycle, kwargs = kwargs), self)
+
         x = ChiMap(result)
         x.phases = self.phases
         x.shape = self.shape
@@ -230,19 +237,21 @@ class ChiMap(GammaMap):
         return x.search()
 
     def search(self):
-
-        n_cpu = cpu_count() - 2
-        print('Using %d cpu'%n_cpu)
-
-        with Pool(n_cpu) as p:
-            result = p.map(self.f_search, self)
+        if system() == 'Darwin':
+            n_cpu = cpu_count()
+            print(f'Using {n_cpu} CPUs')
+            result = Parallel(n_jobs = n_cpu)( delayed(cs.search)() for cs in self )
+        else:
+            n_cpu = cpu_count() - 2
+            print(f'Using {n_cpu} CPUs')
+            with Pool(n_cpu) as p:
+                result = p.map(self.f_search, self)
 
         x = ChiMap(result)
-
         x.phases = self.phases
         x.shape = self.shape
-
         return x
+
 
     def chi(self):
         return array([phase_search.chi[0] for phase_search in self]).reshape(self.shape)

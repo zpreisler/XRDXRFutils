@@ -7,6 +7,7 @@ from numpy.linalg import pinv
 from multiprocessing import Pool, cpu_count
 from functools import partial
 from joblib import Parallel, delayed
+from platform import system
 import os
 import pickle
 import pathlib
@@ -81,6 +82,9 @@ class GammaSearch(list):
     def overlap3_area(self):
         return array([gauss_newton.overlap3_area() for gauss_newton in self])
 
+    def metrics(self):
+        return self.L1loss(), self.MSEloss(), self.overlap3_area()
+
 class GammaMap(list):
     """
     Construct gamma phase maps.
@@ -103,10 +107,16 @@ class GammaMap(list):
         return x.fit_cycle(**kwargs)
 
     def fit_cycle(self, **kwargs):
-        n_cpu = cpu_count() - 2
-        print('Using %d cpu'%n_cpu)
-        with Pool(n_cpu) as p:
-            result = p.map(partial(self.f_fit_cycle, kwargs = kwargs), self)
+        if system() == 'Darwin':
+            n_cpu = cpu_count()
+            print(f'Using {n_cpu} CPUs')
+            result = Parallel(n_jobs = n_cpu)( delayed(gs.fit_cycle)(**kwargs) for gs in self )
+        else:
+            n_cpu = cpu_count() - 2
+            print(f'Using {n_cpu} CPUs')
+            with Pool(n_cpu) as p:
+                result = p.map(partial(self.f_fit_cycle, kwargs = kwargs), self)
+
         x = GammaMap(result)
         x.phases = self.phases
         x.shape = self.shape
@@ -118,36 +128,41 @@ class GammaMap(list):
         return x.search()
 
     def search(self):
+        if system() == 'Darwin':
+            n_cpu = cpu_count()
+            print(f'Using {n_cpu} CPUs')
+            result = Parallel(n_jobs = n_cpu)( delayed(gs.search)() for gs in self )
+        else:
+            n_cpu = cpu_count() - 2
+            print(f'Using {n_cpu} CPUs')
+            with Pool(n_cpu) as p:
+                result = p.map(self.f_search, self)
 
-        n_cpu = cpu_count() - 2
-        print('Using %d cpu'%n_cpu)
-
-        with Pool(n_cpu) as p:
-            result = p.map(self.f_search, self)
         x = GammaMap(result)
-
         x.phases = self.phases
         x.shape = self.shape
-
         return x
+
 
     @staticmethod
     def f_metrics(x):
-        return x.L1loss(), x.MSEloss(), x.overlap3_area()
+        return x.metrics()
 
     def metrics(self):
+        if system() == 'Darwin':
+            n_cpu = cpu_count()
+            print(f'Using {n_cpu} CPUs')
+            results = Parallel(n_jobs = n_cpu)( delayed(gs.metrics)() for gs in self )
+        else:
+            n_cpu = cpu_count() - 2
+            print(f'Using {n_cpu} CPUs')
+            with Pool(n_cpu) as p:
+                results = p.map(self.f_metrics, self)
 
-        n_cpu = cpu_count() - 2
-        print('Using %d cpu'%n_cpu)
-
-        with Pool(n_cpu) as p:
-            results = p.map(self.f_metrics,self)
         results = asarray(results)
-
         L1loss = results[:,0,:].reshape(self.shape)
         MSEloss = results[:,1,:].reshape(self.shape)
         overlap3_area = results[:,2,:].reshape(self.shape)
-
         return L1loss, MSEloss, overlap3_area
 
     def opt(self):
