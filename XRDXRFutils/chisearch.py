@@ -5,7 +5,8 @@ from .gaussnewton import GaussNewton
 from .gammasearch import GammaMap,GammaSearch
 from numpy import array, full, zeros, nanargmin, nanargmax, newaxis, append, concatenate, sqrt, average, square, std
 from numpy.linalg import pinv
-from multiprocessing import Pool,cpu_count
+from multiprocessing import Pool, cpu_count
+from functools import partial
 from joblib import Parallel, delayed
 import os
 import pickle
@@ -207,6 +208,22 @@ class ChiMap(GammaMap):
         self += [ChiSearch(phases,spectrum,sigma) for spectrum in spectra]
 
         return self
+
+
+    @staticmethod
+    def f_fit_cycle(x, kwargs):
+        return x.fit_cycle(**kwargs)
+
+    def fit_cycle(self, **kwargs):
+        n_cpu = cpu_count() - 2
+        print('Using %d cpu'%n_cpu)
+        with Pool(n_cpu) as p:
+            result = p.map(partial(self.f_fit_cycle, kwargs = kwargs), self)
+        x = ChiMap(result)
+        x.phases = self.phases
+        x.shape = self.shape
+        return x
+
 
     @staticmethod
     def f_search(x):

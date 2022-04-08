@@ -4,7 +4,8 @@ from .spectra import SpectraXRD,FastSpectraXRD
 from .gaussnewton import GaussNewton
 from numpy import array, full, zeros, nanargmin, nanargmax, newaxis, append, concatenate, sqrt, average, square, std, asarray
 from numpy.linalg import pinv
-from multiprocessing import Pool,cpu_count
+from multiprocessing import Pool, cpu_count
+from functools import partial
 from joblib import Parallel, delayed
 import os
 import pickle
@@ -95,6 +96,22 @@ class GammaMap(list):
         self += [GammaSearch(phases, spectrum, sigma, **kwargs) for spectrum in spectra]
 
         return self
+
+
+    @staticmethod
+    def f_fit_cycle(x, kwargs):
+        return x.fit_cycle(**kwargs)
+
+    def fit_cycle(self, **kwargs):
+        n_cpu = cpu_count() - 2
+        print('Using %d cpu'%n_cpu)
+        with Pool(n_cpu) as p:
+            result = p.map(partial(self.f_fit_cycle, kwargs = kwargs), self)
+        x = GammaMap(result)
+        x.phases = self.phases
+        x.shape = self.shape
+        return x
+
 
     @staticmethod
     def f_search(x):
