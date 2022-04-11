@@ -102,12 +102,10 @@ class GaussNewton(FastSpectraXRD):
     """
     Plot functions
     """
-    def plot_spectra(self, *args, **kwargs):
-
+    def plot_spectrum(self, *args, **kwargs):
         super().plot(*args, **kwargs)
 
     def plot(self, *args, **kwargs):
-
         plot(self.theta, self.z(), *args, **kwargs)
 
     """
@@ -216,7 +214,7 @@ class GaussNewton(FastSpectraXRD):
 
         return self.component_full * ((self.theta_calc - mu)**2 / (2 * self.sigma2_calc**2)) * self.der_u(self.tau)
 
-    def fit(self, k = None, b = None, a = False, s = False, beta = False, gamma = False, sigma = False, alpha = 1,downsample = None):
+    def fit(self, k = None, b = None, a = False, s = False, beta = False, gamma = False, sigma = False, alpha = 1, downsample = None):
         """
         Performs a step of Gauss-Newton optimization. You need to choose the parameters that will be used to optimize. The other ones will be kept fixed.
         If you set k and b, parameters a and s are used in optimization (you don't need to explicitly set them to True) and are tied by the relation given by k and b.
@@ -318,12 +316,6 @@ class GaussNewton(FastSpectraXRD):
     """
     Evaluation of the results
     """
-    def plot_spectrum(self,*args,**kwargs):
-        super().plot(*args,**kwargs)
-
-    def plot(self,*args,**kwargs):
-        plot(self.theta,self.z(),*args,**kwargs)
-
     def overlap(self):
 
         m = minimum(self.z(), self.intensity)
