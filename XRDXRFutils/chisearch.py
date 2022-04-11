@@ -211,43 +211,14 @@ class ChiMap(GammaMap):
         return self
 
 
-    @staticmethod
-    def f_fit_cycle(x, kwargs):
-        return x.fit_cycle(**kwargs)
-
     def fit_cycle(self, **kwargs):
-        if system() == 'Darwin':
-            n_cpu = cpu_count()
-            print(f'Using {n_cpu} CPUs')
-            result = Parallel(n_jobs = n_cpu)( delayed(cs.fit_cycle)(**kwargs) for cs in self )
-        else:
-            n_cpu = cpu_count() - 2
-            print(f'Using {n_cpu} CPUs')
-            with Pool(n_cpu) as p:
-                result = p.map(partial(self.f_fit_cycle, kwargs = kwargs), self)
-
-        x = ChiMap(result)
+        x = ChiMap(self.fit_cycle_core(**kwargs))
         x.phases = self.phases
         x.shape = self.shape
         return x
 
-
-    @staticmethod
-    def f_search(x):
-        return x.search()
-
     def search(self):
-        if system() == 'Darwin':
-            n_cpu = cpu_count()
-            print(f'Using {n_cpu} CPUs')
-            result = Parallel(n_jobs = n_cpu)( delayed(cs.search)() for cs in self )
-        else:
-            n_cpu = cpu_count() - 2
-            print(f'Using {n_cpu} CPUs')
-            with Pool(n_cpu) as p:
-                result = p.map(self.f_search, self)
-
-        x = ChiMap(result)
+        x = ChiMap(self.search_core())
         x.phases = self.phases
         x.shape = self.shape
         return x

@@ -103,10 +103,10 @@ class GammaMap(list):
 
 
     @staticmethod
-    def f_fit_cycle(x, kwargs):
+    def fit_cycle_service(x, kwargs):
         return x.fit_cycle(**kwargs)
 
-    def fit_cycle(self, **kwargs):
+    def fit_cycle_core(self, **kwargs):
         if system() == 'Darwin':
             n_cpu = cpu_count()
             print(f'Using {n_cpu} CPUs')
@@ -115,19 +115,21 @@ class GammaMap(list):
             n_cpu = cpu_count() - 2
             print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
-                result = p.map(partial(self.f_fit_cycle, kwargs = kwargs), self)
+                result = p.map(partial(self.fit_cycle_service, kwargs = kwargs), self)
+        return result
 
-        x = GammaMap(result)
+    def fit_cycle(self, **kwargs):
+        x = GammaMap(self.fit_cycle_core(**kwargs))
         x.phases = self.phases
         x.shape = self.shape
         return x
 
 
     @staticmethod
-    def f_search(x):
+    def search_service(x):
         return x.search()
 
-    def search(self):
+    def search_core(self):
         if system() == 'Darwin':
             n_cpu = cpu_count()
             print(f'Using {n_cpu} CPUs')
@@ -136,16 +138,18 @@ class GammaMap(list):
             n_cpu = cpu_count() - 2
             print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
-                result = p.map(self.f_search, self)
+                result = p.map(self.search_service, self)
+        return result
 
-        x = GammaMap(result)
+    def search(self):
+        x = GammaMap(self.search_core())
         x.phases = self.phases
         x.shape = self.shape
         return x
 
 
     @staticmethod
-    def f_metrics(x):
+    def metrics_service(x):
         return x.metrics()
 
     def metrics(self):
@@ -157,13 +161,14 @@ class GammaMap(list):
             n_cpu = cpu_count() - 2
             print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
-                results = p.map(self.f_metrics, self)
+                results = p.map(self.metrics_service, self)
 
         results = asarray(results)
         L1loss = results[:,0,:].reshape(self.shape)
         MSEloss = results[:,1,:].reshape(self.shape)
         overlap3_area = results[:,2,:].reshape(self.shape)
         return L1loss, MSEloss, overlap3_area
+
 
     def opt(self):
         return array([phase_search.opt for phase_search in self]).reshape(self.shape)
