@@ -192,7 +192,7 @@ class GammaMap(list):
         return array([phase_search.MSEloss() for phase_search in self]).reshape(self.shape)
 
     def selected(self):
-        return array([phase_search.idx for phase_search in self]).reshape(self.shape)
+        return array([phase_search.idx for phase_search in self]).reshape((self.shape[0], self.shape[1]))
 
     def get_index(self,x,y):
         return x + y * self.shape[1]
