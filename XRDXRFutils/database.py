@@ -128,14 +128,12 @@ class PhaseList(list):
         return self.theta,self.intensity
 
 
-    def plot(self,cmap='winter',**kwargs):
+    def plot(self, cmap = 'tab10', **kwargs):
+        cmap_sel = cm.get_cmap(cmap)
+        for i, phase in enumerate(self):
+            idx_color = i % cmap_sel.N
+            phase.plot(colors = cmap_sel(idx_color), **kwargs)
 
-        c = cm.get_cmap(cmap)
-        n = len(self) + 1 
-        colors = c(arange(1,n)/(n))
-
-        for i,phase in enumerate(self):
-            phase.plot(colors=colors[i],**kwargs)
 
     def random(self):
         idx = randint(self.__len__())
