@@ -5,10 +5,10 @@ from .gaussnewton import GaussNewton
 from .gammasearch import GammaMap,GammaSearch
 from numpy import array, full, zeros, nanargmin, nanargmax, newaxis, append, concatenate, sqrt, average, square, std
 from numpy.linalg import pinv
-from multiprocessing import Pool, cpu_count
-from functools import partial
-from joblib import Parallel, delayed
-from platform import system
+#from multiprocessing import Pool, cpu_count
+#from functools import partial
+#from joblib import Parallel, delayed
+#from platform import system
 import os
 import pickle
 import pathlib
