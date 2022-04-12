@@ -234,10 +234,10 @@ class FastSpectraXRD():
 
     def __init__(self):
         pass
-    
+
 
     def from_Data(self, data, x, y):
-        return self.from_Dataf(data.get_index(x, y))
+        return self.from_Dataf(data, data.get_index(x, y))
 
 
     def from_Dataf(self, data, i):
