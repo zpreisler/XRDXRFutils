@@ -2,7 +2,8 @@ from .spectra import SpectraXRD, FastSpectraXRD
 
 from .database import Phase,PhaseList
 
-from numpy import fabs, sum, exp, log, pi, array, ones, zeros, full, full_like, trapz, minimum, maximum, std, fabs, sign, sqrt, square, average, clip, newaxis, concatenate, append, where, arange
+from numpy import (fabs, sum, exp, log, pi, array, ones, zeros, full, full_like, trapz, minimum,
+    maximum, std, sign, sqrt, square, average, clip, newaxis, concatenate, append, where, arange)
 from numpy.linalg import pinv, inv
 
 from scipy.optimize import newton
