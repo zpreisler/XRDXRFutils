@@ -166,20 +166,23 @@ class SpectraXRD(Spectra):
         counts = loadtxt(filename, unpack = True, dtype = 'int', usecols = 1)
         return self.from_array(counts)
 
+
     def from_Data(self, data, x = 0, y = 0):
+        return self.from_Dataf(data, data.get_index(x, y))
+
+
+    def from_Dataf(self, data, i):
 
         self.calibrate_from_parameters(data.opt)
 
-        self.counts = data.data[y, x]
-        self.rescaling = data.rescaling[y, x]
-        self.intensity = data.intensity[y, x]
+        self.counts = data.data.reshape(-1, data.shape[2])[i]
+        self.rescaling = data.rescaling.reshape(-1)[i]
+        self.intensity = data.intensity.reshape(-1, data.shape[2])[i]
 
         self.channel = arange(self.counts.__len__(), dtype = 'int')
 
         return self
 
-    def from_Dataf(self, data, i):
-        return self.from_Data(data, *data.get_x_y(i))
 
     def remove_background(self, n = 21, std = 3, m = 32):
 
@@ -234,12 +237,16 @@ class FastSpectraXRD():
     
 
     def from_Data(self, data, x, y):
+        return self.from_Dataf(data.get_index(x, y))
+
+
+    def from_Dataf(self, data, i):
 
         self.opt = data.opt.copy()
 
-        self.counts = data.data[y, x]
-        self.rescaling = data.rescaling[y, x]
-        self.intensity = data.intensity[y, x]
+        self.counts = data.data.reshape(-1, data.shape[2])[i]
+        self.rescaling = data.rescaling.flatten()[i]
+        self.intensity = data.intensity.reshape(-1, data.shape[2])[i]
 
         self.intensity1 = 0.5 * (self.intensity[::2] + self.intensity[1::2])
         self.intensity2 = 0.5 * (self.intensity1[::2] + self.intensity1[1::2])
@@ -252,8 +259,6 @@ class FastSpectraXRD():
 
         return self
 
-    def from_Dataf(self, data, i):
-        return self.from_Data(data, *data.get_x_y(i))
 
     @staticmethod
     def fce_calibration(x,a,s,beta):
