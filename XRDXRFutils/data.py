@@ -1,6 +1,6 @@
 from scipy.optimize import curve_fit
-from numpy import pi, arctan
-from numpy import loadtxt, frombuffer, array, asarray, linspace, arange, trapz, flip, stack, where, zeros, empty
+from numpy import (pi, arctan, loadtxt, frombuffer, array, asarray,
+    linspace, arange, trapz, flip, stack, where, zeros, empty, unravel_index)
 from scipy.interpolate import interp1d
 from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
 import os
@@ -97,7 +97,7 @@ class Data():
         return self.data.shape
 
     def get_x_y(self, i):
-        y, x = divmod(i, self.shape[1])
+        y, x = unravel_index(i, self.shape[:2])
         return x, y
 
     def get_index(self, x, y):

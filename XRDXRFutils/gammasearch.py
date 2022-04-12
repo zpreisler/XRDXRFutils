@@ -2,7 +2,8 @@ from .database import Phase, PhaseList
 from .data import DataXRD
 from .spectra import SpectraXRD,FastSpectraXRD
 from .gaussnewton import GaussNewton
-from numpy import array, full, zeros, nanargmin, nanargmax, newaxis, append, concatenate, sqrt, average, square, std, asarray
+from numpy import (array, full, zeros, nanargmin, nanargmax, newaxis, append,
+    concatenate, sqrt, average, square, std, asarray, unravel_index)
 from numpy.linalg import pinv
 from multiprocessing import Pool, cpu_count
 from functools import partial
@@ -198,7 +199,7 @@ class GammaMap(list):
         return x + y * self.shape[1]
 
     def get_x_y(self, i):
-        y, x = divmod(i, self.shape[1])
+        y, x = unravel_index(i, self.shape[:2])
         return x, y
 
     def get_pixel(self,x,y):
