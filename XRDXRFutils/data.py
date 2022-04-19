@@ -135,14 +135,9 @@ class Data():
             if hasattr(self,'labels'):
                 dataset = f.create_dataset('labels',data = self.labels)
 
-            if hasattr(self,'weights'):
-                dataset = f.create_dataset('weights',data = self.weights)
-
-            if hasattr(self,'rescaling'):
-                dataset = f.create_dataset('rescaling',data = self.rescaling)
-
-            if hasattr(self,'intensity'):
-                dataset = f.create_dataset('intensity',data = self.intensity)
+            for attr in ['weights','rescaling','intensity']:
+                if hasattr(self,attr):
+                    dataset = f.create_dataset(attr,data = getattr(self,attr))
             
             if hasattr(self,'calibration'):
                 calibration = f.create_group('calibration')
@@ -166,14 +161,9 @@ class Data():
             if 'labels' in f:
                 self.labels = f.get('labels')[()]
 
-            if 'weights' in f:
-                self.weights = f.get('weights')[()]
-
-            if 'rescaling' in f:
-                self.rescaling = f.get('rescaling')[()]
-
-            if 'intensity' in f:
-                self.intensity = f.get('intensity')[()]
+            for attr in ['weights','rescaling','intensity']:
+                if attr in f:
+                    setattr(self,attr,f.get(attr)[()])
 
             for k,v in f.attrs.items():
                 self.metadata[k] = v
@@ -444,10 +434,13 @@ class SyntheticDataXRF(Data):
             yield np_labels
     
     def get_data_and_labels(self, symbols, lines):
+
         if not hasattr(self, 'spe_objs'):
             raise RuntimeError("xmso files not readed yet")
-        self.energy = self.spe_objs[0].energy
+
         self.data = asarray([s.counts for s in self.spe_objs])
+        self.energy = self.spe_objs[0].energy
+
         self.labels = asarray([l for l in self._get_labels(symbols, lines)])
         self.metadata["symbols"] = symbols
         self.metadata["lines"] = lines
@@ -455,15 +448,19 @@ class SyntheticDataXRF(Data):
         return self
     
     def process_file(self, filename):
+
         sxrf = SyntheticSpectraXRF(self.rl_atnum_list, self.skip_element)
         self.nbins and sxrf.set_nbins(self.nbins)
         s = sxrf.from_file(filename)
+
         return s
     
     def __read__(self, xmso_filenames):
+
         if not self.rl_atnum_list:
             raise RuntimeError("missing required atomic numbers list")
         self.rl_atnum_list = sorted(self.rl_atnum_list)
+
         with Pool() as p:
             results = p.map(self.process_file, xmso_filenames)
         # with ThreadPoolExecutor() as executor:
@@ -488,7 +485,8 @@ class SyntheticDataXRF(Data):
                 self.reflayer_thickness[i] = s.reflayer_thickness
                 self.sublayer_thickness[i] = s.sublayer_thickness
             return
-        sp = SimParameters(len_data)
+
+        sp = SimulationParams(len_data)
 
         for i, s in enumerate(self.spe_objs):
             sp.time[i] = s.time
@@ -496,6 +494,7 @@ class SyntheticDataXRF(Data):
             sp.weight_fractions.append(s.weight_fractions)
             sp.reflayer_thickness[i] = s.reflayer_thickness
             sp.sublayer_thickness[i] = s.sublayer_thickness
+
         sp.weight_fractions = asarray(sp.weight_fractions).reshape(len_data, -1)
 
         return sp
@@ -503,22 +502,8 @@ class SyntheticDataXRF(Data):
     
     def save_h5(self, filename = None):
 
-        if not hasattr(self, 'spe_objs'):
-            raise RuntimeError("xmso files not read yet")
-
-        if not hasattr(self, "data"):
-            raise RuntimeError("Data and labels not yet genarated")
-
         if filename == None:
-            if hasattr(self, "path"):
-                filename = os.path.join(self.path, self.name + '.h5')
-            else:
-                filename = os.path.join(os.getcwd(), self.name + '.h5')
-
-        if not hasattr(self,'reflayer_thickness'):
-            self.get_sim_parameters(local = True)
-
-        self.metadata["rl_atnum_list"] = self.rl_atnum_list
+            filename = self.path + '/' + self.name + '.h5'
 
         print('Saving:',filename)
         with h5py.File(filename,'w') as f:
@@ -526,37 +511,53 @@ class SyntheticDataXRF(Data):
             for k,v in self.metadata.items():
                 f.attrs[k] = v
 
-            dataset = f.create_dataset('data', data = self.data)
-            dataset = f.create_dataset('labels', data = self.labels)
-            dataset = f.create_dataset('reflayer_thickness', data = self.reflayer_thickness)
-            dataset = f.create_dataset('sublayer_thickness', data = self.sublayer_thickness)
-            # dataset = f.create_dataset('reflayer_elements', data = sp.reflayer_elements)
-            dataset = f.create_dataset('weight_fractions', data = self.weight_fractions)
-            dataset = f.create_dataset('energy', data = self.energy)
-            dataset = f.create_dataset('time', data = self.time)
+            if hasattr(self,'data'):
+                dataset = f.create_dataset('data',data = self.data)
+                dataset = f.create_dataset('x',data = self.x)
+
+            if hasattr(self,'labels'):
+                dataset = f.create_dataset('labels',data = self.labels)
+
+            for attr in ['reflayer_thickness','sublayer_thickness','weight_fractions','time','energy']:
+                if hasattr(self,attr):
+                    dataset = f.create_dataset(attr,data = getattr(self,attr))
+            
+            if hasattr(self,'calibration'):
+                calibration = f.create_group('calibration')
+
+                for attr in ['x','y','opt']:
+                    calibration.create_dataset(attr,data = getattr(self.calibration,attr))
+                for k,v in self.calibration.metadata.items():
+                    calibration.attrs[k] = v
+
+        return self
 
     def load_h5(self,filename):
 
         print('Loading:',filename)
         with h5py.File(filename,'r') as f:
-            
-            self.data = f['data'][:]
-            self.labels = f['labels'][:]
-            self.reflayer_thickness = f['reflayer_thickness'][:]
-            self.sublayer_thickness = f['sublayer_thickness'][:]
-            # self.reflayer_elements = f['reflayer_elements'][:]
-            self.weight_fractions = f['weight_fractions'][:]
-            self.energy = f['energy'][:]
-            self.time = f['time'][:]
 
-            self._x = self.energy
+            if 'data' in f:
+                self.data = f.get('data')[()]
+
+                if 'x' in f:
+                    self._x = f.get('x')[()]
+                else:
+                    self._x = f.get('energy')[()]
+
+            if 'labels' in f:
+                self.labels = f.get('labels')[()]
+
+            for attr in ['reflayer_thickness','sublayer_thickness','weight_fractions','time','energy']:
+                if attr in f:
+                    setattr(self,attr,f.get(attr)[()])
 
             for k,v in f.attrs.items():
                 self.metadata[k] = v
 
         return self
 
-class SimParameters:
+class SimulationParams:
     """
     Synthetic data parameters class
     """
