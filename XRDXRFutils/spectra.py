@@ -9,7 +9,14 @@ from .calibration import Calibration
 class Spectra():
     def __init__(self):
         self.calibration = Calibration(self)
-
+    
+    @staticmethod
+    def fce_calibration(x,a,b):
+        """
+        Linear calibration function
+        """
+        return a * x + b
+    
     def from_array(self,x):
         self.counts = x
         self.channel = arange(self.counts.__len__())
@@ -31,6 +38,12 @@ class Spectra():
 class SpectraXRF(Spectra):
     def __init__(self):
         super().__init__()
+
+class FluoContainer:
+    def __init__(self, symbol, atomic_number, lines ):
+        self.symbol = symbol
+        self.atomic_number = atomic_number
+        self.lines = lines
 
 class SyntheticSpectraXRF(Spectra):
     def __init__(self, rl_atnum_list, skip_element = False):
@@ -83,14 +96,8 @@ class SyntheticSpectraXRF(Spectra):
     
     @staticmethod
     def get_fluorescence_lines(xml_data, time_correction = None):
-
-        class Container:
-            def __init__(self, symbol, atomic_number, lines ):
-                self.symbol = symbol
-                self.atomic_number = atomic_number
-                self.lines = lines
-
         """Generator"""
+        
         flc = xml_data.findall(".//fluorescence_line_counts")
         for element in flc:
             lines = {"K" : 0, "L" : 0, "M" : 0, "others" : 0}
@@ -105,7 +112,7 @@ class SyntheticSpectraXRF(Spectra):
                 else:
                     lines["others"] += float(fl.attrib["total_counts"]) * time_correction if time_correction else float(fl.attrib["total_counts"])
                     
-            yield Container(
+            yield FluoContainer(
                 symbol = element.attrib["symbol"],
                 atomic_number = element.attrib["atomic_number"],
                 lines = lines

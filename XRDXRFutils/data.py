@@ -4,10 +4,12 @@ from numpy import loadtxt, frombuffer, array, asarray, linspace, arange, trapz, 
 from scipy.interpolate import interp1d
 from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
 import os
+from numpy import newaxis
 
 from .calibration import Calibration
 from .spectra import SyntheticSpectraXRF
 from .utils import convolve3d,snip3d
+from .Xmendeleev import Xmendeleev
 
 from PIL import Image
 
@@ -68,6 +70,8 @@ class Data():
     name = 'data'
 
     def __init__(self):
+
+        self.calibration = Calibration(self)
         self.metadata = {}
 
     @staticmethod
@@ -405,13 +409,13 @@ class SyntheticDataXRF(DataXRF):
         if not os.path.isdir(outdata_path):
             raise FileNotFoundError(f"No such file or directory: {outdata_path}")
 
-        for path, dirs, files in os.walk(outdata_path):
-            # to do: use glob to select xmso files
-            for _file in files:
-                xmso_filenames.append(os.path.join(path, _file))
-
-        print(f"Reading SXRF data from {outdata_path}")
-        self.metadata["rl_atnum_list"] = self.rl_atnum_list
+        # for path, dirs, files in os.walk(outdata_path):
+            # # to do: use glob to select xmso files
+            # for _file in files:
+                # xmso_filenames.append(os.path.join(path, _file))
+        xmso_filenames = glob(os.path.join(outdata_path, "*/*.xmso"))
+        print(f"Reading SyntXRF data from {outdata_path}")
+        self.metadata["reflayer_elements"] = self.rl_atnum_list
         self.spe_objs = [s for s in self.__read__(xmso_filenames) if s != None]
         self.metadata["path"] = outdata_path
         
@@ -444,8 +448,10 @@ class SyntheticDataXRF(DataXRF):
         self.energy = self.spe_objs[0].energy
 
         self.labels = asarray([l for l in self._get_labels(symbols, lines)])
-        self.metadata["symbols"] = symbols
-        self.metadata["lines"] = lines
+        labels = []
+        for item in zip(symbols, lines):
+            labels.append("-".join(item))
+        self.metadata["labels"] = labels
         
         return self
     
@@ -482,12 +488,10 @@ class SyntheticDataXRF(DataXRF):
             for i, s in enumerate(self.spe_objs):
                 self.time[i] = s.time
                 self.weight_fractions[i] = s.weight_fractions
-                self.reflayer_thickness[i] = s.reflayer_thickness
-                self.sublayer_thickness[i] = s.sublayer_thickness
-            return
-
-        sp = SimulationParams(len_data)
-
+                self.reflayer_thicknes[i] = s.reflayer_thicknes
+                self.sublayer_thicknes[i] = s.sublayer_thicknes
+            return self
+        sp = SimParameters(len_data)
         for i, s in enumerate(self.spe_objs):
             sp.time[i] = s.time
             # sp.reflayer_elements += s.reflayer_elements
@@ -501,16 +505,23 @@ class SyntheticDataXRF(DataXRF):
         
     
     def save_h5(self, filename = None):
-
+        xm = Xmendeleev()
         if filename == None:
             filename = self.path + '/' + self.name + '.h5'
-
+        if not hasattr(self,'reflayer_thicknes'):
+            self.get_sim_parameters(local = True)
+        self.metadata["reflayer_elements"] = asarray([xm.get_element(item).symbol for item in self.rl_atnum_list],dtype = "object")
+        self.metadata["notes"] = "weight fractions columns ordered like reflayer_elements"
+        # add new axis
+        if self.data.ndim == 2:
+            self.data = self.data[newaxis,:,:]
+            self.labels = self.labels[newaxis,:,:]
         print('Saving:',filename)
         with h5py.File(filename,'w') as f:
 
             for k,v in self.metadata.items():
                 f.attrs[k] = v
-
+                
             if hasattr(self,'data'):
                 dataset = f.create_dataset('data',data = self.data)
                 dataset = f.create_dataset('x',data = self.x)
@@ -529,11 +540,10 @@ class SyntheticDataXRF(DataXRF):
                     calibration.create_dataset(attr,data = getattr(self.calibration,attr))
                 for k,v in self.calibration.metadata.items():
                     calibration.attrs[k] = v
-
         return self
 
     def load_h5(self,filename):
-
+        #self.spe_objs = []
         print('Loading:',filename)
         with h5py.File(filename,'r') as f:
 
