@@ -423,8 +423,10 @@ class SyntheticDataXRF(Data):
         """
         if len(symbols) != len(lines):
             raise ValueError("Symbols and lines differ in length")
+
         for s in self.spe_objs:
             np_labels = zeros((len(symbols)))
+
             for fluo in s.fluorescence_lines:
                 try:
                     sym_index = symbols.index(fluo.symbol)
@@ -463,8 +465,6 @@ class SyntheticDataXRF(Data):
 
         with Pool() as p:
             results = p.map(self.process_file, xmso_filenames)
-        # with ThreadPoolExecutor() as executor:
-            # results = executor.map(process_file, xmso_filenames)
         return results
     
     def get_sim_parameters(self, local = False):
