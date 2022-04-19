@@ -360,7 +360,7 @@ class DataXRF(Data):
 
         return self
 
-class SyntheticDataXRF(Data):
+class SyntheticDataXRF(DataXRF):
     """
     Syntetic XRF data class
     """
@@ -438,7 +438,7 @@ class SyntheticDataXRF(Data):
     def get_data_and_labels(self, symbols, lines):
 
         if not hasattr(self, 'spe_objs'):
-            raise RuntimeError("xmso files not readed yet")
+            raise RuntimeError("xmso files not read yet")
 
         self.data = asarray([s.counts for s in self.spe_objs])
         self.energy = self.spe_objs[0].energy
@@ -470,7 +470,7 @@ class SyntheticDataXRF(Data):
     def get_sim_parameters(self, local = False):
 
         if not hasattr(self, 'spe_objs'):
-            raise RuntimeError("xmso files not readed yet")
+            raise RuntimeError("xmso files not read yet")
         len_data = len(self.spe_objs)
 
         if local:
