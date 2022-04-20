@@ -3,6 +3,7 @@ from numpy import pi, arctan
 from numpy import loadtxt, frombuffer, array, asarray, linspace, arange, trapz, flip, stack, where, zeros, empty
 from scipy.interpolate import interp1d
 from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
+from os.path import basename
 import os
 
 from .calibration import Calibration
@@ -330,8 +331,9 @@ class DataXRF(Data):
 
         labels = []
         for s in filenames:
-            s = s[s.rfind('/') + 1:]
-            s = s[:s.rfind('.')]
+            s = basename(s).split('.')[0]
+            #s = s[s.rfind('/') + 1:]
+            #s = s[:s.rfind('.')]
             labels += [s]
 
         self.metadata['labels'] = labels
@@ -351,7 +353,7 @@ class DataXRF(Data):
         x = self.metadata['labels']
 
         for label in labels:
-            w = list(where(x == label)[0])
+            w = list(where(array(x) == label)[0])
             if w:
                 select += w
 
