@@ -367,7 +367,7 @@ class GaussNewton(FastSpectraXRD):
         An instance of GaussNewton can be created with a Phase or a PhaseList passed as the argument 'phase'.
         According to that, this function returns a Phase or a PhaseList.
 
-        Please, note that this function exludes peaks that lay outside the angle range of experimental signal.
+        Please, note that this function excludes peaks that lay outside the angle range of experimental signal.
         This is because they can have anomalously high value in order to fit the last bit of signal. This dwarfs all the other peaks.
         """
         if type(self.phase) == Phase:
