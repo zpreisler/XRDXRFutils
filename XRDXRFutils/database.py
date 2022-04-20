@@ -52,31 +52,31 @@ class Phase(dict):
 
         return self.theta, self.intensity
 
-    def thetas2d(self):
-        g = sin(pi * self.theta / 360)
-        d = 1.541874 / (2 * g)
-        return d
 
-    def save_cif(self,name):
+    def save_cif(self, filename):
 
-        with open(name,'w') as file:
+        with open(filename, 'w') as file:
 
             if '_chemical_formula_sum' in self:
-                file.write('_chemical_formula_sum  ' + self['_chemical_formula_sum'] +'\n')
+                file.write('_chemical_formula_sum  \'' + self['_chemical_formula_sum'] + '\'\n')
 
             if '_chemical_name_mineral' in self:
-                file.write('_chemical_name_mineral  ' + self['_chemical_name_mineral'] +'\n')
+                file.write('_chemical_name_mineral  \'' + self['_chemical_name_mineral'] + '\'\n')
+
+            if 'name' in self:
+                file.write('name  \'' + self['name'] + '\'\n')
+
+            if 'point' in self:
+                file.write('point  ' + format(self['point'], 'd') + '\n')
 
             file.write('loop_\n')
             file.write('_pd_peak_d_spacing\n')
             file.write('_pd_peak_intensity\n')
-
-            for d,I in zip(self.thetas2d(), self.intensity * 1000):
-
+            for d, i in self['_pd_peak_intensity'].T:
                 d = format(d, '.6f')
-                I = format(I, '.2f')
+                i = format(i, '.2f')
+                file.write('     ' + str(d) + f'{str(i):>14}' + '\n')
 
-                file.write('     ' + str(d) + f'{str(I):>14}' +'\n')
 
     def plot(self, colors = 'k', linestyles = 'dashed', label = None, lineheight = None, **kwargs):
 
@@ -139,34 +139,11 @@ class PhaseList(list):
         idx = randint(self.__len__())
         return self[idx]
 
-    def thetas2d(self):
-        g = sin(pi * self.theta / 360)
-        d = 1.541874 / (2 * g)
-        return d
 
-    def save_cif(self,name):
-        """
-        FIXME: take from Phase class.
-        """
+    def save_cif(self, filename):
+        for phase in self:
+            phase.save_cif(filename[:-4] + '_' + phase.label + '.cif')
 
-        with open(name,'w') as file:
-
-            if '_chemical_formula_sum' in self:
-                file.write('_chemical_formula_sum  ' + self['_chemical_formula_sum'] +'\n')
-
-            if '_chemical_name_mineral' in self:
-                file.write('_chemical_name_mineral  ' + self['_chemical_name_mineral'] +'\n')
-
-            file.write('loop_\n')
-            file.write('_pd_peak_d_spacing\n')
-            file.write('_pd_peak_intensity\n')
-
-            for d,I in zip(self.thetas2d(), self.intensity * 1000):
-
-                d = format(d, '.6f')
-                I = format(I, '.2f')
-
-                file.write('     ' + str(d) + f'{str(I):>14}' +'\n')
 
 class DatabaseXRD(dict):
 

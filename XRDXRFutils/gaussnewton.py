@@ -2,7 +2,7 @@ from .spectra import SpectraXRD, FastSpectraXRD
 
 from .database import Phase,PhaseList
 
-from numpy import (fabs, sum, exp, log, pi, array, ones, zeros, full, full_like, trapz, minimum,
+from numpy import (fabs, sum, exp, log, sin, pi, array, ones, zeros, full, full_like, trapz, minimum,
     maximum, std, sign, sqrt, square, average, clip, newaxis, concatenate, append, where, arange)
 from numpy.linalg import pinv, inv
 
@@ -22,6 +22,8 @@ class GaussNewton(FastSpectraXRD):
         phase: tabulated phase; Phase or PhaseList class
         spectrum: experimental spectrum; FastSpectraXRD class
         """
+        if type(phase) not in [Phase, PhaseList]:
+            raise Exception('Invalid phase type')
         super().__init__()
 
         self.phase = phase
@@ -359,38 +361,30 @@ class GaussNewton(FastSpectraXRD):
         return self.overlap3().sum()
 
 
-    def make_phases(self):
+    def make_phase(self):
         """
-        Creates experimental phases from the phases used to create the given instance of GaussNewton.
+        Creates experimental phase from the phase used to create the given instance of GaussNewton.
         An instance of GaussNewton can be created with a Phase or a PhaseList passed as the argument 'phase'.
-        In any case, this function returns a PhaseList of the experimental phases.
+        According to that, this function returns a Phase or a PhaseList.
 
         Please, note that this function exludes peaks that lay outside the angle range of experimental signal.
         This is because they can have anomalously high value in order to fit the last bit of signal. This dwarfs all the other peaks.
-        Also, if the given instance of GaussNewton is created with a value of 'min_intensity', this function selects the peaks with relative intensity above that threshold.
-        If a phase has no selected peaks, it is not added to the results.
         """
         if type(self.phase) == Phase:
             pl = PhaseList([self.phase])
-            is_pl = False
         elif type(self.phase) == PhaseList:
             pl = self.phase
-            is_pl = True
-        else:
-            raise Exception('Invalid phase type')
 
         pl_new = PhaseList([])
         index_count = 0
 
         for phase in pl:
-            mu, I = phase.get_theta()
+            mu, I = phase.get_theta(**self.kwargs)
             phase_len = mu.shape[0]
 
             gamma = self.gamma.squeeze()[index_count : (index_count + phase_len)]
             index_count += phase_len
-
             I_new = I * gamma
-            I_new /= I_new.max()
 
             # Selects only the peaks that lay inside the angle range of experimental signal.
             # Otherwise, external peaks can have anomalously high value in order to fit the last bit of signal. This dwarfs all the other peaks.
@@ -399,19 +393,21 @@ class GaussNewton(FastSpectraXRD):
             mu = mu[mask_theta]
             I_new = I_new[mask_theta]
 
-            # Selects only the peaks with relative intensity above the chosen threshold.
-            if 'min_intensity' in self.kwargs:
-                mask_intensity = (I_new >= self.kwargs['min_intensity'])
-                mu = mu[mask_intensity]
-                I_new = I_new[mask_intensity]
+            # Calculates d, i
+            I_new /= I_new.max()
+            i = I_new * 1000
+            d = 1.541874 / (2 * sin(pi * mu / 360))
 
             phase_new = Phase(phase)
+            phase_new['_pd_peak_intensity'] = array([d, i])
             phase_new.theta = mu
             phase_new.intensity = I_new
             phase_new.label = phase.label
 
-            # If a phase has no selected peaks, it is not added to the results.
-            if len(mu) > 0:
-                pl_new.append(phase_new)
+            # Adds the new phase to the results
+            pl_new.append(phase_new)
 
-        return pl_new
+        if len(pl_new) == 1:
+            return pl_new[0]
+        else:
+            return pl_new
