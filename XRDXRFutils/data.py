@@ -376,7 +376,7 @@ class SyntheticDataXRF(DataXRF):
     
     def __init__(self, rl_atnum_list = None, skip_element = False):
         super().__init__()
-
+        delattr(self, 'calibration')
         self.nbins = None
         self.rl_atnum_list = rl_atnum_list
 
@@ -446,6 +446,7 @@ class SyntheticDataXRF(DataXRF):
 
         self.data = asarray([s.counts for s in self.spe_objs])
         self.energy = self.spe_objs[0].energy
+        self._x = self.energy
 
         self.labels = asarray([l for l in self._get_labels(symbols, lines)])
         labels = []
@@ -482,8 +483,8 @@ class SyntheticDataXRF(DataXRF):
         if local:
             self.time = empty((len_data))
             self.weight_fractions = zeros((len_data,len(self.rl_atnum_list)))
-            self.reflayer_thickness = empty((len_data))
-            self.sublayer_thickness = empty((len_data))
+            self.reflayer_thicknes = empty((len_data))
+            self.sublayer_thicknes = empty((len_data))
 
             for i, s in enumerate(self.spe_objs):
                 self.time[i] = s.time
