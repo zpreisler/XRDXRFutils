@@ -63,6 +63,9 @@ class Phase(dict):
             if '_chemical_name_mineral' in self:
                 file.write('_chemical_name_mineral  \'' + self['_chemical_name_mineral'] + '\'\n')
 
+            if '_chemical_name_common' in self:
+                file.write('_chemical_name_common  \'' + self['_chemical_name_common'] + '\'\n')
+
             if 'name' in self:
                 file.write('name  \'' + self['name'] + '\'\n')
 
@@ -147,31 +150,37 @@ class PhaseList(list):
 
 class DatabaseXRD(dict):
 
-    def read_cifs(self,path):
+    def read_cifs(self, path):
         filenames = sorted(glob(path + '/*.cif'))
         if not filenames:
             warnings.warn('No files found')
 
         i = 0
         for filename in filenames:
-            phase = Phase(name=filename)
+            phase = Phase(name = filename)
 
-            with open(filename,'r') as f:
+            with open(filename, 'r') as f:
                 for line in f:
                     x = line.split()
                     if x:
                         y = x[0]
                         if y == '_chemical_formula_sum':
-                            phase[y] = ' '.join(x[1:]).replace("'",'')
+                            phase[y] = ' '.join(x[1:]).replace("'", '')
 
                         if y == '_chemical_name_mineral':
-                            phase[y] = ' '.join(x[1:]).replace("'",'')
+                            phase[y] = ' '.join(x[1:]).replace("'", '')
 
                         if y == '_chemical_name_common':
-                            phase[y] = x[1:]
+                            phase[y] = ' '.join(x[1:]).replace("'", '')
+
+                        if y == 'name':
+                            phase[y] = ' '.join(x[1:]).replace("'", '')
+
+                        if y == 'point':
+                            phase[y] = int(x[1])
 
                         if y == '_pd_peak_intensity':
-                            z = loadtxt(f,unpack=True,dtype=float)
+                            z = loadtxt(f, unpack = True, dtype = float)
                             phase[y] = z
 
             formula = phase['_chemical_formula_sum']
@@ -189,6 +198,7 @@ class DatabaseXRD(dict):
                 i += 1
 
         return self
+
 
     def random(self):
         x = list(self.values())
