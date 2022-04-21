@@ -212,15 +212,8 @@ class GammaMap(list):
             point = criterion[:, :, idx].flatten().argsort()[offset]
             gauss_newton = self[point][idx]
             phase_made = gauss_newton.make_phase()
-
-            if type(phase_made) == Phase:
-                phase_made['name'] = 'created_%d'%idx
-                phase_made['point'] = point
-                phases_new += [phase_made]
-            else:
-                for phase in phase_made:
-                    phase['name'] = 'created_%d'%idx
-                    phase['point'] = point
-                phases_new += [phase_made]
+            phase_made.set_name('created_%d'%idx)
+            phase_made.set_point(point)
+            phases_new += [phase_made]
 
         return phases_new

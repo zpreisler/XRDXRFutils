@@ -53,6 +53,13 @@ class Phase(dict):
         return self.theta, self.intensity
 
 
+    def set_name(self, name):
+        self['name'] = name
+
+    def set_point(self, point):
+        self['point'] = point
+
+
     def save_cif(self, filename):
 
         with open(filename, 'w') as file:
@@ -129,6 +136,15 @@ class PhaseList(list):
         self.theta,self.intensity = concatenate(theta),concatenate(intensity)
 
         return self.theta,self.intensity
+
+
+    def set_name(self, name):
+        for phase in self:
+            phase.set_name(name)
+
+    def set_point(self, point):
+        for phase in self:
+            phase.set_point(point)
 
 
     def plot(self, cmap = 'tab10', **kwargs):
