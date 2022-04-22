@@ -483,14 +483,14 @@ class SyntheticDataXRF(DataXRF):
         if local:
             self.time = empty((len_data))
             self.weight_fractions = zeros((len_data,len(self.rl_atnum_list)))
-            self.reflayer_thicknes = empty((len_data))
-            self.sublayer_thicknes = empty((len_data))
+            self.reflayer_thickness = empty((len_data))
+            self.sublayer_thickness = empty((len_data))
 
             for i, s in enumerate(self.spe_objs):
                 self.time[i] = s.time
                 self.weight_fractions[i] = s.weight_fractions
-                self.reflayer_thicknes[i] = s.reflayer_thicknes
-                self.sublayer_thicknes[i] = s.sublayer_thicknes
+                self.reflayer_thickness[i] = s.reflayer_thickness
+                self.sublayer_thickness[i] = s.sublayer_thickness
             return self
         sp = SimParameters(len_data)
         for i, s in enumerate(self.spe_objs):
@@ -509,7 +509,7 @@ class SyntheticDataXRF(DataXRF):
         xm = Xmendeleev()
         if filename == None:
             filename = self.path + '/' + self.name + '.h5'
-        if not hasattr(self,'reflayer_thicknes'):
+        if not hasattr(self,'reflayer_thickness'):
             self.get_sim_parameters(local = True)
         self.metadata["reflayer_elements"] = asarray([xm.get_element(item).symbol for item in self.rl_atnum_list],dtype = "object")
         self.metadata["notes"] = "weight fractions columns ordered like reflayer_elements"

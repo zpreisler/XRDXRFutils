@@ -73,13 +73,13 @@ class SyntheticSpectraXRF(Spectra):
         reflayer_index = int(xml_data.find("./xmimsim-input/composition/reference_layer").text) - 1
         layers = xml_data.findall("./xmimsim-input/composition/layer")
         reflayer = layers[reflayer_index]
-        reflayer_thicknes = float(reflayer.find("thickness").text)
+        reflayer_thickness = float(reflayer.find("thickness").text)
         try:
             sublayer = layers[reflayer_index + 1]
         except IndexError:
-            sublayer_thicknes = 0.0
+            sublayer_thickness = 0.0
         else:
-            sublayer_thicknes = float(sublayer.find("thickness").text)
+            sublayer_thickness = float(sublayer.find("thickness").text)
         
         # elements = np.zeros((len(rl_atnum_list))
         weight_fractions = zeros((len(rl_atnum_list)))
@@ -92,7 +92,7 @@ class SyntheticSpectraXRF(Spectra):
                 if skip == False:
                     raise ValueError(f'element with atomic number {atnum} not found in elements list\nSet skip_element = True to ignore this error')
         
-        return weight_fractions, reflayer_thicknes, sublayer_thicknes, _time
+        return weight_fractions, reflayer_thickness, sublayer_thickness, _time
     
     @staticmethod
     def get_fluorescence_lines(xml_data, time_correction = None):
@@ -146,7 +146,7 @@ class SyntheticSpectraXRF(Spectra):
             #self.counts = self.counts / b
             
         self.channel = arange(self.counts.__len__(),dtype='int16')
-        self.weight_fractions, self.reflayer_thicknes, self.sublayer_thicknes, self.time = self.get_metadata(xml_data, self.rl_atnum_list, skip = self.skip_element)
+        self.weight_fractions, self.reflayer_thickness, self.sublayer_thickness, self.time = self.get_metadata(xml_data, self.rl_atnum_list, skip = self.skip_element)
         self.fluorescence_lines = list(self.get_fluorescence_lines(xml_data, time_correction = time_correction))
         return self
     
