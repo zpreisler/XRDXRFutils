@@ -71,11 +71,8 @@ class Data():
     name = 'data'
 
     def __init__(self):
-<<<<<<< HEAD
-=======
 
         self.calibration = Calibration(self)
->>>>>>> d7d8467 (added notes)
         self.metadata = {}
 
     @staticmethod
@@ -512,8 +509,8 @@ class SyntheticDataXRF(DataXRF):
         if local:
             self.time = empty((len_data))
             self.weight_fractions = zeros((len_data,len(self.rl_atnum_list)))
-            self.reflayer_thicknes = empty((len_data))
-            self.sublayer_thicknes = empty((len_data))
+            self.reflayer_thickness = empty((len_data))
+            self.sublayer_thickness = empty((len_data))
 
             for i, s in enumerate(self.spe_objs):
                 self.time[i] = s.time
@@ -540,21 +537,12 @@ class SyntheticDataXRF(DataXRF):
 
         if filename == None:
             filename = self.path + '/' + self.name + '.h5'
-
         xm = Xmendeleev()
-        if not hasattr(self, 'spe_objs'):
-            raise RuntimeError("xmso files not readed yet")
-        if not hasattr(self, "data"):
-            raise RuntimeError("Data and labels not yet genarated")
-        if filename == None:
-            if hasattr(self, "path"):
-                filename = os.path.join(self.path, self.name + '.h5')
-            else:
-                filename = os.path.join(os.getcwd(), self.name + '.h5')
         if not hasattr(self,'reflayer_thickness'):
             self.get_sim_parameters(local = True)
-        self.metadata["reflayer_elements"] = asarray([xm.get_element(item).symbol for item in self.rl_atnum_list],dtype = "object")
-        self.metadata["notes"] = "weight fractions columns ordered like reflayer_elements"
+        if not "reflayer_elements" in self.metadata.keys():
+            self.metadata["reflayer_elements"] = asarray([xm.get_element(item).symbol for item in self.rl_atnum_list],dtype = "object")
+            self.metadata["notes"] = "weight fractions columns ordered like reflayer_elements"
         # add new axis
         if self.data.ndim == 2:
             self.data = self.data[newaxis,:,:]
