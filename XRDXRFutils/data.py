@@ -612,6 +612,32 @@ class DataXRD(Data):
 
         self.data = z[::-1,::-1]
 
+
+    def generate_smooth(self, step = 2):
+        data_new = DataXRD()
+
+        data_new.metadata = self.metadata.copy()
+
+        data_new.data = empty(self.shape)
+        for i in range(0, self.shape[0], step):
+            step_i = min(step, self.shape[0] - i)
+            for j in range(0, self.shape[1], step):
+                step_j = min(step, self.shape[1] - j)
+                aggr = self.data[i : (i + step_i), j : (j + step_j), :].mean(axis = (0, 1))
+                for i_small in range(0, step_i):
+                    for j_small in range(0, step_j):
+                        data_new.data[i + i_small, j + j_small] = aggr
+
+        data_new.rescaling = data_new.data.max(axis = 2, keepdims = True)
+        data_new.intensity = data_new.data / data_new.rescaling
+
+        if hasattr(self, 'calibration'):
+            if hasattr(self.calibration, 'opt'):
+                data_new.calibration = Calibration(data_new).from_parameters(self.calibration.opt)
+
+        return data_new
+
+
 def resample(x,y,nbins=1024,bounds=(0,30)):
     """
     Simple resample code. For debugging.
