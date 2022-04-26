@@ -3,7 +3,8 @@ from .data import DataXRD
 from .spectra import SpectraXRD,FastSpectraXRD
 from .gaussnewton import GaussNewton
 from numpy import (array, full, zeros, nanargmin, nanargmax, newaxis, append,
-    concatenate, sqrt, average, square, std, asarray, unravel_index, ravel_multi_index)
+    concatenate, sqrt, average, square, std, asarray, unravel_index, ravel_multi_index,
+    minimum, where)
 from numpy.linalg import pinv
 from multiprocessing import Pool, cpu_count
 from functools import partial
@@ -85,6 +86,24 @@ class GammaSearch(list):
 
     def metrics(self):
         return self.L1loss(), self.MSEloss(), self.overlap3_area()
+
+
+    def overlap(self):
+        arr_z = array([gauss_newton.z() for gauss_newton in self])
+        z_max = arr_z.max(axis = 0)
+        m = minimum(z_max, self.intensity)
+        m = where(m < 0, 0, m)
+        return m
+
+    def overlap_area(self):
+        return self.total_overlap().sum()
+
+    def overlap_ratio(self):
+        integral_intersection = self.total_overlap_area()
+        intensity_corrected = where(self.intensity < 0, 0, self.intensity)
+        integral_intensity = intensity_corrected.sum()
+        return (integral_intersection / integral_intensity)
+
 
 class GammaMap(list):
     """
