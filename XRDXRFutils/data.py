@@ -1,6 +1,7 @@
 from scipy.optimize import curve_fit
 from numpy import (pi, arctan, loadtxt, frombuffer, array, asarray,
-    linspace, arange, trapz, flip, stack, where, zeros, empty, unravel_index)
+    linspace, arange, trapz, flip, stack, where, zeros, empty, unravel_index,
+    ravel_multi_index)
 from scipy.interpolate import interp1d
 from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
 import os
@@ -101,7 +102,7 @@ class Data():
         return x, y
 
     def get_index(self, x, y):
-        return x + y * self.shape[1]
+        return ravel_multi_index((y, x), self.shape[:2])
 
     @property
     def x(self):

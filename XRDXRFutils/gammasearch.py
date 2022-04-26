@@ -3,7 +3,7 @@ from .data import DataXRD
 from .spectra import SpectraXRD,FastSpectraXRD
 from .gaussnewton import GaussNewton
 from numpy import (array, full, zeros, nanargmin, nanargmax, newaxis, append,
-    concatenate, sqrt, average, square, std, asarray, unravel_index)
+    concatenate, sqrt, average, square, std, asarray, unravel_index, ravel_multi_index)
 from numpy.linalg import pinv
 from multiprocessing import Pool, cpu_count
 from functools import partial
@@ -195,14 +195,14 @@ class GammaMap(list):
     def selected(self):
         return array([phase_search.idx for phase_search in self]).reshape((self.shape[0], self.shape[1]))
 
-    def get_index(self,x,y):
-        return x + y * self.shape[1]
-
     def get_x_y(self, i):
         y, x = unravel_index(i, self.shape[:2])
         return x, y
 
-    def get_pixel(self,x,y):
+    def get_index(self, x, y):
+        return ravel_multi_index((y, x), self.shape[:2])
+
+    def get_pixel(self, x, y):
         return self[self.get_index(x, y)]
 
     def select_phases(self, criterion, offset = -8):
