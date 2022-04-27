@@ -88,18 +88,18 @@ class GammaSearch(list):
         return self.L1loss(), self.MSEloss(), self.overlap3_area()
 
 
-    def overlap(self):
+    def overlap_total(self):
         arr_z = array([gauss_newton.z() for gauss_newton in self])
         z_max = arr_z.max(axis = 0)
         m = minimum(z_max, self.intensity)
         m = where(m < 0, 0, m)
         return m
 
-    def overlap_area(self):
-        return self.total_overlap().sum()
+    def overlap_total_area(self):
+        return self.overlap_total().sum()
 
-    def overlap_ratio(self):
-        integral_intersection = self.total_overlap_area()
+    def overlap_total_ratio(self):
+        integral_intersection = self.overlap_total_area()
         intensity_corrected = where(self.intensity < 0, 0, self.intensity)
         integral_intensity = intensity_corrected.sum()
         return (integral_intersection / integral_intensity)
