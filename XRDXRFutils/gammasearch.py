@@ -72,6 +72,9 @@ class GammaSearch(list):
     def area0(self):
         return array([gauss_newton.area0() for gauss_newton in self])
 
+    def overlap(self):
+        return array([gauss_newton.overlap() for gauss_newton in self])
+
     def overlap_area(self):
         return array([gauss_newton.overlap_area() for gauss_newton in self])
 
