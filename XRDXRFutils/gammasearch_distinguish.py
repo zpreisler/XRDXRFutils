@@ -16,19 +16,17 @@ import pathlib
 
 import gc
 
-class GammaSearch_Distinguish():
+class GammaSearch_Secondary(GammaSearch):
     """
     Searches for secondary phases and compares them to primary phases.
     To be created with gammasearch_1 that contains already fitted primary phases.
     """
-    def __init__(self, gammasearch_1, phases_2, spectrum, sigma = 0.2, **kwargs):
+    def __init__(self, gammasearch_1, phases, spectrum, sigma = 0.2, **kwargs):
+        super().__init__(phases, spectrum, sigma, **kwargs)
+
         self.gammasearch_1 = gammasearch_1
-        self.gammasearch_2 = GammaSearch(phases_2, spectrum, sigma = sigma, **kwargs)
 
-        self.spectrum = spectrum
-        self.intensity = spectrum.intensity
-
-        self.opt = self[0].opt.copy()
+        self.opt = gammasearch_1.opt.copy()
         for gaussnewton in self:
             gaussnewton.opt = self.opt.copy()
 
