@@ -18,12 +18,8 @@ class GammaSearch_Secondary(GammaSearch):
     """
     def __init__(self, gammasearch_1, phases, spectrum, sigma = 0.2, **kwargs):
         super().__init__(phases, spectrum, sigma, **kwargs)
-
         self.gammasearch_1 = gammasearch_1
-
-        self.opt = gammasearch_1.opt.copy()
-        for gaussnewton in self:
-            gaussnewton.opt = self.opt.copy()
+        self.set_opt(gammasearch_1.opt.copy(), copy = True)
 
 
     def overlap_area_difference(self):

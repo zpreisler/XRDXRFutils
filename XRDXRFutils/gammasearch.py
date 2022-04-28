@@ -27,9 +27,16 @@ class GammaSearch(list):
         self.spectrum = spectrum
         self.intensity = spectrum.intensity
 
-        self.opt = self[0].opt.copy()
+        self.set_opt(self[0].opt, copy = True)
+
+
+    def set_opt(self, opt, copy = True):
+        self.opt = opt
         for gaussnewton in self:
-            gaussnewton.opt = self.opt.copy()
+            if copy:
+                gaussnewton.opt = self.opt.copy()
+            else:
+                gaussnewton.opt = self.opt
 
     def select(self):
 
@@ -51,9 +58,7 @@ class GammaSearch(list):
         self.fit_cycle(steps = 1, a = True, s = True, gamma = True, alpha = alpha, downsample = 2)
 
         selected = self.select()
-        for gaussnewton in self:
-            gaussnewton.opt = selected.opt
-        self.opt = selected.opt
+        self.set_opt(selected.opt, copy = False)
 
         selected.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 3)
         selected.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 2)
