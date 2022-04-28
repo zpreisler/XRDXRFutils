@@ -120,7 +120,7 @@ class Data():
         self.rescaling = data.max(axis = 2, keepdims = True)
         self.intensity = data / self.rescaling
 
-        print('Done')
+        print('Done.')
         return self
 
     def save_h5(self,filename = None):
