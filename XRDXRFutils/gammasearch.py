@@ -48,7 +48,6 @@ class GammaSearch(list):
     def search(self, alpha = 1):
 
         self.fit_cycle(steps = 4, gamma = True, alpha = alpha, downsample = 3)
-
         self.fit_cycle(steps = 1, a = True, s = True, gamma = True, alpha = alpha, downsample = 2)
 
         selected = self.select()
@@ -60,8 +59,8 @@ class GammaSearch(list):
         selected.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 2)
         selected.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha)
 
-        self.fit_cycle(steps = 1, gamma = True, alpha = alpha,downsample = 3)
-        self.fit_cycle(steps = 1, gamma = True, alpha = alpha,downsample = 2)
+        self.fit_cycle(steps = 1, gamma = True, alpha = alpha, downsample = 3)
+        self.fit_cycle(steps = 1, gamma = True, alpha = alpha, downsample = 2)
         self.fit_cycle(steps = 2, gamma = True, alpha = alpha)
 
         return self
@@ -113,13 +112,12 @@ class GammaMap(list):
     Construct gamma phase maps.
     """
     def from_data(self, data, phases, sigma = 0.2, **kwargs):
-        
+
         self.phases = phases
         self.shape = (data.shape[0], data.shape[1], -1)
 
         d = data.shape[0] * data.shape[1]
         spectra = [FastSpectraXRD().from_Dataf(data, i) for i in range(d)]
-
         self += [GammaSearch(phases, spectrum, sigma, **kwargs) for spectrum in spectra]
 
         return self
