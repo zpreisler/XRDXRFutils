@@ -198,14 +198,13 @@ class ChiMap(GammaMap):
     """
     Construct gamma phase maps.
     """
-    def from_data(self,data,phases,sigma = 0.2, **kwargs):
+    def from_data(self, data, phases, sigma = 0.2, **kwargs):
         
         self.phases = phases
         self.shape = (data.shape[0] , data.shape[1], -1)
 
         d = data.shape[0] * data.shape[1]
         spectra = [FastSpectraXRD().from_Dataf(data,i) for i in range(d)]
-
         self += [ChiSearch(phases, spectrum, sigma, **kwargs) for spectrum in spectra]
 
         return self

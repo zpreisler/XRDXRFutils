@@ -113,16 +113,14 @@ class Data():
 
     def remove_background(self, n = 21, std = 3, m = 32):
 
-        print('Removing background')
-
-        background = snip3d(convolve3d(self.data,n = n, std = std), m = m)
+        print('Removing background...')
+        background = snip3d(convolve3d(self.data, n = n, std = std), m = m)
         data = self.data - background
 
-        self.rescaling = data.max(axis=2,keepdims=True)
+        self.rescaling = data.max(axis = 2, keepdims = True)
         self.intensity = data / self.rescaling
 
-        print('Done')
-
+        print('Done.')
         return self
 
     def save_h5(self,filename = None):
@@ -611,6 +609,40 @@ class DataXRD(Data):
                 y[:] = y[::-1]
 
         self.data = z[::-1,::-1]
+
+
+    def generate_smooth(self, step = 2, method = 'mean'):
+        if method not in ['mean', 'max']:
+            raise Exception('Invalid method parameter')
+
+        print('Generating smooth data...')
+        data_new = DataXRD()
+
+        data_new.metadata = self.metadata.copy()
+        data_new.smooth_step = step
+
+        data_new.data = empty(self.shape)
+        for i in range(0, self.shape[0], step):
+            step_i = min(step, self.shape[0] - i)
+            for j in range(0, self.shape[1], step):
+                step_j = min(step, self.shape[1] - j)
+                if method == 'mean':
+                    aggr = self.data[i : (i + step_i), j : (j + step_j), :].mean(axis = (0, 1))
+                else:
+                    aggr = self.data[i : (i + step_i), j : (j + step_j), :].max(axis = (0, 1))
+                for i_small in range(0, step_i):
+                    for j_small in range(0, step_j):
+                        data_new.data[i + i_small, j + j_small] = aggr
+
+        data_new.remove_background()
+
+        if hasattr(self, 'calibration'):
+            if hasattr(self.calibration, 'opt'):
+                data_new.calibration = Calibration(data_new).from_parameters(self.calibration.opt)
+
+        print('Done.')
+        return data_new
+
 
 def resample(x,y,nbins=1024,bounds=(0,30)):
     """

@@ -3,7 +3,8 @@ from .data import DataXRD
 from .spectra import SpectraXRD,FastSpectraXRD
 from .gaussnewton import GaussNewton
 from numpy import (array, full, zeros, nanargmin, nanargmax, newaxis, append,
-    concatenate, sqrt, average, square, std, asarray, unravel_index, ravel_multi_index)
+    concatenate, sqrt, average, square, std, asarray, unravel_index, ravel_multi_index,
+    minimum, where)
 from numpy.linalg import pinv
 from multiprocessing import Pool, cpu_count
 from functools import partial
@@ -26,9 +27,16 @@ class GammaSearch(list):
         self.spectrum = spectrum
         self.intensity = spectrum.intensity
 
-        self.opt = self[0].opt.copy()
+        self.set_opt(self[0].opt, copy = True)
+
+
+    def set_opt(self, opt, copy = True):
+        self.opt = opt
         for gaussnewton in self:
-            gaussnewton.opt = self.opt.copy()
+            if copy:
+                gaussnewton.opt = self.opt.copy()
+            else:
+                gaussnewton.opt = self.opt
 
     def select(self):
 
@@ -47,20 +55,17 @@ class GammaSearch(list):
     def search(self, alpha = 1):
 
         self.fit_cycle(steps = 4, gamma = True, alpha = alpha, downsample = 3)
-
         self.fit_cycle(steps = 1, a = True, s = True, gamma = True, alpha = alpha, downsample = 2)
 
         selected = self.select()
-        for gaussnewton in self:
-            gaussnewton.opt = selected.opt
-        self.opt = selected.opt
+        self.set_opt(selected.opt, copy = False)
 
         selected.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 3)
         selected.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 2)
         selected.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha)
 
-        self.fit_cycle(steps = 1, gamma = True, alpha = alpha,downsample = 3)
-        self.fit_cycle(steps = 1, gamma = True, alpha = alpha,downsample = 2)
+        self.fit_cycle(steps = 1, gamma = True, alpha = alpha, downsample = 3)
+        self.fit_cycle(steps = 1, gamma = True, alpha = alpha, downsample = 2)
         self.fit_cycle(steps = 2, gamma = True, alpha = alpha)
 
         return self
@@ -70,6 +75,9 @@ class GammaSearch(list):
 
     def area0(self):
         return array([gauss_newton.area0() for gauss_newton in self])
+
+    def overlap(self):
+        return array([gauss_newton.overlap() for gauss_newton in self])
 
     def overlap_area(self):
         return array([gauss_newton.overlap_area() for gauss_newton in self])
@@ -86,18 +94,35 @@ class GammaSearch(list):
     def metrics(self):
         return self.L1loss(), self.MSEloss(), self.overlap3_area()
 
+
+    def overlap_total(self):
+        arr_z = array([gauss_newton.z() for gauss_newton in self])
+        z_max = arr_z.max(axis = 0)
+        m = minimum(z_max, self.intensity)
+        m = where(m < 0, 0, m)
+        return m
+
+    def overlap_total_area(self):
+        return self.overlap_total().sum()
+
+    def overlap_total_ratio(self):
+        integral_intersection = self.overlap_total_area()
+        intensity_corrected = where(self.intensity < 0, 0, self.intensity)
+        integral_intensity = intensity_corrected.sum()
+        return (integral_intersection / integral_intensity)
+
+
 class GammaMap(list):
     """
     Construct gamma phase maps.
     """
-    def from_data(self,data,phases,sigma = 0.2, **kwargs):
-        
+    def from_data(self, data, phases, sigma = 0.2, **kwargs):
+
         self.phases = phases
-        self.shape = (data.shape[0] , data.shape[1], -1)
+        self.shape = (data.shape[0], data.shape[1], -1)
 
         d = data.shape[0] * data.shape[1]
-        spectra = [FastSpectraXRD().from_Dataf(data,i) for i in range(d)]
-
+        spectra = [FastSpectraXRD().from_Dataf(data, i) for i in range(d)]
         self += [GammaSearch(phases, spectrum, sigma, **kwargs) for spectrum in spectra]
 
         return self
