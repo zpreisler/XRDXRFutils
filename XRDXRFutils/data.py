@@ -113,16 +113,14 @@ class Data():
 
     def remove_background(self, n = 21, std = 3, m = 32):
 
-        print('Removing background')
-
-        background = snip3d(convolve3d(self.data,n = n, std = std), m = m)
+        print('Removing background...')
+        background = snip3d(convolve3d(self.data, n = n, std = std), m = m)
         data = self.data - background
 
-        self.rescaling = data.max(axis=2,keepdims=True)
+        self.rescaling = data.max(axis = 2, keepdims = True)
         self.intensity = data / self.rescaling
 
         print('Done')
-
         return self
 
     def save_h5(self,filename = None):
@@ -614,9 +612,11 @@ class DataXRD(Data):
 
 
     def generate_smooth(self, step = 2):
+        print('Generating smooth data...')
         data_new = DataXRD()
 
         data_new.metadata = self.metadata.copy()
+        data_new.smooth_step = step
 
         data_new.data = empty(self.shape)
         for i in range(0, self.shape[0], step):
@@ -628,13 +628,13 @@ class DataXRD(Data):
                     for j_small in range(0, step_j):
                         data_new.data[i + i_small, j + j_small] = aggr
 
-        data_new.rescaling = data_new.data.max(axis = 2, keepdims = True)
-        data_new.intensity = data_new.data / data_new.rescaling
+        data_new.remove_background()
 
         if hasattr(self, 'calibration'):
             if hasattr(self.calibration, 'opt'):
                 data_new.calibration = Calibration(data_new).from_parameters(self.calibration.opt)
 
+        print('Done.')
         return data_new
 
 
