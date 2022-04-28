@@ -1,8 +1,6 @@
-from .database import Phase, PhaseList
-from .data import DataXRD
-from .spectra import SpectraXRD,FastSpectraXRD
+from .spectra import FastSpectraXRD
 from .gaussnewton import GaussNewton
-from .gammasearch import GammaSearch
+from .gammasearch import GammaSearch, GammaMap
 from numpy import (array, full, zeros, nanargmin, nanargmax, newaxis, append,
     concatenate, sqrt, average, square, std, asarray, unravel_index, minimum, where)
 from numpy.linalg import pinv
@@ -10,11 +8,8 @@ from multiprocessing import Pool, cpu_count
 from functools import partial
 from joblib import Parallel, delayed
 from platform import system
-import os
-import pickle
-import pathlib
 
-import gc
+
 
 class GammaSearch_Secondary(GammaSearch):
     """
@@ -31,5 +26,41 @@ class GammaSearch_Secondary(GammaSearch):
             gaussnewton.opt = self.opt.copy()
 
 
-    # def overlap_ratio(self):
-        
+    def overlap_area_difference(self):
+        overlap_primary = self.gammasearch_1.overlap_total()[newaxis, ...]
+        overlaps_secondary = self.overlap()
+        overlaps_difference = overlaps_secondary - overlap_primary
+        overlaps_difference = where(overlaps_difference < 0, 0, overlaps_difference)
+        return overlaps_difference.sum(axis = 1)
+
+
+    def overlap_area_compare(self):
+        return self.overlap_area_difference() / self.intensity.sum()
+
+
+class GammaMap_Secondary(GammaMap):
+
+    def from_data(self, gammamap_1, data, phases, sigma = 0.2, **kwargs):
+
+        self.phases = phases
+        self.shape = (data.shape[0], data.shape[1], -1)
+
+        d = data.shape[0] * data.shape[1]
+        spectra = [FastSpectraXRD().from_Dataf(data, i) for i in range(d)]
+        self += [GammaSearch_Secondary(gs1, phases, spectrum, sigma, **kwargs) for gs1, spectrum in zip(gammamap_1, spectra)]
+
+        return self
+
+
+    def fit_cycle(self, **kwargs):
+        x = GammaMap_Secondary(self.fit_cycle_core(**kwargs))
+        x.phases = self.phases
+        x.shape = self.shape
+        return x
+
+
+    def overlap_area_difference(self):
+        return array([phase_search.overlap_area_difference() for phase_search in self]).reshape(self.shape)
+
+    def overlap_area_compare(self):
+        return array([phase_search.overlap_area_compare() for phase_search in self]).reshape(self.shape)
