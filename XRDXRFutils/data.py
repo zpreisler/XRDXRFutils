@@ -611,7 +611,10 @@ class DataXRD(Data):
         self.data = z[::-1,::-1]
 
 
-    def generate_smooth(self, step = 2):
+    def generate_smooth(self, step = 2, method = 'mean'):
+        if method not in ['mean', 'max']:
+            raise Exception('Invalid method parameter')
+
         print('Generating smooth data...')
         data_new = DataXRD()
 
@@ -623,7 +626,10 @@ class DataXRD(Data):
             step_i = min(step, self.shape[0] - i)
             for j in range(0, self.shape[1], step):
                 step_j = min(step, self.shape[1] - j)
-                aggr = self.data[i : (i + step_i), j : (j + step_j), :].mean(axis = (0, 1))
+                if method == 'mean':
+                    aggr = self.data[i : (i + step_i), j : (j + step_j), :].mean(axis = (0, 1))
+                else:
+                    aggr = self.data[i : (i + step_i), j : (j + step_j), :].max(axis = (0, 1))
                 for i_small in range(0, step_i):
                     for j_small in range(0, step_j):
                         data_new.data[i + i_small, j + j_small] = aggr
