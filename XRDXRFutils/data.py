@@ -117,6 +117,7 @@ class Data():
         background = snip3d(convolve3d(self.data, n = n, std = std), m = m)
         data = self.data - background
 
+        self.signal_noise_ratio = self.data.sum(axis = 2, keepdims = True) / background.sum(axis = 2, keepdims = True)
         self.rescaling = data.max(axis = 2, keepdims = True)
         self.intensity = data / self.rescaling
 
@@ -146,6 +147,9 @@ class Data():
 
             if hasattr(self,'rescaling'):
                 dataset = f.create_dataset('rescaling',data = self.rescaling)
+
+            if hasattr(self,'signal_noise_ratio'):
+                dataset = f.create_dataset('signal_noise_ratio',data = self.signal_noise_ratio)
 
             if hasattr(self,'intensity'):
                 dataset = f.create_dataset('intensity',data = self.intensity)
@@ -177,6 +181,9 @@ class Data():
 
             if 'rescaling' in f:
                 self.rescaling = f.get('rescaling')[()]
+
+            if 'signal_noise_ratio' in f:
+                self.signal_noise_ratio = f.get('signal_noise_ratio')[()]
 
             if 'intensity' in f:
                 self.intensity = f.get('intensity')[()]
