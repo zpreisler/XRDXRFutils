@@ -367,10 +367,8 @@ class DataXRF(Data):
 
     def select_labels(self,labels):
         
-        select = []
-        x = self.metadata['labels']
-
         new_labels = []
+        x = self.metadata['labels']
 
         for label in labels:
             if not label in x:
@@ -381,7 +379,7 @@ class DataXRF(Data):
         z = zeros([self.labels.shape[0],self.labels.shape[1],len(new_labels)])
 
         self.labels = concatenate([self.labels,z],axis=2)
-        self.metadata['labels'] = append(self.metadata['labels'],new_labels)
+        self.metadata['labels'] = append(x,new_labels)
 
         self.__select_labels(labels)
 
