@@ -1,6 +1,6 @@
 from scipy.optimize import curve_fit
 from numpy import pi, arctan
-from numpy import loadtxt, frombuffer, array, asarray, linspace, arange, trapz, flip, stack, where, zeros, empty
+from numpy import loadtxt, frombuffer, array, asarray, linspace, arange, trapz, flip, stack, where, zeros, empty, concatenate, append
 from scipy.interpolate import interp1d
 from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
 from os.path import basename
@@ -350,7 +350,7 @@ class DataXRF(Data):
 
         return self
 
-    def select_labels(self,labels):
+    def __select_labels(self,labels):
         
         select = []
         x = self.metadata['labels']
@@ -362,6 +362,30 @@ class DataXRF(Data):
 
         self.metadata['labels'] = asarray(labels,dtype=object)
         self.labels = self.labels[...,select]
+
+        return self
+
+    def select_labels(self,labels):
+        
+        select = []
+        x = self.metadata['labels']
+
+        n_new_labels = 0
+        new_labels = []
+
+        for label in labels:
+            if not label in x:
+                n_new_labels += 1
+                new_labels += [label]
+
+        print("Adding empty labels:",new_labels)
+
+        z = zeros([self.labels.shape[0],self.labels.shape[1],n_new_labels])
+
+        self.labels = concatenate([self.labels,z],axis=2)
+        self.metadata['labels'] = append(self.metadata['labels'],new_labels)
+
+        self.__select_labels(labels)
 
         return self
 
