@@ -88,7 +88,7 @@ class Phase(dict):
                 file.write('     ' + str(d) + f'{str(i):>14}' + '\n')
 
 
-    def plot(self, colors = 'k', linestyles = 'dashed', label = None, lineheight = None, **kwargs):
+    def plot(self, colors = 'red', linestyles = 'dashed', label = None, lineheight = None, **kwargs):
 
         if not hasattr(self, 'theta'):
             self.get_theta()
