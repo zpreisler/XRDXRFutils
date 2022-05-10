@@ -1,8 +1,9 @@
 from scipy.optimize import curve_fit
 from numpy import pi, arctan
-from numpy import loadtxt, frombuffer, array, asarray, linspace, arange, trapz, flip, stack, where, zeros, empty
+from numpy import loadtxt, frombuffer, array, asarray, linspace, arange, trapz, flip, stack, where, zeros, empty, concatenate, append
 from scipy.interpolate import interp1d
 from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
+from os.path import basename
 import os
 from numpy import newaxis
 
@@ -236,6 +237,9 @@ class Data():
         cls = self.__class__()
         cls.data = asarray(results).reshape(self.shape[0],self.shape[1],-1)
         cls._x = x
+
+        if hasattr(self,'labels'):
+            cls.labels = self.labels
         
         return cls
 
@@ -334,8 +338,9 @@ class DataXRF(Data):
 
         labels = []
         for s in filenames:
-            s = s[s.rfind('/') + 1:]
-            s = s[:s.rfind('.')]
+            s = basename(s).split('.')[0]
+            #s = s[s.rfind('/') + 1:]
+            #s = s[:s.rfind('.')]
             labels += [s]
 
         self.metadata['labels'] = labels
@@ -349,18 +354,38 @@ class DataXRF(Data):
 
         return self
 
-    def select_labels(self,labels):
+    def __select_labels(self,labels):
         
         select = []
         x = self.metadata['labels']
 
         for label in labels:
-            w = list(where(x == label)[0])
+            w = list(where(array(x) == label)[0])
             if w:
                 select += w
 
         self.metadata['labels'] = asarray(labels,dtype=object)
         self.labels = self.labels[...,select]
+
+        return self
+
+    def select_labels(self,labels):
+        
+        new_labels = []
+        x = self.metadata['labels']
+
+        for label in labels:
+            if not label in x:
+                new_labels += [label]
+
+        print("Adding empty labels:",new_labels)
+
+        z = zeros([self.labels.shape[0],self.labels.shape[1],len(new_labels)])
+
+        self.labels = concatenate([self.labels,z],axis=2)
+        self.metadata['labels'] = append(x,new_labels)
+
+        self.__select_labels(labels)
 
         return self
 
@@ -372,7 +397,8 @@ class SyntheticDataXRF(DataXRF):
     """
     Namespace
     """
-    name = 'synth_xrf'
+
+    name = 'syntxrf'
     
     def __init__(self, rl_atnum_list = None, skip_element = False):
         super().__init__()
@@ -511,8 +537,10 @@ class SyntheticDataXRF(DataXRF):
             filename = self.path + '/' + self.name + '.h5'
         if not hasattr(self,'reflayer_thickness'):
             self.get_sim_parameters(local = True)
-        self.metadata["reflayer_elements"] = asarray([xm.get_element(item).symbol for item in self.rl_atnum_list],dtype = "object")
-        self.metadata["notes"] = "weight fractions columns ordered like reflayer_elements"
+        if not "reflayer_elements" in self.metadata.keys() and hasattr(self, rl_atnum_list):
+            xm = Xmendeleev()
+            self.metadata["reflayer_elements"] = asarray([xm.get_element(item).symbol for item in self.rl_atnum_list],dtype = "object")
+            self.metadata["notes"] = "weight fractions columns ordered like reflayer_elements"
         # add new axis
         if self.data.ndim == 2:
             self.data = self.data[newaxis,:,:]
@@ -522,7 +550,7 @@ class SyntheticDataXRF(DataXRF):
 
             for k,v in self.metadata.items():
                 f.attrs[k] = v
-                
+            
             if hasattr(self,'data'):
                 dataset = f.create_dataset('data',data = self.data)
                 dataset = f.create_dataset('x',data = self.x)
@@ -544,7 +572,7 @@ class SyntheticDataXRF(DataXRF):
         return self
 
     def load_h5(self,filename):
-        #self.spe_objs = []
+        self.spe_objs = []
         print('Loading:',filename)
         with h5py.File(filename,'r') as f:
 
