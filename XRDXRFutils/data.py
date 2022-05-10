@@ -537,10 +537,10 @@ class SyntheticDataXRF(DataXRF):
 
         if filename == None:
             filename = self.path + '/' + self.name + '.h5'
-        xm = Xmendeleev()
         if not hasattr(self,'reflayer_thickness'):
             self.get_sim_parameters(local = True)
         if not "reflayer_elements" in self.metadata.keys():
+            xm = Xmendeleev()
             self.metadata["reflayer_elements"] = asarray([xm.get_element(item).symbol for item in self.rl_atnum_list],dtype = "object")
             self.metadata["notes"] = "weight fractions columns ordered like reflayer_elements"
         # add new axis
