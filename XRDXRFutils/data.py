@@ -233,6 +233,7 @@ class Data():
         cls = self.__class__()
         cls.data = asarray(results).reshape(self.shape[0],self.shape[1],-1)
         cls._x = x
+        cls.metadata = self.metadata.copy()
 
         if hasattr(self,'labels'):
             cls.labels = self.labels
