@@ -470,7 +470,7 @@ class SyntheticDataXRF(DataXRF):
         if not hasattr(self, 'spe_objs'):
             raise RuntimeError("xmso files not read yet")
 
-        self.data = asarray([s.counts for s in self.spe_objs])
+        self.data = asarray([[s.counts for s in self.spe_objs]])
         self.energy = self.spe_objs[0].energy
         self._x = self.energy
 
@@ -542,9 +542,6 @@ class SyntheticDataXRF(DataXRF):
             self.metadata["reflayer_elements"] = asarray([xm.get_element(item).symbol for item in self.rl_atnum_list],dtype = "object")
             self.metadata["notes"] = "weight fractions columns ordered like reflayer_elements"
         # add new axis
-        if self.data.ndim == 2:
-            self.data = self.data[newaxis,:,:]
-            self.labels = self.labels[newaxis,:,:]
         print('Saving:',filename)
         with h5py.File(filename,'w') as f:
 
