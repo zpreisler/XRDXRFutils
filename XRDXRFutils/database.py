@@ -88,16 +88,25 @@ class Phase(dict):
                 file.write('     ' + str(d) + f'{str(i):>14}' + '\n')
 
 
+    @property
+    def label(self):
+        if '_chemical_name_mineral' in self:
+            return self['_chemical_name_mineral']
+        elif '_chemical_name_common' in self:
+            return self['_chemical_name_common']
+        elif '_chemical_formula_sum' in self:
+            return self['_chemical_formula_sum']
+        else:
+            return None
+
+
     def plot(self, colors = 'red', linestyles = 'dashed', label = None, lineheight = None, **kwargs):
 
         if not hasattr(self, 'theta'):
             self.get_theta()
 
         if label is None:
-            try:
-                label = self['_chemical_name_mineral']
-            except:
-                label = self['_chemical_formula_sum']
+            label = self.label
 
         if lineheight is None:
             vlines(self.theta, 0, self.intensity, colors = colors, linestyles = linestyles, label = label, **kwargs)
@@ -107,8 +116,8 @@ class Phase(dict):
 class PhaseList(list):
 #class PhaseList(Phase):
 
-    def __init__(self,*args,**kwargs):
-        super().__init__(*args,**kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         if 'label' in kwargs:
             self.label_arg = kwargs.pop('label')
 
@@ -199,14 +208,7 @@ class DatabaseXRD(dict):
                             z = loadtxt(f, unpack = True, dtype = float)
                             phase[y] = z
 
-            formula = phase['_chemical_formula_sum']
-
-            if '_chemical_name_mineral' in phase:
-                key = phase['_chemical_name_mineral']
-            else:
-                key = formula
-
-            phase.label = key
+            key = phase.label
             if key in self:
                 self[key] += PhaseList([phase])
             else:
