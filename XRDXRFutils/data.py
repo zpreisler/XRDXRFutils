@@ -129,58 +129,52 @@ class Data():
         if filename == None:
             filename = self.path + '/' + self.name + '.h5'
 
-        print('Saving:',filename)
-        with h5py.File(filename,'w') as f:
+        print('Saving:', filename)
+        with h5py.File(filename, 'w') as f:
 
-            for k,v in self.metadata.items():
+            for k, v in self.metadata.items():
                 f.attrs[k] = v
 
-            if hasattr(self,'data'):
-                dataset = f.create_dataset('data',data = self.data)
-                dataset = f.create_dataset('x',data = self.x)
+            if hasattr(self, 'data'):
+                dataset = f.create_dataset('data', data = self.data)
+                dataset = f.create_dataset('x', data = self.x)
 
-            if hasattr(self,'labels'):
-                dataset = f.create_dataset('labels',data = self.labels)
-
-            for attr in ['weights', 'rescaling', 'signal_background_ratio', 'intensity']:
+            for attr in ['labels', 'weights', 'rescaling', 'signal_background_ratio', 'intensity']:
                 if hasattr(self, attr):
                     dataset = f.create_dataset(attr, data = getattr(self, attr))
             
-            if hasattr(self,'calibration'):
+            if hasattr(self, 'calibration'):
                 calibration = f.create_group('calibration')
 
-                for attr in ['x','y','opt']:
+                for attr in ['x', 'y', 'opt']:
                     calibration.create_dataset(attr,data = getattr(self.calibration,attr))
-                for k,v in self.calibration.metadata.items():
+                for k, v in self.calibration.metadata.items():
                     calibration.attrs[k] = v
 
         return self
 
     def load_h5(self,filename):
 
-        print('Loading:',filename)
-        with h5py.File(filename,'r') as f:
+        print('Loading:', filename)
+        with h5py.File(filename, 'r') as f:
 
             if 'data' in f:
                 self.data = f.get('data')[()]
                 self._x = f.get('x')[()]
 
-            if 'labels' in f:
-                self.labels = f.get('labels')[()]
-
-            for attr in ['weights', 'rescaling', 'signal_background_ratio', 'intensity']:
+            for attr in ['labels', 'weights', 'rescaling', 'signal_background_ratio', 'intensity']:
                 if attr in f:
                     setattr(self, attr, f.get(attr)[()])
 
-            for k,v in f.attrs.items():
+            for k, v in f.attrs.items():
                 self.metadata[k] = v
 
             if 'calibration' in f:
                 x = f['calibration']
                 self.calibration = Calibration(self)
-                for k,v in x.items():
-                    setattr(self.calibration,k,v[:])
-                for k,v in x.attrs.items():
+                for k, v in x.items():
+                    setattr(self.calibration, k, v[:])
+                for k, v in x.attrs.items():
                     self.calibration.metadata[k] = v
                 self.opt = self.calibration.opt
 
