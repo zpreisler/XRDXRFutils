@@ -402,7 +402,6 @@ class GaussNewton(FastSpectraXRD):
             phase_new['_pd_peak_intensity'] = array([d, i])
             phase_new.theta = mu
             phase_new.intensity = I_new
-            phase_new.label = phase.label
 
             # Adds the new phase to the results
             pl_new.append(phase_new)
