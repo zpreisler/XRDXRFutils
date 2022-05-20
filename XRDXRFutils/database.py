@@ -190,13 +190,19 @@ class DatabaseXRD(dict):
                     if x:
                         y = x[0]
                         if y == '_chemical_formula_sum':
-                            phase[y] = ' '.join(x[1:]).replace("'", '')
+                            value = ' '.join(x[1:]).replace("'", '')
+                            if value != '':
+                                phase[y] = value
 
                         if y == '_chemical_name_mineral':
-                            phase[y] = ' '.join(x[1:]).replace("'", '')
+                            value = ' '.join(x[1:]).replace("'", '')
+                            if value != '':
+                                phase[y] = value
 
                         if y == '_chemical_name_common':
-                            phase[y] = ' '.join(x[1:]).replace("'", '')
+                            value = ' '.join(x[1:]).replace("'", '')
+                            if value != '':
+                                phase[y] = value
 
                         if y == 'name':
                             phase[y] = ' '.join(x[1:]).replace("'", '')
