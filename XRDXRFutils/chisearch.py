@@ -54,51 +54,43 @@ class ChiSearch(GammaSearch):
     def chi(self):
         return self.w(self.g)
 
-    def calculate_components(self):
 
+    def calculate_components(self):
         self.z_phases = concatenate([gauss_newton.z()[:, newaxis] for gauss_newton in self], axis = 1)
         self.z_components = self.chi * self.z_phases
 
-    def del_components(self):
 
+    def del_components(self):
         del self.z_phases
         del self.z_components
 
+
     def z_decomposed(self):
-
-        z_phases = concatenate([gauss_newton.z()[:, newaxis] for gauss_newton in self], axis = 1)
-        z_components = self.chi * z_phases
-
-        return z_components
-
-    def z(self):
-
-        z_phases = concatenate([gauss_newton.z()[:, newaxis] for gauss_newton in self], axis = 1)
-        z_components = self.chi * z_phases
-
-        value = z_components.sum(axis = 1)
-
+        self.calculate_components()
+        value = self.z_components
+        self.del_components()
         return value
 
-    def der_f_a_s_beta(self):
 
+    def z(self):
+        return self.z_decomposed().sum(axis = 1)
+
+
+    def der_f_a_s_beta(self):
         der = tuple([zeros((self.intensity.shape[0], 1))]) * 3
 
         for gauss_newton, chi in zip(self, self.chi.squeeze()):
-
             gauss_newton.calculate_components()
-
             der = tuple( x + y for x, y in zip( der, (chi * d for d in gauss_newton.der_f_a_s_beta())))
-
             gauss_newton.del_components()
 
         return der
 
 
     def der_f_chi(self):
-
         return self.der_w(self.g) * self.z_phases
-        
+
+
     def fit_phases(self, a = False, s = False, beta = False, chi = True, alpha = 1):
 
         self.calculate_components()
@@ -192,6 +184,7 @@ class ChiSearch(GammaSearch):
 
     #def overlap3_area(self):
     #    return array([gauss_newton.overlap3_area() for gauss_newton in self])
+
 
 #class ChiMap(list):
 class ChiMap(GammaMap):
