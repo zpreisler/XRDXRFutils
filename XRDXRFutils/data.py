@@ -70,6 +70,7 @@ class Data():
 
     def __init__(self):
         self.metadata = {}
+        self.check_attributes = ['background', 'signal_background_ratio', 'rescaling', 'intensity']
 
     @staticmethod
     def fce_calibration(x,a,b):
@@ -114,10 +115,10 @@ class Data():
     def remove_background(self, n = 21, std = 3, m = 32):
 
         print('Removing background...')
-        background = snip3d(convolve3d(self.data, n = n, std = std), m = m)
-        data = self.data - background
+        self.background = snip3d(convolve3d(self.data, n = n, std = std), m = m)
+        data = self.data - self.background
 
-        self.signal_background_ratio = self.data.sum(axis = 2, keepdims = True) / background.sum(axis = 2, keepdims = True)
+        self.signal_background_ratio = self.data.sum(axis = 2, keepdims = True) / self.background.sum(axis = 2, keepdims = True)
         self.rescaling = data.max(axis = 2, keepdims = True)
         self.intensity = data / self.rescaling
 
@@ -139,7 +140,7 @@ class Data():
                 dataset = f.create_dataset('data', data = self.data)
                 dataset = f.create_dataset('x', data = self.x)
 
-            for attr in ['labels', 'weights', 'rescaling', 'signal_background_ratio', 'intensity']:
+            for attr in ['labels', 'weights', 'background', 'signal_background_ratio', 'rescaling', 'intensity']:
                 if hasattr(self, attr):
                     dataset = f.create_dataset(attr, data = getattr(self, attr))
             
@@ -147,7 +148,7 @@ class Data():
                 calibration = f.create_group('calibration')
 
                 for attr in ['x', 'y', 'opt']:
-                    calibration.create_dataset(attr,data = getattr(self.calibration,attr))
+                    calibration.create_dataset(attr, data = getattr(self.calibration, attr))
                 for k, v in self.calibration.metadata.items():
                     calibration.attrs[k] = v
 
@@ -162,7 +163,7 @@ class Data():
                 self.data = f.get('data')[()]
                 self._x = f.get('x')[()]
 
-            for attr in ['labels', 'weights', 'rescaling', 'signal_background_ratio', 'intensity']:
+            for attr in ['labels', 'weights', 'background', 'signal_background_ratio', 'rescaling', 'intensity']:
                 if attr in f:
                     setattr(self, attr, f.get(attr)[()])
 
