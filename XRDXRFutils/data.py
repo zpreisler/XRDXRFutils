@@ -326,9 +326,9 @@ class DataXRF(Data):
         #self.data = asarray(x)[::-1]
         self.data = asarray(x)
 
-    def read_tiff(self,path = None):
+    def read_tiff(self, path = None):
         
-        filenames = glob(path + '*.tif*')
+        filenames = sorted(glob(path + '*.tif*'))
 
         labels = []
         for s in filenames:
