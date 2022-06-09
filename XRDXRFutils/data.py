@@ -1,9 +1,10 @@
 from scipy.optimize import curve_fit
+from scipy.interpolate import interp1d
 from numpy import (pi, arctan, loadtxt, frombuffer, array, asarray,
     linspace, arange, trapz, flip, stack, where, zeros, empty, unravel_index,
-    ravel_multi_index)
-from scipy.interpolate import interp1d
+    ravel_multi_index, concatenate, append)
 from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
+from os.path import basename
 import os
 
 from .calibration import Calibration
@@ -234,6 +235,10 @@ class Data():
         cls = self.__class__()
         cls.data = asarray(results).reshape(self.shape[0],self.shape[1],-1)
         cls._x = x
+        cls.metadata = self.metadata.copy()
+
+        if hasattr(self,'labels'):
+            cls.labels = self.labels
         
         return cls
 
@@ -332,8 +337,9 @@ class DataXRF(Data):
 
         labels = []
         for s in filenames:
-            s = s[s.rfind('/') + 1:]
-            s = s[:s.rfind('.')]
+            s = basename(s).split('.')[0]
+            #s = s[s.rfind('/') + 1:]
+            #s = s[:s.rfind('.')]
             labels += [s]
 
         self.metadata['labels'] = labels
@@ -347,13 +353,13 @@ class DataXRF(Data):
 
         return self
 
-    def select_labels(self,labels):
+    def __select_labels(self,labels):
         
         select = []
         x = self.metadata['labels']
 
         for label in labels:
-            w = list(where(x == label)[0])
+            w = list(where(array(x) == label)[0])
             if w:
                 select += w
 
@@ -362,7 +368,27 @@ class DataXRF(Data):
 
         return self
 
-class SyntheticDataXRF(Data):
+    def select_labels(self,labels):
+        
+        new_labels = []
+        x = self.metadata['labels']
+
+        for label in labels:
+            if not label in x:
+                new_labels += [label]
+
+        print("Adding empty labels:",new_labels)
+
+        z = zeros([self.labels.shape[0],self.labels.shape[1],len(new_labels)])
+
+        self.labels = concatenate([self.labels,z],axis=2)
+        self.metadata['labels'] = append(x,new_labels)
+
+        self.__select_labels(labels)
+
+        return self
+
+class SyntheticDataXRF(DataXRF):
     """
     Syntetic XRF data class
     """
@@ -440,7 +466,7 @@ class SyntheticDataXRF(Data):
     def get_data_and_labels(self, symbols, lines):
 
         if not hasattr(self, 'spe_objs'):
-            raise RuntimeError("xmso files not readed yet")
+            raise RuntimeError("xmso files not read yet")
 
         self.data = asarray([s.counts for s in self.spe_objs])
         self.energy = self.spe_objs[0].energy
@@ -472,7 +498,7 @@ class SyntheticDataXRF(Data):
     def get_sim_parameters(self, local = False):
 
         if not hasattr(self, 'spe_objs'):
-            raise RuntimeError("xmso files not readed yet")
+            raise RuntimeError("xmso files not read yet")
         len_data = len(self.spe_objs)
 
         if local:
