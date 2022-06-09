@@ -52,42 +52,61 @@ class Phase(dict):
 
         return self.theta, self.intensity
 
-    def thetas2d(self):
-        g = sin(pi * self.theta / 360)
-        d = 1.541874 / (2 * g)
-        return d
 
-    def save_cif(self,name):
+    def set_name(self, name):
+        self['name'] = name
 
-        with open(name,'w') as file:
+    def set_point(self, point):
+        self['point'] = point
+
+
+    def save_cif(self, filename):
+
+        with open(filename, 'w') as file:
 
             if '_chemical_formula_sum' in self:
-                file.write('_chemical_formula_sum  ' + self['_chemical_formula_sum'] +'\n')
+                file.write('_chemical_formula_sum  \'' + self['_chemical_formula_sum'] + '\'\n')
 
             if '_chemical_name_mineral' in self:
-                file.write('_chemical_name_mineral  ' + self['_chemical_name_mineral'] +'\n')
+                file.write('_chemical_name_mineral  \'' + self['_chemical_name_mineral'] + '\'\n')
+
+            if '_chemical_name_common' in self:
+                file.write('_chemical_name_common  \'' + self['_chemical_name_common'] + '\'\n')
+
+            if 'name' in self:
+                file.write('name  \'' + self['name'] + '\'\n')
+
+            if 'point' in self:
+                file.write('point  ' + format(self['point'], 'd') + '\n')
 
             file.write('loop_\n')
             file.write('_pd_peak_d_spacing\n')
             file.write('_pd_peak_intensity\n')
-
-            for d,I in zip(self.thetas2d(), self.intensity * 1000):
-
+            for d, i in self['_pd_peak_intensity'].T:
                 d = format(d, '.6f')
-                I = format(I, '.2f')
+                i = format(i, '.2f')
+                file.write('     ' + str(d) + f'{str(i):>14}' + '\n')
 
-                file.write('     ' + str(d) + f'{str(I):>14}' +'\n')
 
-    def plot(self, colors = 'k', linestyles = 'dashed', label = None, lineheight = None, **kwargs):
+    @property
+    def label(self):
+        if '_chemical_name_mineral' in self:
+            return self['_chemical_name_mineral']
+        elif '_chemical_name_common' in self:
+            return self['_chemical_name_common']
+        elif '_chemical_formula_sum' in self:
+            return self['_chemical_formula_sum']
+        else:
+            return None
+
+
+    def plot(self, colors = 'red', linestyles = 'dashed', label = None, lineheight = None, **kwargs):
 
         if not hasattr(self, 'theta'):
             self.get_theta()
 
         if label is None:
-            try:
-                label = self['_chemical_name_mineral']
-            except:
-                label = self['_chemical_formula_sum']
+            label = self.label
 
         if lineheight is None:
             vlines(self.theta, 0, self.intensity, colors = colors, linestyles = linestyles, label = label, **kwargs)
@@ -97,8 +116,8 @@ class Phase(dict):
 class PhaseList(list):
 #class PhaseList(Phase):
 
-    def __init__(self,*args,**kwargs):
-        super().__init__(*args,**kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         if 'label' in kwargs:
             self.label_arg = kwargs.pop('label')
 
@@ -128,85 +147,74 @@ class PhaseList(list):
         return self.theta,self.intensity
 
 
-    def plot(self,cmap='winter',**kwargs):
+    def set_name(self, name):
+        for phase in self:
+            phase.set_name(name)
 
-        c = cm.get_cmap(cmap)
-        n = len(self) + 1 
-        colors = c(arange(1,n)/(n))
+    def set_point(self, point):
+        for phase in self:
+            phase.set_point(point)
 
-        for i,phase in enumerate(self):
-            phase.plot(colors=colors[i],**kwargs)
+
+    def plot(self, cmap = 'tab10', **kwargs):
+        cmap_sel = cm.get_cmap(cmap)
+        for i, phase in enumerate(self):
+            idx_color = i % cmap_sel.N
+            phase.plot(colors = cmap_sel(idx_color), **kwargs)
+
 
     def random(self):
         idx = randint(self.__len__())
         return self[idx]
 
-    def thetas2d(self):
-        g = sin(pi * self.theta / 360)
-        d = 1.541874 / (2 * g)
-        return d
 
-    def save_cif(self,name):
-        """
-        FIXME: take from Phase class.
-        """
+    def save_cif(self, filename):
+        for phase in self:
+            phase.save_cif(filename[:-4] + '_' + phase.label + '.cif')
 
-        with open(name,'w') as file:
-
-            if '_chemical_formula_sum' in self:
-                file.write('_chemical_formula_sum  ' + self['_chemical_formula_sum'] +'\n')
-
-            if '_chemical_name_mineral' in self:
-                file.write('_chemical_name_mineral  ' + self['_chemical_name_mineral'] +'\n')
-
-            file.write('loop_\n')
-            file.write('_pd_peak_d_spacing\n')
-            file.write('_pd_peak_intensity\n')
-
-            for d,I in zip(self.thetas2d(), self.intensity * 1000):
-
-                d = format(d, '.6f')
-                I = format(I, '.2f')
-
-                file.write('     ' + str(d) + f'{str(I):>14}' +'\n')
 
 class DatabaseXRD(dict):
 
-    def read_cifs(self,path):
+    def read_cifs(self, path):
         filenames = sorted(glob(path + '/*.cif'))
         if not filenames:
             warnings.warn('No files found')
 
         i = 0
         for filename in filenames:
-            phase = Phase(name=filename)
+            phase = Phase(name = filename)
 
-            with open(filename,'r') as f:
+            with open(filename, 'r') as f:
                 for line in f:
                     x = line.split()
                     if x:
                         y = x[0]
                         if y == '_chemical_formula_sum':
-                            phase[y] = ' '.join(x[1:]).replace("'",'')
+                            value = ' '.join(x[1:]).replace("'", '')
+                            if value != '':
+                                phase[y] = value
 
                         if y == '_chemical_name_mineral':
-                            phase[y] = ' '.join(x[1:]).replace("'",'')
+                            value = ' '.join(x[1:]).replace("'", '')
+                            if value != '':
+                                phase[y] = value
 
                         if y == '_chemical_name_common':
-                            phase[y] = x[1:]
+                            value = ' '.join(x[1:]).replace("'", '')
+                            if value != '':
+                                phase[y] = value
+
+                        if y == 'name':
+                            phase[y] = ' '.join(x[1:]).replace("'", '')
+
+                        if y == 'point':
+                            phase[y] = int(x[1])
 
                         if y == '_pd_peak_intensity':
-                            z = loadtxt(f,unpack=True,dtype=float)
+                            z = loadtxt(f, unpack = True, dtype = float)
                             phase[y] = z
 
-            formula = phase['_chemical_formula_sum']
-
-            if '_chemical_name_mineral' in phase:
-                key = phase['_chemical_name_mineral']
-            else:
-                key = formula
-
-            phase.label = key
+            key = phase.label
             if key in self:
                 self[key] += PhaseList([phase])
             else:
@@ -214,6 +222,7 @@ class DatabaseXRD(dict):
                 i += 1
 
         return self
+
 
     def random(self):
         x = list(self.values())

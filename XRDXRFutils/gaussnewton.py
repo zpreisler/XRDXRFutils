@@ -2,7 +2,8 @@ from .spectra import SpectraXRD, FastSpectraXRD
 
 from .database import Phase,PhaseList
 
-from numpy import fabs, sum, exp, log, pi, array, ones, zeros, full, full_like, trapz, minimum, maximum, std, fabs, sign, sqrt, square, average, clip, newaxis, concatenate, append, where, arange
+from numpy import (fabs, sum, exp, log, sin, pi, array, ones, zeros, full, full_like, trapz, minimum,
+    maximum, std, sign, sqrt, square, average, clip, newaxis, concatenate, append, where, arange)
 from numpy.linalg import pinv, inv
 
 from scipy.optimize import newton
@@ -21,10 +22,13 @@ class GaussNewton(FastSpectraXRD):
         phase: tabulated phase; Phase or PhaseList class
         spectrum: experimental spectrum; FastSpectraXRD class
         """
+        if type(phase) not in [Phase, PhaseList]:
+            raise Exception('Invalid phase type')
         super().__init__()
 
         self.phase = phase
         self.spectrum = spectrum
+        self.kwargs = kwargs
 
         self.label = phase.label
 
@@ -101,12 +105,10 @@ class GaussNewton(FastSpectraXRD):
     """
     Plot functions
     """
-    def plot_spectra(self, *args, **kwargs):
-
+    def plot_spectrum(self, *args, **kwargs):
         super().plot(*args, **kwargs)
 
     def plot(self, *args, **kwargs):
-
         plot(self.theta, self.z(), *args, **kwargs)
 
     """
@@ -215,7 +217,7 @@ class GaussNewton(FastSpectraXRD):
 
         return self.component_full * ((self.theta_calc - mu)**2 / (2 * self.sigma2_calc**2)) * self.der_u(self.tau)
 
-    def fit(self, k = None, b = None, a = False, s = False, beta = False, gamma = False, sigma = False, alpha = 1,downsample = None):
+    def fit(self, k = None, b = None, a = False, s = False, beta = False, gamma = False, sigma = False, alpha = 1, downsample = None):
         """
         Performs a step of Gauss-Newton optimization. You need to choose the parameters that will be used to optimize. The other ones will be kept fixed.
         If you set k and b, parameters a and s are used in optimization (you don't need to explicitly set them to True) and are tied by the relation given by k and b.
@@ -317,12 +319,6 @@ class GaussNewton(FastSpectraXRD):
     """
     Evaluation of the results
     """
-    def plot_spectrum(self,*args,**kwargs):
-        super().plot(*args,**kwargs)
-
-    def plot(self,*args,**kwargs):
-        plot(self.theta,self.z(),*args,**kwargs)
-
     def overlap(self):
 
         m = minimum(self.z(), self.intensity)
@@ -364,17 +360,53 @@ class GaussNewton(FastSpectraXRD):
     def overlap3_area(self):
         return self.overlap3().sum()
 
+
     def make_phase(self):
+        """
+        Creates experimental phase from the phase used to create the given instance of GaussNewton.
+        An instance of GaussNewton can be created with a Phase or a PhaseList passed as the argument 'phase'.
+        According to that, this function returns a Phase or a PhaseList.
 
-        mu, I = self.get_theta()
-        new_I = I * self.gamma[0]
-        new_I /= new_I.max()
-        
-        new_phase = PhaseList(self.phase)
-        
-        new_phase.theta = mu
-        new_phase.intensity = new_I
-        
-        #new_phase.label = self.label
+        Please, note that this function excludes peaks that lay outside the angle range of experimental signal.
+        This is because they can have anomalously high value in order to fit the last bit of signal. This dwarfs all the other peaks.
+        """
+        if type(self.phase) == Phase:
+            pl = PhaseList([self.phase])
+        elif type(self.phase) == PhaseList:
+            pl = self.phase
 
-        return new_phase
+        pl_new = PhaseList([])
+        index_count = 0
+
+        for phase in pl:
+            mu, I = phase.get_theta(**self.kwargs)
+            phase_len = mu.shape[0]
+
+            gamma = self.gamma.squeeze()[index_count : (index_count + phase_len)]
+            index_count += phase_len
+            I_new = I * gamma
+
+            # Selects only the peaks that lay inside the angle range of experimental signal.
+            # Otherwise, external peaks can have anomalously high value in order to fit the last bit of signal. This dwarfs all the other peaks.
+            theta_min, theta_max = self.theta_range()
+            mask_theta = ((mu >= theta_min) & (mu <= theta_max))
+            mu = mu[mask_theta]
+            I_new = I_new[mask_theta]
+
+            # Calculates d, i
+            I_new /= I_new.max()
+            i = I_new * 1000
+            d = 1.541874 / (2 * sin(pi * mu / 360))
+
+            phase_new = Phase(phase)
+            phase_new['_pd_peak_intensity'] = array([d, i])
+            phase_new.theta = mu
+            phase_new.intensity = I_new
+
+            # Adds the new phase to the results
+            pl_new.append(phase_new)
+
+        if len(pl_new) == 1:
+            return pl_new[0]
+        else:
+            return pl_new
