@@ -71,7 +71,6 @@ class Data():
 
     def __init__(self):
         self.metadata = {}
-        self.check_attributes = ['background', 'signal_background_ratio', 'rescaling', 'intensity']
 
     @staticmethod
     def fce_calibration(x,a,b):
@@ -610,6 +609,7 @@ class DataXRD(Data):
 
     def __init__(self):
         super().__init__()
+        self.check_attributes = ['background', 'signal_background_ratio', 'rescaling', 'intensity']
 
     @staticmethod
     def fce_calibration(x,a,s,beta):
@@ -630,7 +630,7 @@ class DataXRD(Data):
 
         print("Reading XRD data from",self.path)
         self.__read__(filenames)
-        print("Done")
+        print("Done.")
 
         return self
 
