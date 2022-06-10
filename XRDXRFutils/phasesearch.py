@@ -1,3 +1,5 @@
+### OLD FILE. IT NEEDS TO BE DELETED ###
+
 from .database import Phase, PhaseList
 from .data import DataXRD
 from .spectra import SpectraXRD,FastSpectraXRD

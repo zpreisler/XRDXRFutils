@@ -1,7 +1,8 @@
 from scipy.optimize import curve_fit
-from numpy import pi, arctan
-from numpy import loadtxt, frombuffer, array, asarray, linspace, arange, trapz, flip, stack, where, zeros, empty, concatenate, append
 from scipy.interpolate import interp1d
+from numpy import (pi, arctan, loadtxt, frombuffer, array, asarray,
+    linspace, arange, trapz, flip, stack, where, zeros, empty, unravel_index,
+    ravel_multi_index, concatenate, append)
 from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
 from os.path import basename
 import os
@@ -97,6 +98,13 @@ class Data():
     def shape(self):
         return self.data.shape
 
+    def get_x_y(self, i):
+        y, x = unravel_index(i, self.shape[:2])
+        return x, y
+
+    def get_index(self, x, y):
+        return ravel_multi_index((y, x), self.shape[:2])
+
     @property
     def x(self):
         if hasattr(self, 'calibration'):
@@ -106,16 +114,15 @@ class Data():
 
     def remove_background(self, n = 21, std = 3, m = 32):
 
-        print('Removing background')
+        print('Removing background...')
+        self.background = snip3d(convolve3d(self.data, n = n, std = std), m = m)
+        data = self.data - self.background
 
-        background = snip3d(convolve3d(self.data,n = n, std = std), m = m)
-        data = self.data - background
-
-        self.rescaling = data.max(axis=2,keepdims=True)
+        self.signal_background_ratio = self.data.sum(axis = 2, keepdims = True) / self.background.sum(axis = 2, keepdims = True)
+        self.rescaling = data.max(axis = 2, keepdims = True)
         self.intensity = data / self.rescaling
 
-        print('Done')
-
+        print('Done.')
         return self
 
     def save_h5(self,filename = None):
@@ -123,58 +130,52 @@ class Data():
         if filename == None:
             filename = self.path + '/' + self.name + '.h5'
 
-        print('Saving:',filename)
-        with h5py.File(filename,'w') as f:
+        print('Saving:', filename)
+        with h5py.File(filename, 'w') as f:
 
-            for k,v in self.metadata.items():
+            for k, v in self.metadata.items():
                 f.attrs[k] = v
 
-            if hasattr(self,'data'):
-                dataset = f.create_dataset('data',data = self.data)
-                dataset = f.create_dataset('x',data = self.x)
+            if hasattr(self, 'data'):
+                dataset = f.create_dataset('data', data = self.data)
+                dataset = f.create_dataset('x', data = self.x)
 
-            if hasattr(self,'labels'):
-                dataset = f.create_dataset('labels',data = self.labels)
-
-            for attr in ['weights','rescaling','intensity']:
-                if hasattr(self,attr):
-                    dataset = f.create_dataset(attr,data = getattr(self,attr))
+            for attr in ['labels', 'weights', 'background', 'signal_background_ratio', 'rescaling', 'intensity']:
+                if hasattr(self, attr):
+                    dataset = f.create_dataset(attr, data = getattr(self, attr))
             
-            if hasattr(self,'calibration'):
+            if hasattr(self, 'calibration'):
                 calibration = f.create_group('calibration')
 
-                for attr in ['x','y','opt']:
-                    calibration.create_dataset(attr,data = getattr(self.calibration,attr))
-                for k,v in self.calibration.metadata.items():
+                for attr in ['x', 'y', 'opt']:
+                    calibration.create_dataset(attr, data = getattr(self.calibration, attr))
+                for k, v in self.calibration.metadata.items():
                     calibration.attrs[k] = v
 
         return self
 
     def load_h5(self,filename):
 
-        print('Loading:',filename)
-        with h5py.File(filename,'r') as f:
+        print('Loading:', filename)
+        with h5py.File(filename, 'r') as f:
 
             if 'data' in f:
                 self.data = f.get('data')[()]
                 self._x = f.get('x')[()]
 
-            if 'labels' in f:
-                self.labels = f.get('labels')[()]
-
-            for attr in ['weights','rescaling','intensity']:
+            for attr in ['labels', 'weights', 'background', 'signal_background_ratio', 'rescaling', 'intensity']:
                 if attr in f:
-                    setattr(self,attr,f.get(attr)[()])
+                    setattr(self, attr, f.get(attr)[()])
 
-            for k,v in f.attrs.items():
+            for k, v in f.attrs.items():
                 self.metadata[k] = v
 
             if 'calibration' in f:
                 x = f['calibration']
                 self.calibration = Calibration(self)
-                for k,v in x.items():
-                    setattr(self.calibration,k,v[:])
-                for k,v in x.attrs.items():
+                for k, v in x.items():
+                    setattr(self.calibration, k, v[:])
+                for k, v in x.attrs.items():
                     self.calibration.metadata[k] = v
                 self.opt = self.calibration.opt
 
@@ -329,9 +330,9 @@ class DataXRF(Data):
         #self.data = asarray(x)[::-1]
         self.data = asarray(x)
 
-    def read_tiff(self,path = None):
+    def read_tiff(self, path = None):
         
-        filenames = glob(path + '*.tif*')
+        filenames = sorted(glob(path + '*.tif*'))
 
         labels = []
         for s in filenames:
@@ -608,6 +609,7 @@ class DataXRD(Data):
 
     def __init__(self):
         super().__init__()
+        self.check_attributes = ['background', 'signal_background_ratio', 'rescaling', 'intensity']
 
     @staticmethod
     def fce_calibration(x,a,s,beta):
@@ -628,7 +630,7 @@ class DataXRD(Data):
 
         print("Reading XRD data from",self.path)
         self.__read__(filenames)
-        print("Done")
+        print("Done.")
 
         return self
 
@@ -653,6 +655,40 @@ class DataXRD(Data):
                 y[:] = y[::-1]
 
         self.data = z[::-1,::-1]
+
+
+    def generate_smooth(self, step = 2, method = 'mean'):
+        if method not in ['mean', 'max']:
+            raise Exception('Invalid method parameter')
+
+        print('Generating smooth data...')
+        data_new = DataXRD()
+
+        data_new.metadata = self.metadata.copy()
+        data_new.smooth_step = step
+
+        data_new.data = empty(self.shape)
+        for i in range(0, self.shape[0], step):
+            step_i = min(step, self.shape[0] - i)
+            for j in range(0, self.shape[1], step):
+                step_j = min(step, self.shape[1] - j)
+                if method == 'mean':
+                    aggr = self.data[i : (i + step_i), j : (j + step_j), :].mean(axis = (0, 1))
+                else:
+                    aggr = self.data[i : (i + step_i), j : (j + step_j), :].max(axis = (0, 1))
+                for i_small in range(0, step_i):
+                    for j_small in range(0, step_j):
+                        data_new.data[i + i_small, j + j_small] = aggr
+
+        data_new.remove_background()
+
+        if hasattr(self, 'calibration'):
+            if hasattr(self.calibration, 'opt'):
+                data_new.calibration = Calibration(data_new).from_parameters(self.calibration.opt)
+
+        print('Done.')
+        return data_new
+
 
 def resample(x,y,nbins=1024,bounds=(0,30)):
     """

@@ -2,10 +2,14 @@ from .database import Phase, PhaseList
 from .data import DataXRD
 from .spectra import SpectraXRD,FastSpectraXRD
 from .gaussnewton import GaussNewton
-from numpy import array, full, zeros, nanargmin, nanargmax, newaxis, append, concatenate, sqrt, average, square, std, asarray
+from numpy import (array, full, zeros, nanargmin, nanargmax, newaxis, append,
+    concatenate, sqrt, average, square, std, asarray, unravel_index, ravel_multi_index,
+    minimum, where)
 from numpy.linalg import pinv
-from multiprocessing import Pool,cpu_count
+from multiprocessing import Pool, cpu_count
+from functools import partial
 from joblib import Parallel, delayed
+from platform import system
 import os
 import pickle
 import pathlib
@@ -23,9 +27,16 @@ class GammaSearch(list):
         self.spectrum = spectrum
         self.intensity = spectrum.intensity
 
-        self.opt = self[0].opt.copy()
+        self.set_opt(self[0].opt, copy = True)
+
+
+    def set_opt(self, opt, copy = True):
+        self.opt = opt
         for gaussnewton in self:
-            gaussnewton.opt = self.opt.copy()
+            if copy:
+                gaussnewton.opt = self.opt.copy()
+            else:
+                gaussnewton.opt = self.opt
 
     def select(self):
 
@@ -44,20 +55,17 @@ class GammaSearch(list):
     def search(self, alpha = 1):
 
         self.fit_cycle(steps = 4, gamma = True, alpha = alpha, downsample = 3)
-
         self.fit_cycle(steps = 1, a = True, s = True, gamma = True, alpha = alpha, downsample = 2)
 
         selected = self.select()
-        for gaussnewton in self:
-            gaussnewton.opt = selected.opt
-        self.opt = selected.opt
+        self.set_opt(selected.opt, copy = False)
 
         selected.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 3)
         selected.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 2)
         selected.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha)
 
-        self.fit_cycle(steps = 1, gamma = True, alpha = alpha,downsample = 3)
-        self.fit_cycle(steps = 1, gamma = True, alpha = alpha,downsample = 2)
+        self.fit_cycle(steps = 1, gamma = True, alpha = alpha, downsample = 3)
+        self.fit_cycle(steps = 1, gamma = True, alpha = alpha, downsample = 2)
         self.fit_cycle(steps = 2, gamma = True, alpha = alpha)
 
         return self
@@ -67,6 +75,9 @@ class GammaSearch(list):
 
     def area0(self):
         return array([gauss_newton.area0() for gauss_newton in self])
+
+    def overlap(self):
+        return array([gauss_newton.overlap() for gauss_newton in self])
 
     def overlap_area(self):
         return array([gauss_newton.overlap_area() for gauss_newton in self])
@@ -80,58 +91,110 @@ class GammaSearch(list):
     def overlap3_area(self):
         return array([gauss_newton.overlap3_area() for gauss_newton in self])
 
+    def metrics(self):
+        return self.L1loss(), self.MSEloss(), self.overlap3_area()
+
+
+    def overlap_total(self):
+        arr_z = array([gauss_newton.z() for gauss_newton in self])
+        z_max = arr_z.max(axis = 0)
+        m = minimum(z_max, self.intensity)
+        m = where(m < 0, 0, m)
+        return m
+
+    def overlap_total_area(self):
+        return self.overlap_total().sum()
+
+    def overlap_total_ratio(self):
+        integral_intersection = self.overlap_total_area()
+        intensity_corrected = where(self.intensity < 0, 0, self.intensity)
+        integral_intensity = intensity_corrected.sum()
+        return (integral_intersection / integral_intensity)
+
+
 class GammaMap(list):
     """
     Construct gamma phase maps.
     """
-    def from_data(self,data,phases,sigma = 0.2, **kwargs):
-        
+    def from_data(self, data, phases, sigma = 0.2, **kwargs):
+
         self.phases = phases
-        self.shape = (data.shape[0] , data.shape[1], -1)
+        self.shape = (data.shape[0], data.shape[1], -1)
 
         d = data.shape[0] * data.shape[1]
-        spectra = [FastSpectraXRD().fromDataf(data,i) for i in range(d)]
-
+        spectra = [FastSpectraXRD().from_Dataf(data, i) for i in range(d)]
         self += [GammaSearch(phases, spectrum, sigma, **kwargs) for spectrum in spectra]
 
         return self
 
+
     @staticmethod
-    def f_search(x):
-        return x.search()
+    def fit_cycle_service(x, kwargs):
+        return x.fit_cycle(**kwargs)
 
-    def search(self):
+    def fit_cycle_core(self, **kwargs):
+        if system() == 'Darwin':
+            n_cpu = cpu_count()
+            print(f'Using {n_cpu} CPUs')
+            result = Parallel(n_jobs = n_cpu)( delayed(gs.fit_cycle)(**kwargs) for gs in self )
+        else:
+            n_cpu = cpu_count() - 2
+            print(f'Using {n_cpu} CPUs')
+            with Pool(n_cpu) as p:
+                result = p.map(partial(self.fit_cycle_service, kwargs = kwargs), self)
+        return result
 
-        n_cpu = cpu_count() - 2
-        print('Using %d cpu'%n_cpu)
-
-        with Pool(n_cpu) as p:
-            result = p.map(self.f_search, self)
-        x = GammaMap(result)
-
+    def fit_cycle(self, **kwargs):
+        x = GammaMap(self.fit_cycle_core(**kwargs))
         x.phases = self.phases
         x.shape = self.shape
-
         return x
 
+
     @staticmethod
-    def f_metrics(x):
-        return x.L1loss(), x.MSEloss(), x.overlap3_area()
+    def search_service(x):
+        return x.search()
+
+    def search_core(self):
+        if system() == 'Darwin':
+            n_cpu = cpu_count()
+            print(f'Using {n_cpu} CPUs')
+            result = Parallel(n_jobs = n_cpu)( delayed(gs.search)() for gs in self )
+        else:
+            n_cpu = cpu_count() - 2
+            print(f'Using {n_cpu} CPUs')
+            with Pool(n_cpu) as p:
+                result = p.map(self.search_service, self)
+        return result
+
+    def search(self):
+        x = GammaMap(self.search_core())
+        x.phases = self.phases
+        x.shape = self.shape
+        return x
+
+
+    @staticmethod
+    def metrics_service(x):
+        return x.metrics()
 
     def metrics(self):
+        if system() == 'Darwin':
+            n_cpu = cpu_count()
+            print(f'Using {n_cpu} CPUs')
+            results = Parallel(n_jobs = n_cpu)( delayed(gs.metrics)() for gs in self )
+        else:
+            n_cpu = cpu_count() - 2
+            print(f'Using {n_cpu} CPUs')
+            with Pool(n_cpu) as p:
+                results = p.map(self.metrics_service, self)
 
-        n_cpu = cpu_count() - 2
-        print('Using %d cpu'%n_cpu)
-
-        with Pool(n_cpu) as p:
-            results = p.map(self.f_metrics,self)
         results = asarray(results)
-
         L1loss = results[:,0,:].reshape(self.shape)
         MSEloss = results[:,1,:].reshape(self.shape)
         overlap3_area = results[:,2,:].reshape(self.shape)
-
         return L1loss, MSEloss, overlap3_area
+
 
     def opt(self):
         return array([phase_search.opt for phase_search in self]).reshape(self.shape)
@@ -155,35 +218,27 @@ class GammaMap(list):
         return array([phase_search.MSEloss() for phase_search in self]).reshape(self.shape)
 
     def selected(self):
-        return array([phase_search.idx for phase_search in self]).reshape(self.shape)
+        return array([phase_search.idx for phase_search in self]).reshape((self.shape[0], self.shape[1]))
 
-    def get_index(self,x,y):
-        return x + y * self.shape[1]
+    def get_x_y(self, i):
+        y, x = unravel_index(i, self.shape[:2])
+        return x, y
 
-    def get_pixel(self,x,y):
-        return self[x + y * self.shape[1]]
+    def get_index(self, x, y):
+        return ravel_multi_index((y, x), self.shape[:2])
 
-    def select_phases(self,criterio,offset=-8):
-        new_phases = []
-        for idx,phase in enumerate(self.phases):
+    def get_pixel(self, x, y):
+        return self[self.get_index(x, y)]
 
-            point = criterio[:,:,idx].flatten().argsort()[offset]
+    def select_phases(self, criterion, offset = -8):
+        phases_new = []
+
+        for idx in range(len(self.phases)):
+            point = criterion[:, :, idx].flatten().argsort()[offset]
             gauss_newton = self[point][idx]
+            phase_made = gauss_newton.make_phase()
+            phase_made.set_name('created_%d'%idx)
+            phase_made.set_point(point)
+            phases_new += [phase_made]
 
-            mu, I = gauss_newton.get_theta()
-            new_I = I * gauss_newton.gamma[0]
-            new_I /= new_I.max()
-            
-            new_phase = Phase(phase)
-            
-            new_phase.theta = mu
-            new_phase.intensity = new_I
-            
-            new_phase['name'] = 'created_%d'%idx
-            new_phase['point'] = point
-            
-            new_phase.label = gauss_newton.label
-            
-            new_phases += [new_phase]
-
-        return new_phases
+        return phases_new

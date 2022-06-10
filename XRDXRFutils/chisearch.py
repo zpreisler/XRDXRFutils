@@ -5,8 +5,10 @@ from .gaussnewton import GaussNewton
 from .gammasearch import GammaMap,GammaSearch
 from numpy import array, full, zeros, nanargmin, nanargmax, newaxis, append, concatenate, sqrt, average, square, std
 from numpy.linalg import pinv
-from multiprocessing import Pool,cpu_count
-from joblib import Parallel, delayed
+#from multiprocessing import Pool, cpu_count
+#from functools import partial
+#from joblib import Parallel, delayed
+#from platform import system
 import os
 import pickle
 import pathlib
@@ -52,51 +54,43 @@ class ChiSearch(GammaSearch):
     def chi(self):
         return self.w(self.g)
 
-    def calculate_components(self):
 
+    def calculate_components(self):
         self.z_phases = concatenate([gauss_newton.z()[:, newaxis] for gauss_newton in self], axis = 1)
         self.z_components = self.chi * self.z_phases
 
-    def del_components(self):
 
+    def del_components(self):
         del self.z_phases
         del self.z_components
 
+
     def z_decomposed(self):
-
-        z_phases = concatenate([gauss_newton.z()[:, newaxis] for gauss_newton in self], axis = 1)
-        z_components = self.chi * z_phases
-
-        return z_components
-
-    def z(self):
-
-        z_phases = concatenate([gauss_newton.z()[:, newaxis] for gauss_newton in self], axis = 1)
-        z_components = self.chi * z_phases
-
-        value = z_components.sum(axis = 1)
-
+        self.calculate_components()
+        value = self.z_components
+        self.del_components()
         return value
 
-    def der_f_a_s_beta(self):
 
+    def z(self):
+        return self.z_decomposed().sum(axis = 1)
+
+
+    def der_f_a_s_beta(self):
         der = tuple([zeros((self.intensity.shape[0], 1))]) * 3
 
         for gauss_newton, chi in zip(self, self.chi.squeeze()):
-
             gauss_newton.calculate_components()
-
             der = tuple( x + y for x, y in zip( der, (chi * d for d in gauss_newton.der_f_a_s_beta())))
-
             gauss_newton.del_components()
 
         return der
 
 
     def der_f_chi(self):
-
         return self.der_w(self.g) * self.z_phases
-        
+
+
     def fit_phases(self, a = False, s = False, beta = False, chi = True, alpha = 1):
 
         self.calculate_components()
@@ -191,41 +185,36 @@ class ChiSearch(GammaSearch):
     #def overlap3_area(self):
     #    return array([gauss_newton.overlap3_area() for gauss_newton in self])
 
+
 #class ChiMap(list):
 class ChiMap(GammaMap):
     """
     Construct gamma phase maps.
     """
-    def from_data(self,data,phases,sigma = 0.2, **kwargs):
+    def from_data(self, data, phases, sigma = 0.2, **kwargs):
         
         self.phases = phases
         self.shape = (data.shape[0] , data.shape[1], -1)
 
         d = data.shape[0] * data.shape[1]
-        spectra = [FastSpectraXRD().fromDataf(data,i) for i in range(d)]
-
-        self += [ChiSearch(phases,spectrum,sigma) for spectrum in spectra]
+        spectra = [FastSpectraXRD().from_Dataf(data,i) for i in range(d)]
+        self += [ChiSearch(phases, spectrum, sigma, **kwargs) for spectrum in spectra]
 
         return self
 
-    @staticmethod
-    def f_search(x):
-        return x.search()
 
-    def search(self):
-
-        n_cpu = cpu_count() - 2
-        print('Using %d cpu'%n_cpu)
-
-        with Pool(n_cpu) as p:
-            result = p.map(self.f_search, self)
-
-        x = ChiMap(result)
-
+    def fit_cycle(self, **kwargs):
+        x = ChiMap(self.fit_cycle_core(**kwargs))
         x.phases = self.phases
         x.shape = self.shape
-
         return x
+
+    def search(self):
+        x = ChiMap(self.search_core())
+        x.phases = self.phases
+        x.shape = self.shape
+        return x
+
 
     def chi(self):
         return array([phase_search.chi[0] for phase_search in self]).reshape(self.shape)
