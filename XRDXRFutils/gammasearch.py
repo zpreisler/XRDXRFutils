@@ -52,12 +52,17 @@ class GammaSearch(list):
 
         return self
 
-    def search(self, alpha = 1):
+    def search(self, phase_selected, alpha):
 
         self.fit_cycle(steps = 4, gamma = True, alpha = alpha, downsample = 3)
         self.fit_cycle(steps = 1, a = True, s = True, gamma = True, alpha = alpha, downsample = 2)
 
-        selected = self.select()
+        if phase_selected is None:
+            selected = self.select()
+        else:
+            self.idx = phase_selected
+            self.selected = self[self.idx]
+            selected = self.selected
         self.set_opt(selected.opt, copy = False)
 
         selected.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 3)
@@ -152,23 +157,23 @@ class GammaMap(list):
 
 
     @staticmethod
-    def search_service(x):
-        return x.search()
+    def search_service(x, phase_selected, alpha):
+        return x.search(phase_selected, alpha)
 
-    def search_core(self):
+    def search_core(self, phase_selected, alpha):
         if system() == 'Darwin':
             n_cpu = cpu_count()
             print(f'Using {n_cpu} CPUs')
-            result = Parallel(n_jobs = n_cpu)( delayed(gs.search)() for gs in self )
+            result = Parallel(n_jobs = n_cpu)( delayed(gs.search)(phase_selected = phase_selected, alpha = alpha) for gs in self )
         else:
             n_cpu = cpu_count() - 2
             print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
-                result = p.map(self.search_service, self)
+                result = p.map(partial(self.search_service, phase_selected = phase_selected, alpha = alpha), self)
         return result
 
-    def search(self):
-        x = GammaMap(self.search_core())
+    def search(self, phase_selected = None, alpha = 1):
+        x = GammaMap(self.search_core(phase_selected = phase_selected, alpha = alpha))
         x.phases = self.phases
         x.shape = self.shape
         return x
