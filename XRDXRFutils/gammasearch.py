@@ -46,8 +46,8 @@ class GammaSearch(list):
 
 
     def fit_cycle(self, **kwargs):
-        for gauss_newton in self:
-            gauss_newton.fit_cycle(**kwargs)
+        for gn in self:
+            gn.fit_cycle(**kwargs)
         return self
 
 
@@ -70,32 +70,32 @@ class GammaSearch(list):
 
 
     def area(self):
-        return array([gauss_newton.area() for gauss_newton in self])
+        return array([gn.area() for gn in self])
 
     def area0(self):
-        return array([gauss_newton.area0() for gauss_newton in self])
+        return array([gn.area0() for gn in self])
 
     def overlap(self):
-        return array([gauss_newton.overlap() for gauss_newton in self])
+        return array([gn.overlap() for gn in self])
 
     def overlap_area(self):
-        return array([gauss_newton.overlap_area() for gauss_newton in self])
+        return array([gn.overlap_area() for gn in self])
 
     def L1loss(self):
-        return array([gauss_newton.L1loss() for gauss_newton in self])
+        return array([gn.L1loss() for gn in self])
 
     def MSEloss(self):
-        return array([gauss_newton.MSEloss() for gauss_newton in self])
+        return array([gn.MSEloss() for gn in self])
 
     def overlap3_area(self):
-        return array([gauss_newton.overlap3_area() for gauss_newton in self])
+        return array([gn.overlap3_area() for gn in self])
 
     def metrics(self):
         return self.L1loss(), self.MSEloss(), self.overlap3_area()
 
 
     def overlap_total(self):
-        arr_z = array([gauss_newton.z() for gauss_newton in self])
+        arr_z = array([gn.z() for gn in self])
         z_max = arr_z.max(axis = 0)
         m = minimum(z_max, self.intensity)
         m = where(m < 0, 0, m)
