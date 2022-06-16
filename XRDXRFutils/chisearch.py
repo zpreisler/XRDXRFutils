@@ -217,28 +217,28 @@ class ChiMap(GammaMap):
 
 
     def chi(self):
-        return array([phase_search.chi[0] for phase_search in self]).reshape(self.shape)
+        return array([cs.chi[0] for cs in self]).reshape(self.shape)
 
     #def opt(self):
-    #    return array([phase_search.opt for phase_search in self]).reshape(self.shape)
+    #    return array([cs.opt for cs in self]).reshape(self.shape)
 
     #def area(self):
-    #    return array([phase_search.area() for phase_search in self]).reshape(self.shape)
+    #    return array([cs.area() for cs in self]).reshape(self.shape)
 
     #def area0(self):
-    #    return array([phase_search.area0() for phase_search in self]).reshape(self.shape)
+    #    return array([cs.area0() for cs in self]).reshape(self.shape)
 
     #def overlap_area(self):
-    #    return array([phase_search.overlap_area() for phase_search in self]).reshape(self.shape)
+    #    return array([cs.overlap_area() for cs in self]).reshape(self.shape)
 
     #def L1loss(self):
-    #    return array([phase_search.L1loss() for phase_search in self]).reshape(self.shape)
+    #    return array([cs.L1loss() for cs in self]).reshape(self.shape)
 
     #def MSEloss(self):
-    #    return array([phase_search.MSEloss() for phase_search in self]).reshape(self.shape)
+    #    return array([cs.MSEloss() for cs in self]).reshape(self.shape)
 
     #def selected(self):
-    #    return array([phase_search.idx for phase_search in self]).reshape(self.shape)
+    #    return array([cs.idx for cs in self]).reshape(self.shape)
 
     #def get_index(self,x,y):
     #    return x + y * self.shape[1]
