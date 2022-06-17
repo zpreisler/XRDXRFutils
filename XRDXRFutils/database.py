@@ -15,13 +15,13 @@ class Phase(dict):
     def __len__(self):
         return len(self['_pd_peak_intensity'][0])
 
-    def get_theta(self, l=[1.541874], scale=[1.0], min_theta=None, max_theta=None, min_intensity=None, first_n_peaks = None):
+    def get_theta(self, l = [1.541874], scale = [1.0], min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None):
 
         #FIXME
         #Recalculate when conditions are not the same
 
-        if hasattr(self,'theta') and hasattr(self,'intensity'):
-            return self.theta,self.intensity
+        if hasattr(self, 'theta') and hasattr(self, 'intensity'):
+            return self.theta, self.intensity
 
         d, i = self['_pd_peak_intensity']
 
@@ -100,10 +100,11 @@ class Phase(dict):
             return None
 
 
-    def plot(self, colors = 'red', linestyles = 'dashed', label = None, lineheight = None, **kwargs):
+    def plot(self, colors = 'red', linestyles = 'dashed', label = None, lineheight = None,
+         min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, **kwargs):
 
         if not hasattr(self, 'theta'):
-            self.get_theta()
+            self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity, first_n_peaks = first_n_peaks)
 
         if label is None:
             label = self.label
