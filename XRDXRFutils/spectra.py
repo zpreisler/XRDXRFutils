@@ -1,4 +1,4 @@
-from numpy import loadtxt,arctan,pi,arange,array, asarray, linspace, zeros
+from numpy import loadtxt,arctan,pi,arange,array, asarray, linspace, zeros, isnan
 from matplotlib.pyplot import plot
 from .utils import snip,convolve
 import xml.etree.ElementTree as et
@@ -40,10 +40,12 @@ class SpectraXRF(Spectra):
         super().__init__()
 
 class FluoContainer:
-    def __init__(self, symbol, atomic_number, lines ):
+    def __init__(self, symbol, atomic_number, lines, total_counts):
         self.symbol = symbol
         self.atomic_number = atomic_number
         self.lines = lines
+        self.total_counts = total_counts
+        
 
 class SyntheticSpectraXRF(Spectra):
     def __init__(self, rl_atnum_list, skip_element = False):
@@ -115,7 +117,8 @@ class SyntheticSpectraXRF(Spectra):
             yield FluoContainer(
                 symbol = element.attrib["symbol"],
                 atomic_number = element.attrib["atomic_number"],
-                lines = lines
+                lines = lines,
+                total_counts = float(element.attrib["total_counts"])
             )
 
     

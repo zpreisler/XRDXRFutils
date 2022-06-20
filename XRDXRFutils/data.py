@@ -424,10 +424,10 @@ class SyntheticDataXRF(DataXRF):
         self.nbins = nbins
     
     def read(self, outdata_path):
-
+        xm = Xmendeleev()
         if not self.rl_atnum_list:
             raise ValueError("Atomic numbers list required to read the data\nSet 'rl_atnum_list' attribute or initialize a new instance.")
-
+        
         self.rl_atnum_list = sorted(self.rl_atnum_list)
         self.path = outdata_path
         xmso_filenames = []
@@ -441,8 +441,11 @@ class SyntheticDataXRF(DataXRF):
                 # xmso_filenames.append(os.path.join(path, _file))
         xmso_filenames = glob(os.path.join(outdata_path, "*/*.xmso"))
         print(f"Reading SyntXRF data from {outdata_path}")
-        self.metadata["reflayer_elements"] = self.rl_atnum_list
+        # self.metadata["reflayer_elements"] = self.rl_atnum_list
+        self.metadata["reflayer_elements"] = asarray([xm.get_element(item).symbol for item in self.rl_atnum_list],dtype = "object")
+        self.metadata["notes"] = "weight fractions columns ordered like reflayer_elements"
         self.spe_objs = [s for s in self.__read__(xmso_filenames) if s != None]
+        self.get_sim_parameters(local = True)
         self.metadata["path"] = outdata_path
         
         return self
@@ -474,7 +477,7 @@ class SyntheticDataXRF(DataXRF):
         self.energy = self.spe_objs[0].energy
         self._x = self.energy
 
-        self.labels = asarray([l for l in self._get_labels(symbols, lines)])
+        self.labels = asarray([[l for l in self._get_labels(symbols, lines)]])
         labels = []
         for item in zip(symbols, lines):
             labels.append("-".join(item))
@@ -511,12 +514,15 @@ class SyntheticDataXRF(DataXRF):
             self.weight_fractions = zeros((len_data,len(self.rl_atnum_list)))
             self.reflayer_thickness = empty((len_data))
             self.sublayer_thickness = empty((len_data))
+            self.total_counts = empty((len_data))
 
             for i, s in enumerate(self.spe_objs):
                 self.time[i] = s.time
                 self.weight_fractions[i] = s.weight_fractions
                 self.reflayer_thickness[i] = s.reflayer_thickness
                 self.sublayer_thickness[i] = s.sublayer_thickness
+                for fl in s.fluorescence_lines:
+                    self.total_counts[i] += fl.total_counts
             return self
         sp = SimParameters(len_data)
         for i, s in enumerate(self.spe_objs):
@@ -532,16 +538,12 @@ class SyntheticDataXRF(DataXRF):
         
     
     def save_h5(self, filename = None):
-        xm = Xmendeleev()
+        #xm = Xmendeleev()
         if filename == None:
             filename = self.path + '/' + self.name + '.h5'
-        if not hasattr(self,'reflayer_thickness'):
-            self.get_sim_parameters(local = True)
-        if not "reflayer_elements" in self.metadata.keys() and hasattr(self, rl_atnum_list):
-            xm = Xmendeleev()
-            self.metadata["reflayer_elements"] = asarray([xm.get_element(item).symbol for item in self.rl_atnum_list],dtype = "object")
-            self.metadata["notes"] = "weight fractions columns ordered like reflayer_elements"
-        # add new axis
+        # if not "reflayer_elements" in self.metadata.keys() and hasattr(self, rl_atnum_list):
+            # self.metadata["reflayer_elements"] = asarray([xm.get_element(item).symbol for item in self.rl_atnum_list],dtype = "object")
+            # self.metadata["notes"] = "weight fractions columns ordered like reflayer_elements"
         print('Saving:',filename)
         with h5py.File(filename,'w') as f:
 
@@ -555,7 +557,7 @@ class SyntheticDataXRF(DataXRF):
             if hasattr(self,'labels'):
                 dataset = f.create_dataset('labels',data = self.labels)
 
-            for attr in ['reflayer_thickness','sublayer_thickness','weight_fractions','time','energy']:
+            for attr in ['reflayer_thickness','sublayer_thickness','weight_fractions','time','energy', 'total_counts']:
                 if hasattr(self,attr):
                     dataset = f.create_dataset(attr,data = getattr(self,attr))
             
@@ -584,7 +586,7 @@ class SyntheticDataXRF(DataXRF):
             if 'labels' in f:
                 self.labels = f.get('labels')[()]
 
-            for attr in ['reflayer_thickness','sublayer_thickness','weight_fractions','time','energy']:
+            for attr in ['reflayer_thickness','sublayer_thickness','weight_fractions','time','energy', 'total_counts']:
                 if attr in f:
                     setattr(self,attr,f.get(attr)[()])
 
