@@ -1,6 +1,6 @@
 from scipy.optimize import curve_fit
 from numpy import pi, arctan
-from numpy import loadtxt, frombuffer, array, asarray, linspace, arange, trapz, flip, stack, where, zeros, empty, concatenate, append
+from numpy import loadtxt, frombuffer, array, asarray, linspace, arange, trapz, flip, stack, where, zeros, empty, concatenate, append, newaxis, concatenate
 from scipy.interpolate import interp1d
 from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
 from os.path import basename
@@ -478,9 +478,11 @@ class SyntheticDataXRF(DataXRF):
         self._x = self.energy
 
         self.labels = asarray([[l for l in self._get_labels(symbols, lines)]])
+        self.labels = concatenate((self.labels, self.time[newaxis,:,newaxis]),axis = 2)
         labels = []
         for item in zip(symbols, lines):
             labels.append("-".join(item))
+        labels.append('time')
         self.metadata["labels"] = labels
         
         return self
@@ -557,7 +559,7 @@ class SyntheticDataXRF(DataXRF):
             if hasattr(self,'labels'):
                 dataset = f.create_dataset('labels',data = self.labels)
 
-            for attr in ['reflayer_thickness','sublayer_thickness','weight_fractions','time','energy', 'total_counts']:
+            for attr in ['reflayer_thickness','sublayer_thickness','weight_fractions','energy', 'total_counts']:
                 if hasattr(self,attr):
                     dataset = f.create_dataset(attr,data = getattr(self,attr))
             
@@ -586,7 +588,7 @@ class SyntheticDataXRF(DataXRF):
             if 'labels' in f:
                 self.labels = f.get('labels')[()]
 
-            for attr in ['reflayer_thickness','sublayer_thickness','weight_fractions','time','energy', 'total_counts']:
+            for attr in ['reflayer_thickness','sublayer_thickness','weight_fractions','energy', 'total_counts']:
                 if attr in f:
                     setattr(self,attr,f.get(attr)[()])
 
