@@ -112,8 +112,7 @@ class Phase(dict):
     def plot(self, colors = 'red', linestyles = 'dashed', label = None, lineheight = None,
          min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, **kwargs):
 
-        if not hasattr(self, 'theta'):
-            self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity, first_n_peaks = first_n_peaks)
+        self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity, first_n_peaks = first_n_peaks)
 
         if label is None:
             label = self.label
