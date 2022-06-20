@@ -123,6 +123,7 @@ class Phase(dict):
         else:
             vlines(self.theta, 0, lineheight, colors = colors, linestyles = linestyles, label = label, **kwargs)
 
+
 class PhaseList(list):
 #class PhaseList(Phase):
 
@@ -157,11 +158,12 @@ class PhaseList(list):
             phase.set_point(point)
 
 
-    def plot(self, cmap = 'tab10', **kwargs):
+    def plot(self, cmap = 'tab10', min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, **kwargs):
         cmap_sel = cm.get_cmap(cmap)
         for i, phase in enumerate(self):
             idx_color = i % cmap_sel.N
-            phase.plot(colors = cmap_sel(idx_color), **kwargs)
+            phase.plot(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity,
+                first_n_peaks = first_n_peaks, colors = cmap_sel(idx_color), **kwargs)
 
 
     def random(self):
