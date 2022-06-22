@@ -58,7 +58,7 @@ class GammaMap_Secondary(GammaMap):
 
 
     def overlap_area_difference(self):
-        return array([phase_search.overlap_area_difference() for phase_search in self]).reshape(self.shape)
+        return array([gs.overlap_area_difference() for gs in self]).reshape(self.shape)
 
     def overlap_area_compare(self):
-        return array([phase_search.overlap_area_compare() for phase_search in self]).reshape(self.shape)
+        return array([gs.overlap_area_compare() for gs in self]).reshape(self.shape)
