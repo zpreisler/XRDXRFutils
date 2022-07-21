@@ -1,10 +1,11 @@
 from scipy.optimize import curve_fit
 from numpy import pi, arctan
-from numpy import loadtxt, frombuffer, array, asarray, linspace, arange, trapz, flip, stack, where, zeros, empty, concatenate, append, newaxis, concatenate
+from numpy import loadtxt, frombuffer, array, asarray, linspace, arange, trapz, flip, stack, where, zeros, empty, empty_like, concatenate, append, newaxis, concatenate
 from scipy.interpolate import interp1d
 from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
 from os.path import basename
 import os
+import warnings
 from numpy import newaxis
 
 from .calibration import Calibration
@@ -423,6 +424,23 @@ class SyntheticDataXRF(DataXRF):
     def set_nbins(self, nbins):
         self.nbins = nbins
     
+    def resample(self,nbins=1024,bounds=(0,30), attr_name = 'data'):
+        if hasattr(self, attr_name):
+            if attr_name == 'unconv_data':
+                data_backup = self.data
+                self.data = self.unconv_data
+                res = super().resample(nbins, bounds)
+                self.data = data_backup
+                return res
+            elif attr_name == 'data':
+                return super().resample(nbins,bounds)
+            else:
+                warnings.warn(f"Warning: attribute '{attr_name}' is not intended to be resampled. Returning self")
+                return self
+        warnings.warn(f"Warning: {self.__class__.__name__} has no '{attr_name}' attribute. Returning self")
+        return self
+            
+    
     def read(self, outdata_path):
         xm = Xmendeleev()
         if not self.rl_atnum_list:
@@ -458,14 +476,19 @@ class SyntheticDataXRF(DataXRF):
             raise ValueError("Symbols and lines differ in length")
 
         for s in self.spe_objs:
+            #print('spe_obj cycle')
             np_labels = zeros((len(symbols)))
 
             for fluo in s.fluorescence_lines:
-                try:
-                    sym_index = symbols.index(fluo.symbol)
-                    np_labels[sym_index] = fluo.lines[lines[sym_index]]
-                except ValueError:
-                    pass
+                #print('fluo cycle')
+                sym_index = -1
+                while True:
+                    try:
+                        sym_index = symbols.index(fluo.symbol, sym_index+1)
+                        #print('sym_index', sym_index)
+                        np_labels[sym_index] = fluo.lines[lines[sym_index]]
+                    except ValueError:
+                        break
             yield np_labels
     
     def get_data_and_labels(self, symbols, lines):
@@ -473,7 +496,12 @@ class SyntheticDataXRF(DataXRF):
         if not hasattr(self, 'spe_objs'):
             raise RuntimeError("xmso files not read yet")
 
-        self.data = asarray([[s.counts for s in self.spe_objs]])
+        self.data = empty((1,len(self.spe_objs), self.spe_objs[0].channel.shape[0]))
+        self.unconv_data = empty_like(self.data)
+        for i,s in enumerate(self.spe_objs):
+            self.data[0,i,:] = s.counts
+            self.unconv_data[0,i,:] = s.unconv_counts
+        # self.data = asarray([[s.counts for s in self.spe_objs]])
         self.energy = self.spe_objs[0].energy
         self._x = self.energy
 
@@ -555,6 +583,9 @@ class SyntheticDataXRF(DataXRF):
             if hasattr(self,'data'):
                 dataset = f.create_dataset('data',data = self.data)
                 dataset = f.create_dataset('x',data = self.x)
+                
+            if hasattr(self,'unconv_data'):
+                dataset = f.create_dataset('unconv_data',data = self.unconv_data)
 
             if hasattr(self,'labels'):
                 dataset = f.create_dataset('labels',data = self.labels)
@@ -584,6 +615,8 @@ class SyntheticDataXRF(DataXRF):
                     self._x = f.get('x')[()]
                 else:
                     self._x = f.get('energy')[()]
+            if 'unconv_data' in f:
+                self.unconv_data = f.get('unconv_data')[()]
 
             if 'labels' in f:
                 self.labels = f.get('labels')[()]

@@ -1,4 +1,4 @@
-from numpy import loadtxt,arctan,pi,arange,array, asarray, linspace, zeros, isnan
+from numpy import loadtxt,arctan,pi,arange,array, asarray, linspace, zeros, isnan, empty, empty_like
 from matplotlib.pyplot import plot
 from .utils import snip,convolve
 import xml.etree.ElementTree as et
@@ -128,25 +128,36 @@ class SyntheticSpectraXRF(Spectra):
         except et.ParseError:
             print(f"Error while parsing\n{xmso_filename}")
             return None
+        nchannels = int(xml_data.find("./xmimsim-input/detector/nchannels").text)
+        self.counts = empty((nchannels))
+        self.unconv_counts = empty_like(self.counts)
+        self.energy = empty_like(self.counts)
         convoluted = xml_data.find("spectrum_conv")
-        self.energy = asarray([e.text for e in convoluted.findall(".//energy")], dtype=float)
-        if time_correction:
-            self.counts = time_correction * asarray(
-                [c.text for c in convoluted.findall(f".//counts[@interaction_number = '{interaction_number}']")],
-                dtype=float,
-            )
-        else:
-            self.counts = asarray(
-                [c.text for c in convoluted.findall(f".//counts[@interaction_number = '{interaction_number}']")],
-                dtype=float,
-            )
-        if shape:
-            self.counts = self.counts.reshape(*shape)
+        unconvoluted = xml_data.find("spectrum_unconv")
+        for i, d in enumerate(zip(convoluted.findall(".//energy"),
+                                  convoluted.findall(f".//counts[@interaction_number = '{interaction_number}']"),
+                                  unconvoluted.findall(f".//counts[@interaction_number = '{interaction_number}']"))):
+            self.energy[i] = float(d[0].text)
+            self.counts[i] = float(d[1].text)
+            self.unconv_counts[i] = float(d[2].text)
+        # self.energy = asarray([e.text for e in convoluted.findall(".//energy")], dtype=float)
+        # if time_correction:
+            # self.counts = time_correction * asarray(
+                # [c.text for c in convoluted.findall(f".//counts[@interaction_number = '{interaction_number}']")],
+                # dtype=float,
+            # )
+        # else:
+            # self.counts = asarray(
+                # [c.text for c in convoluted.findall(f".//counts[@interaction_number = '{interaction_number}']")],
+                # dtype=float,
+            # )
+        # if shape:
+            # self.counts = self.counts.reshape(*shape)
         
-        if self.nbins:
-            self.energy, self.counts = self.rebin(self.energy, self.counts)
-            #b = self.energy[1] - self.energy[0]
-            #self.counts = self.counts / b
+        # if self.nbins:
+            # self.energy, self.counts = self.rebin(self.energy, self.counts)
+            # #b = self.energy[1] - self.energy[0]
+            # #self.counts = self.counts / b
             
         self.channel = arange(self.counts.__len__(),dtype='int16')
         self.weight_fractions, self.reflayer_thickness, self.sublayer_thickness, self.time = self.get_metadata(xml_data, self.rl_atnum_list, skip = self.skip_element)
