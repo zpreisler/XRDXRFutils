@@ -81,14 +81,20 @@ class GammaSearch(list):
     def overlap_area(self):
         return array([gn.overlap_area() for gn in self])
 
+    def overlap_area_ratio(self):
+        return array([gn.overlap_area_ratio() for gn in self])
+
+    def overlap3_area(self):
+        return array([gn.overlap3_area() for gn in self])
+
+    def overlap3_area_ratio(self):
+        return array([gn.overlap3_area_ratio() for gn in self])
+
     def L1loss(self):
         return array([gn.L1loss() for gn in self])
 
     def MSEloss(self):
         return array([gn.MSEloss() for gn in self])
-
-    def overlap3_area(self):
-        return array([gn.overlap3_area() for gn in self])
 
     def metrics(self):
         return self.L1loss(), self.MSEloss(), self.overlap3_area()
@@ -111,21 +117,7 @@ class GammaSearch(list):
         return (integral_intersection / integral_intensity)
 
 
-class GammaMap(list):
-    """
-    Construct gamma phase maps.
-    """
-    def from_data(self, data, phases, sigma = 0.2, **kwargs):
-
-        self.phases = phases
-        self.shape = (data.shape[0], data.shape[1], -1)
-
-        d = data.shape[0] * data.shape[1]
-        spectra = [FastSpectraXRD().from_Dataf(data, i) for i in range(d)]
-        self += [GammaSearch(phases, spectrum, sigma, **kwargs) for spectrum in spectra]
-
-        return self
-
+class GammaMap_Base(list):
 
     @staticmethod
     def fit_cycle_service(x, kwargs):
@@ -195,6 +187,24 @@ class GammaMap(list):
         return L1loss, MSEloss, overlap3_area
 
 
+    @staticmethod
+    def overlap3_area_ratio_service(x):
+        return x.overlap3_area_ratio()
+
+    def overlap3_area_ratio(self):
+        if system() == 'Darwin':
+            n_cpu = cpu_count()
+            print(f'Using {n_cpu} CPUs')
+            results = Parallel(n_jobs = n_cpu)( delayed(gs.overlap3_area_ratio)() for gs in self )
+        else:
+            n_cpu = cpu_count() - 2
+            print(f'Using {n_cpu} CPUs')
+            with Pool(n_cpu) as p:
+                results = p.map(self.overlap3_area_ratio_service, self)
+        return asarray(results).reshape(self.shape)
+
+
+
     def opt(self):
         return array([gs.opt for gs in self]).reshape(self.shape)
 
@@ -219,6 +229,40 @@ class GammaMap(list):
     def selected(self):
         return array([gs.idx for gs in self]).reshape((self.shape[0], self.shape[1]))
 
+
+class GammaMap_Partial(GammaMap_Base):
+
+    def from_data(self, data, phases, indices_XRF_sel, sigma = 0.2, **kwargs):
+
+        self.phases = phases
+        self.shape = (indices_XRF_sel.sum(), -1)
+
+        spectra = []
+        for x in range(data.shape[1]):
+            for y in range(data.shape[0]):
+                if indices_XRF_sel[y, x]:
+                    spectra.append(FastSpectraXRD().from_Data(data, x, y))
+        self += [GammaSearch(phases, spectrum, sigma, **kwargs) for spectrum in spectra]
+
+        return self
+
+
+class GammaMap(GammaMap_Base):
+    """
+    Construct gamma phase maps.
+    """
+    def from_data(self, data, phases, sigma = 0.2, **kwargs):
+
+        self.phases = phases
+        self.shape = (data.shape[0], data.shape[1], -1)
+
+        d = data.shape[0] * data.shape[1]
+        spectra = [FastSpectraXRD().from_Dataf(data, i) for i in range(d)]
+        self += [GammaSearch(phases, spectrum, sigma, **kwargs) for spectrum in spectra]
+
+        return self
+
+
     def get_x_y(self, i):
         y, x = unravel_index(i, self.shape[:2])
         return x, y
@@ -228,6 +272,7 @@ class GammaMap(list):
 
     def get_pixel(self, x, y):
         return self[self.get_index(x, y)]
+
 
     def select_phases(self, criterion, offset = -8):
         phases_new = []

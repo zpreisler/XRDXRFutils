@@ -319,27 +319,23 @@ class GaussNewton(FastSpectraXRD):
     """
     Evaluation of the results
     """
-    def overlap(self):
-
-        m = minimum(self.z(), self.intensity)
-        m = where(m < 0, 0, m)
-
-        return m
-
     def area(self):
         return self.z().sum()
 
     def area0(self):
         return self.z0().sum()
 
+    def overlap(self):
+        m = minimum(self.z(), self.intensity)
+        m = where(m < 0, 0, m)
+        return m
+
     def overlap_area(self):
         return self.overlap().sum()
 
-    def L1loss(self):
-        return (fabs(self.intensity - self.z())).mean()
-
-    def MSEloss(self):
-        return ((self.intensity - self.z())**2).mean()
+    def overlap_area_ratio(self):
+        intensity_corrected = maximum(self.intensity, 0)
+        return self.overlap_area() / intensity_corrected.sum()
 
     def overlap3(self):
         """
@@ -359,6 +355,16 @@ class GaussNewton(FastSpectraXRD):
 
     def overlap3_area(self):
         return self.overlap3().sum()
+
+    def overlap3_area_ratio(self):
+        intensity3_corrected = maximum(self.intensity3, 0)
+        return self.overlap3_area() / intensity3_corrected.sum()
+
+    def L1loss(self):
+        return (fabs(self.intensity - self.z())).mean()
+
+    def MSEloss(self):
+        return ((self.intensity - self.z())**2).mean()
 
 
     def make_phase(self):
