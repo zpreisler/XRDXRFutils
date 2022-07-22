@@ -425,6 +425,7 @@ class SyntheticDataXRF(DataXRF):
         self.nbins = nbins
     
     def resample(self,nbins=1024,bounds=(0,30), attr_name = 'data'):
+
         if hasattr(self, attr_name):
             if attr_name == 'unconv_data':
                 data_backup = self.data
@@ -457,11 +458,15 @@ class SyntheticDataXRF(DataXRF):
             # # to do: use glob to select xmso files
             # for _file in files:
                 # xmso_filenames.append(os.path.join(path, _file))
-        xmso_filenames = glob(os.path.join(outdata_path, "*/*.xmso"))
+
+        xmso_filenames = glob(os.path.join(outdata_path, "*.xmso"))
+
         print(f"Reading SyntXRF data from {outdata_path}")
         # self.metadata["reflayer_elements"] = self.rl_atnum_list
+
         self.metadata["reflayer_elements"] = asarray([xm.get_element(item).symbol for item in self.rl_atnum_list],dtype = "object")
         self.metadata["notes"] = "weight fractions columns ordered like reflayer_elements"
+
         self.spe_objs = [s for s in self.__read__(xmso_filenames) if s != None]
         self.get_sim_parameters(local = True)
         self.metadata["path"] = outdata_path
@@ -498,18 +503,22 @@ class SyntheticDataXRF(DataXRF):
 
         self.data = empty((1,len(self.spe_objs), self.spe_objs[0].channel.shape[0]))
         self.unconv_data = empty_like(self.data)
+
         for i,s in enumerate(self.spe_objs):
             self.data[0,i,:] = s.counts
             self.unconv_data[0,i,:] = s.unconv_counts
         # self.data = asarray([[s.counts for s in self.spe_objs]])
+
         self.energy = self.spe_objs[0].energy
         self._x = self.energy
 
         self.labels = asarray([[l for l in self._get_labels(symbols, lines)]])
         self.labels = concatenate((self.labels, self.time[newaxis,:,newaxis]),axis = 2)
         labels = []
+
         for item in zip(symbols, lines):
             labels.append("-".join(item))
+
         labels.append('time')
         self.metadata["labels"] = labels
         
@@ -518,7 +527,6 @@ class SyntheticDataXRF(DataXRF):
     def process_file(self, filename):
 
         sxrf = SyntheticSpectraXRF(self.rl_atnum_list, self.skip_element)
-        self.nbins and sxrf.set_nbins(self.nbins)
         s = sxrf.from_file(filename)
 
         return s
@@ -531,6 +539,7 @@ class SyntheticDataXRF(DataXRF):
 
         with Pool() as p:
             results = p.map(self.process_file, xmso_filenames)
+
         return results
     
     def get_sim_parameters(self, local = False):
