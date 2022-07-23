@@ -11,6 +11,7 @@ class Phase(dict):
 
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
+        self.label_set = None
 
     def __len__(self):
         return len(self['_pd_peak_intensity'][0])
@@ -99,6 +100,8 @@ class Phase(dict):
 
     @property
     def label(self):
+        if self.label_set is not None:
+            return self.label_set
         if '_chemical_name_mineral' in self:
             return self['_chemical_name_mineral']
         elif '_chemical_name_common' in self:
