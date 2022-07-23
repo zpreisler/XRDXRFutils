@@ -50,8 +50,8 @@ class GammaMap_Secondary(GammaMap):
         return self
 
 
-    def fit_cycle(self, **kwargs):
-        x = GammaMap_Secondary(self.fit_cycle_core(**kwargs))
+    def fit_cycle(self, verbose = True, **kwargs):
+        x = GammaMap_Secondary(self.fit_cycle_core(verbose, **kwargs))
         x.phases = self.phases
         x.shape = self.shape
         return x

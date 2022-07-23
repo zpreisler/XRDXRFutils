@@ -203,14 +203,14 @@ class ChiMap(GammaMap):
         return self
 
 
-    def fit_cycle(self, **kwargs):
-        x = ChiMap(self.fit_cycle_core(**kwargs))
+    def fit_cycle(self, verbose = True, **kwargs):
+        x = ChiMap(self.fit_cycle_core(verbose, **kwargs))
         x.phases = self.phases
         x.shape = self.shape
         return x
 
-    def search(self):
-        x = ChiMap(self.search_core())
+    def search(self, verbose = True):
+        x = ChiMap(self.search_core(verbose))
         x.phases = self.phases
         x.shape = self.shape
         return x

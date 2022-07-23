@@ -123,20 +123,22 @@ class GammaMap_Base(list):
     def fit_cycle_service(x, kwargs):
         return x.fit_cycle(**kwargs)
 
-    def fit_cycle_core(self, **kwargs):
+    def fit_cycle_core(self, verbose, **kwargs):
         if system() == 'Darwin':
             n_cpu = cpu_count()
-            print(f'Using {n_cpu} CPUs')
+            if verbose:
+                print(f'Using {n_cpu} CPUs')
             result = Parallel(n_jobs = n_cpu)( delayed(gs.fit_cycle)(**kwargs) for gs in self )
         else:
             n_cpu = cpu_count() - 2
-            print(f'Using {n_cpu} CPUs')
+            if verbose:
+                print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
                 result = p.map(partial(self.fit_cycle_service, kwargs = kwargs), self)
         return result
 
-    def fit_cycle(self, **kwargs):
-        x = GammaMap(self.fit_cycle_core(**kwargs))
+    def fit_cycle(self, verbose = True, **kwargs):
+        x = GammaMap(self.fit_cycle_core(verbose, **kwargs))
         x.phases = self.phases
         x.shape = self.shape
         return x
@@ -146,20 +148,22 @@ class GammaMap_Base(list):
     def search_service(x, phase_selected, alpha):
         return x.search(phase_selected = phase_selected, alpha = alpha)
 
-    def search_core(self, phase_selected, alpha):
+    def search_core(self, phase_selected, alpha, verbose):
         if system() == 'Darwin':
             n_cpu = cpu_count()
-            print(f'Using {n_cpu} CPUs')
+            if verbose:
+                print(f'Using {n_cpu} CPUs')
             result = Parallel(n_jobs = n_cpu)( delayed(gs.search)(phase_selected = phase_selected, alpha = alpha) for gs in self )
         else:
             n_cpu = cpu_count() - 2
-            print(f'Using {n_cpu} CPUs')
+            if verbose:
+                print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
                 result = p.map(partial(self.search_service, phase_selected = phase_selected, alpha = alpha), self)
         return result
 
-    def search(self, phase_selected = None, alpha = 1):
-        x = GammaMap(self.search_core(phase_selected = phase_selected, alpha = alpha))
+    def search(self, phase_selected = None, alpha = 1, verbose = True):
+        x = GammaMap(self.search_core(phase_selected = phase_selected, alpha = alpha, verbose = verbose))
         x.phases = self.phases
         x.shape = self.shape
         return x
@@ -169,14 +173,16 @@ class GammaMap_Base(list):
     def metrics_service(x):
         return x.metrics()
 
-    def metrics(self):
+    def metrics(self, verbose = True):
         if system() == 'Darwin':
             n_cpu = cpu_count()
-            print(f'Using {n_cpu} CPUs')
+            if verbose:
+                print(f'Using {n_cpu} CPUs')
             results = Parallel(n_jobs = n_cpu)( delayed(gs.metrics)() for gs in self )
         else:
             n_cpu = cpu_count() - 2
-            print(f'Using {n_cpu} CPUs')
+            if verbose:
+                print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
                 results = p.map(self.metrics_service, self)
 
@@ -191,14 +197,16 @@ class GammaMap_Base(list):
     def overlap3_area_ratio_service(x):
         return x.overlap3_area_ratio()
 
-    def overlap3_area_ratio(self):
+    def overlap3_area_ratio(self, verbose = True):
         if system() == 'Darwin':
             n_cpu = cpu_count()
-            print(f'Using {n_cpu} CPUs')
+            if verbose:
+                print(f'Using {n_cpu} CPUs')
             results = Parallel(n_jobs = n_cpu)( delayed(gs.overlap3_area_ratio)() for gs in self )
         else:
             n_cpu = cpu_count() - 2
-            print(f'Using {n_cpu} CPUs')
+            if verbose:
+                print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
                 results = p.map(self.overlap3_area_ratio_service, self)
         return asarray(results).reshape(self.shape)
