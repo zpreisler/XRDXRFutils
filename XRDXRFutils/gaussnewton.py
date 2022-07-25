@@ -3,7 +3,8 @@ from .spectra import SpectraXRD, FastSpectraXRD
 from .database import Phase,PhaseList
 
 from numpy import (fabs, sum, exp, log, sin, pi, array, ones, zeros, full, full_like, trapz, minimum,
-    maximum, std, sign, sqrt, square, average, clip, newaxis, concatenate, append, where, arange)
+    maximum, nanmax, std, sign, sqrt, square, average, clip, newaxis, concatenate, append,
+    where, arange)
 from numpy.linalg import pinv, inv
 
 from scipy.optimize import newton
@@ -400,7 +401,7 @@ class GaussNewton(FastSpectraXRD):
             I_new = I_new[mask_theta]
 
             # Calculates d, i
-            I_new /= I_new.max()
+            I_new /= nanmax(I_new)
             i = I_new * 1000
             d = 1.541874 / (2 * sin(pi * mu / 360))
 
