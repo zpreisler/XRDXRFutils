@@ -137,12 +137,6 @@ class GammaMap_Base(list):
                 result = p.map(partial(self.fit_cycle_service, kwargs = kwargs), self)
         return result
 
-    def fit_cycle(self, verbose = True, **kwargs):
-        x = GammaMap(self.fit_cycle_core(verbose, **kwargs))
-        x.phases = self.phases
-        x.shape = self.shape
-        return x
-
 
     @staticmethod
     def search_service(x, phase_selected, alpha):
@@ -161,12 +155,6 @@ class GammaMap_Base(list):
             with Pool(n_cpu) as p:
                 result = p.map(partial(self.search_service, phase_selected = phase_selected, alpha = alpha), self)
         return result
-
-    def search(self, phase_selected = None, alpha = 1, verbose = True):
-        x = GammaMap(self.search_core(phase_selected = phase_selected, alpha = alpha, verbose = verbose))
-        x.phases = self.phases
-        x.shape = self.shape
-        return x
 
 
     @staticmethod
@@ -212,7 +200,6 @@ class GammaMap_Base(list):
         return asarray(results).reshape(self.shape)
 
 
-
     def opt(self):
         return array([gs.opt for gs in self]).reshape(self.shape)
 
@@ -240,19 +227,47 @@ class GammaMap_Base(list):
 
 class GammaMap_Partial(GammaMap_Base):
 
-    def from_data(self, data, phases, indices_XRF_sel, sigma = 0.2, **kwargs):
+    def from_data(self, data, phases, indices_sel, sigma = 0.2, **kwargs):
 
         self.phases = phases
-        self.shape = (indices_XRF_sel.sum(), -1)
+        self.shape = (indices_sel.sum(), -1)
+        self.coordinates = []
 
         spectra = []
         for x in range(data.shape[1]):
             for y in range(data.shape[0]):
-                if indices_XRF_sel[y, x]:
+                if indices_sel[y, x]:
                     spectra.append(FastSpectraXRD().from_Data(data, x, y))
+                    self.coordinates.append((x, y))
         self += [GammaSearch(phases, spectrum, sigma, **kwargs) for spectrum in spectra]
 
         return self
+
+
+    def fit_cycle(self, verbose = True, **kwargs):
+        x = GammaMap_Partial(self.fit_cycle_core(verbose, **kwargs))
+        x.phases = self.phases
+        x.shape = self.shape
+        x.coordinates = self.coordinates
+        return x
+
+
+    def search(self, phase_selected = None, alpha = 1, verbose = True):
+        x = GammaMap_Partial(self.search_core(phase_selected = phase_selected, alpha = alpha, verbose = verbose))
+        x.phases = self.phases
+        x.shape = self.shape
+        x.coordinates = self.coordinates
+        return x
+
+
+    def get_x_y(self, i):
+        return self.coordinates[i]
+
+    def get_index(self, x, y):
+        return self.coordinates.index((x, y))
+
+    def get_pixel(self, x, y):
+        return self[self.get_index(x, y)]
 
 
 class GammaMap(GammaMap_Base):
@@ -269,6 +284,20 @@ class GammaMap(GammaMap_Base):
         self += [GammaSearch(phases, spectrum, sigma, **kwargs) for spectrum in spectra]
 
         return self
+
+
+    def fit_cycle(self, verbose = True, **kwargs):
+        x = GammaMap(self.fit_cycle_core(verbose, **kwargs))
+        x.phases = self.phases
+        x.shape = self.shape
+        return x
+
+
+    def search(self, phase_selected = None, alpha = 1, verbose = True):
+        x = GammaMap(self.search_core(phase_selected = phase_selected, alpha = alpha, verbose = verbose))
+        x.phases = self.phases
+        x.shape = self.shape
+        return x
 
 
     def get_x_y(self, i):
