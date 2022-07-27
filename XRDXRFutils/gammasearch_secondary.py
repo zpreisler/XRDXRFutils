@@ -30,7 +30,7 @@ class GammaSearch_Secondary(GammaSearch):
         return overlaps_difference.sum(axis = 1)
 
 
-    def overlap_area_compare(self):
+    def overlap_area_difference_ratio(self):
         intensity_corrected = where(self.intensity < 0, 0, self.intensity)
         integral_intensity = intensity_corrected.sum()
         return self.overlap_area_difference() / integral_intensity
@@ -60,5 +60,5 @@ class GammaMap_Secondary(GammaMap):
     def overlap_area_difference(self):
         return array([gs.overlap_area_difference() for gs in self]).reshape(self.shape)
 
-    def overlap_area_compare(self):
-        return array([gs.overlap_area_compare() for gs in self]).reshape(self.shape)
+    def overlap_area_difference_ratio(self):
+        return array([gs.overlap_area_difference_ratio() for gs in self]).reshape(self.shape)
