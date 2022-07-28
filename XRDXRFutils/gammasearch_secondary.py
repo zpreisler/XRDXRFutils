@@ -39,7 +39,7 @@ class GammaSearch_Secondary(GammaSearch):
 class GammaMap_Secondary(GammaMap):
 
     def from_data(self, gammamap_1, data, phases, sigma = 0.2, **kwargs):
-
+        self.primary_phases = gammamap_1.phases
         self.phases = phases
         self.shape = (data.shape[0], data.shape[1], -1)
 
@@ -52,6 +52,7 @@ class GammaMap_Secondary(GammaMap):
 
     def fit_cycle(self, verbose = True, **kwargs):
         x = GammaMap_Secondary(self.fit_cycle_core(verbose, **kwargs))
+        x.primary_phases = self.primary_phases
         x.phases = self.phases
         x.shape = self.shape
         return x
