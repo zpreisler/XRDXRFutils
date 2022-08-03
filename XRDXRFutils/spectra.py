@@ -241,21 +241,28 @@ class FastSpectraXRD():
 
 
     def from_Dataf(self, data, i):
+        return self.from_components(
+            opt = data.opt.copy(),
+            counts = data.data.reshape(-1, data.shape[2])[i],
+            rescaling = data.rescaling.flatten()[i],
+            intensity = data.intensity.reshape(-1, data.shape[2])[i]
+        )
 
-        self.opt = data.opt.copy()
 
-        self.counts = data.data.reshape(-1, data.shape[2])[i]
-        self.rescaling = data.rescaling.flatten()[i]
-        self.intensity = data.intensity.reshape(-1, data.shape[2])[i]
+    def from_components(self, opt, counts, rescaling, intensity):
+        self.opt = opt
+        self.counts = counts
+        self.rescaling = rescaling
+        self.intensity = intensity
 
         self.intensity1 = 0.5 * (self.intensity[::2] + self.intensity[1::2])
         self.intensity2 = 0.5 * (self.intensity1[::2] + self.intensity1[1::2])
         self.intensity3 = 0.5 * (self.intensity2[::2] + self.intensity2[1::2])
 
-        self.channel = arange(data.shape[2])
-        self.channel1 = arange(0.5, data.shape[2], 2)
-        self.channel2 = arange(1.5, data.shape[2], 4)
-        self.channel3 = arange(3.5, data.shape[2], 8)
+        self.channel = arange(len(counts))
+        self.channel1 = arange(0.5, len(counts), 2)
+        self.channel2 = arange(1.5, len(counts), 4)
+        self.channel3 = arange(3.5, len(counts), 8)
 
         return self
 
