@@ -217,7 +217,21 @@ class DatabaseXRD(dict):
                 self[key] = PhaseList([phase], label = i)
                 i += 1
 
+        self.fix_chemical_formula()
         return self
+
+
+    def fix_chemical_formula(self):
+        for p_set in self.values():
+            is_found_formula = False
+            for i, p in enumerate(p_set):
+                if '_chemical_formula_sum' in p:
+                    is_found_formula = True
+                    break
+            if is_found_formula:
+                for p in p_set:
+                    if '_chemical_formula_sum' not in p:
+                        p['_chemical_formula_sum'] = p_set[i]['_chemical_formula_sum']
 
 
     def random(self):
