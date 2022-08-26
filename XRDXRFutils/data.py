@@ -73,6 +73,8 @@ class Data():
 
     def __init__(self):
         self.metadata = {}
+        self.check_attributes = []
+
 
     @staticmethod
     def fce_calibration(x,a,b):
@@ -125,7 +127,7 @@ class Data():
         print('Done.')
         return self
 
-    def smooth(self, offset_background, std_smooth):
+    def smooth_channels(self, offset_background, std_smooth):
         background_shifted = self.background + offset_background
         data_no_bg = maximum(self.data - background_shifted, 0)
         data_smoothed = convolve3d(data_no_bg, n = ceil(3 * std_smooth + 1), std = std_smooth)
@@ -149,7 +151,7 @@ class Data():
                 dataset = f.create_dataset('data', data = self.data)
                 dataset = f.create_dataset('x', data = self.x)
 
-            for attr in ['labels', 'weights', 'background', 'signal_background_ratio', 'rescaling', 'intensity']:
+            for attr in ['labels', 'weights'] + self.check_attributes:
                 if hasattr(self, attr):
                     dataset = f.create_dataset(attr, data = getattr(self, attr))
             
@@ -172,7 +174,7 @@ class Data():
                 self.data = f.get('data')[()]
                 self._x = f.get('x')[()]
 
-            for attr in ['labels', 'weights', 'background', 'signal_background_ratio', 'rescaling', 'intensity']:
+            for attr in ['labels', 'weights'] + self.check_attributes:
                 if attr in f:
                     setattr(self, attr, f.get(attr)[()])
 
@@ -618,7 +620,7 @@ class DataXRD(Data):
 
     def __init__(self):
         super().__init__()
-        self.check_attributes = ['background', 'signal_background_ratio', 'rescaling', 'intensity']
+        self.check_attributes += ['background', 'signal_background_ratio', 'rescaling', 'intensity']
 
     @staticmethod
     def fce_calibration(x,a,s,beta):
@@ -666,7 +668,7 @@ class DataXRD(Data):
         self.data = z[::-1,::-1]
 
 
-    def generate_smooth(self, step = 2, method = 'mean'):
+    def generate_spatial_smooth(self, step = 2, method = 'mean'):
         if method not in ['mean', 'max']:
             raise Exception('Invalid method parameter')
 
