@@ -3,7 +3,7 @@ from scipy.interpolate import interp1d
 from math import ceil
 from numpy import (pi, arctan, loadtxt, frombuffer, array, asarray,
     linspace, arange, trapz, flip, stack, where, zeros, empty, unravel_index,
-    ravel_multi_index, concatenate, append, maximum, nanmax)
+    ravel_multi_index, concatenate, append, maximum, nanmax, rot90)
 from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
 from os.path import basename
 import os
@@ -134,6 +134,13 @@ class Data():
         data_smoothed = convolve3d(data_no_bg, n = ceil(3 * std_smooth + 1), std = std_smooth)
         self.rescaling = nanmax(data_smoothed, axis = 2, keepdims = True)
         self.intensity = data_smoothed / self.rescaling
+        return self
+
+
+    def rotate(self, k):
+        for name_attr in ['data', 'labels', 'weights', 'background', 'rescaling', 'intensity', 'signal_background_ratio']:
+            if hasattr(self, name_attr):
+                setattr(self, name_attr, rot90(getattr(self, name_attr), k = k, axes = (0, 1)))
         return self
 
 
