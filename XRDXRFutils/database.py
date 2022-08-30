@@ -11,6 +11,7 @@ class Phase(dict):
 
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
+        self.label_set = None
 
     def __len__(self):
         return len(self['_pd_peak_intensity'][0])
@@ -99,6 +100,8 @@ class Phase(dict):
 
     @property
     def label(self):
+        if self.label_set is not None:
+            return self.label_set
         if '_chemical_name_mineral' in self:
             return self['_chemical_name_mineral']
         elif '_chemical_name_common' in self:
@@ -214,7 +217,21 @@ class DatabaseXRD(dict):
                 self[key] = PhaseList([phase], label = i)
                 i += 1
 
+        self.fix_chemical_formula()
         return self
+
+
+    def fix_chemical_formula(self):
+        for p_set in self.values():
+            is_found_formula = False
+            for i, p in enumerate(p_set):
+                if '_chemical_formula_sum' in p:
+                    is_found_formula = True
+                    break
+            if is_found_formula:
+                for p in p_set:
+                    if '_chemical_formula_sum' not in p:
+                        p['_chemical_formula_sum'] = p_set[i]['_chemical_formula_sum']
 
 
     def random(self):

@@ -81,14 +81,20 @@ class GammaSearch(list):
     def overlap_area(self):
         return array([gn.overlap_area() for gn in self])
 
+    def overlap_area_ratio(self):
+        return array([gn.overlap_area_ratio() for gn in self])
+
+    def overlap3_area(self):
+        return array([gn.overlap3_area() for gn in self])
+
+    def overlap3_area_ratio(self):
+        return array([gn.overlap3_area_ratio() for gn in self])
+
     def L1loss(self):
         return array([gn.L1loss() for gn in self])
 
     def MSEloss(self):
         return array([gn.MSEloss() for gn in self])
-
-    def overlap3_area(self):
-        return array([gn.overlap3_area() for gn in self])
 
     def metrics(self):
         return self.L1loss(), self.MSEloss(), self.overlap3_area()
@@ -111,80 +117,60 @@ class GammaSearch(list):
         return (integral_intersection / integral_intensity)
 
 
-class GammaMap(list):
-    """
-    Construct gamma phase maps.
-    """
-    def from_data(self, data, phases, sigma = 0.2, **kwargs):
-
-        self.phases = phases
-        self.shape = (data.shape[0], data.shape[1], -1)
-
-        d = data.shape[0] * data.shape[1]
-        spectra = [FastSpectraXRD().from_Dataf(data, i) for i in range(d)]
-        self += [GammaSearch(phases, spectrum, sigma, **kwargs) for spectrum in spectra]
-
-        return self
-
+class GammaMap_Base(list):
 
     @staticmethod
     def fit_cycle_service(x, kwargs):
         return x.fit_cycle(**kwargs)
 
-    def fit_cycle_core(self, **kwargs):
+    def fit_cycle_core(self, verbose, **kwargs):
         if system() == 'Darwin':
             n_cpu = cpu_count()
-            print(f'Using {n_cpu} CPUs')
+            if verbose:
+                print(f'Using {n_cpu} CPUs')
             result = Parallel(n_jobs = n_cpu)( delayed(gs.fit_cycle)(**kwargs) for gs in self )
         else:
             n_cpu = cpu_count() - 2
-            print(f'Using {n_cpu} CPUs')
+            if verbose:
+                print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
                 result = p.map(partial(self.fit_cycle_service, kwargs = kwargs), self)
         return result
-
-    def fit_cycle(self, **kwargs):
-        x = GammaMap(self.fit_cycle_core(**kwargs))
-        x.phases = self.phases
-        x.shape = self.shape
-        return x
 
 
     @staticmethod
     def search_service(x, phase_selected, alpha):
         return x.search(phase_selected = phase_selected, alpha = alpha)
 
-    def search_core(self, phase_selected, alpha):
+    def search_core(self, phase_selected, alpha, verbose):
         if system() == 'Darwin':
             n_cpu = cpu_count()
-            print(f'Using {n_cpu} CPUs')
+            if verbose:
+                print(f'Using {n_cpu} CPUs')
             result = Parallel(n_jobs = n_cpu)( delayed(gs.search)(phase_selected = phase_selected, alpha = alpha) for gs in self )
         else:
             n_cpu = cpu_count() - 2
-            print(f'Using {n_cpu} CPUs')
+            if verbose:
+                print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
                 result = p.map(partial(self.search_service, phase_selected = phase_selected, alpha = alpha), self)
         return result
-
-    def search(self, phase_selected = None, alpha = 1):
-        x = GammaMap(self.search_core(phase_selected = phase_selected, alpha = alpha))
-        x.phases = self.phases
-        x.shape = self.shape
-        return x
 
 
     @staticmethod
     def metrics_service(x):
         return x.metrics()
 
-    def metrics(self):
+    def metrics(self, verbose = True):
         if system() == 'Darwin':
             n_cpu = cpu_count()
-            print(f'Using {n_cpu} CPUs')
+            if verbose:
+                print(f'Using {n_cpu} CPUs')
             results = Parallel(n_jobs = n_cpu)( delayed(gs.metrics)() for gs in self )
         else:
             n_cpu = cpu_count() - 2
-            print(f'Using {n_cpu} CPUs')
+            if verbose:
+                print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
                 results = p.map(self.metrics_service, self)
 
@@ -193,6 +179,25 @@ class GammaMap(list):
         MSEloss = results[:,1,:].reshape(self.shape)
         overlap3_area = results[:,2,:].reshape(self.shape)
         return L1loss, MSEloss, overlap3_area
+
+
+    @staticmethod
+    def overlap3_area_ratio_service(x):
+        return x.overlap3_area_ratio()
+
+    def overlap3_area_ratio(self, verbose = True):
+        if system() == 'Darwin':
+            n_cpu = cpu_count()
+            if verbose:
+                print(f'Using {n_cpu} CPUs')
+            results = Parallel(n_jobs = n_cpu)( delayed(gs.overlap3_area_ratio)() for gs in self )
+        else:
+            n_cpu = cpu_count() - 2
+            if verbose:
+                print(f'Using {n_cpu} CPUs')
+            with Pool(n_cpu) as p:
+                results = p.map(self.overlap3_area_ratio_service, self)
+        return asarray(results).reshape(self.shape)
 
 
     def opt(self):
@@ -219,6 +224,82 @@ class GammaMap(list):
     def selected(self):
         return array([gs.idx for gs in self]).reshape((self.shape[0], self.shape[1]))
 
+
+class GammaMap_Partial(GammaMap_Base):
+
+    def from_data(self, data, phases, indices_sel, sigma = 0.2, **kwargs):
+
+        self.phases = phases
+        self.shape = (indices_sel.sum(), -1)
+        self.coordinates = []
+
+        spectra = []
+        for x in range(data.shape[1]):
+            for y in range(data.shape[0]):
+                if indices_sel[y, x]:
+                    spectra.append(FastSpectraXRD().from_Data(data, x, y))
+                    self.coordinates.append((x, y))
+        self += [GammaSearch(phases, spectrum, sigma, **kwargs) for spectrum in spectra]
+
+        return self
+
+
+    def fit_cycle(self, verbose = True, **kwargs):
+        x = GammaMap_Partial(self.fit_cycle_core(verbose, **kwargs))
+        x.phases = self.phases
+        x.shape = self.shape
+        x.coordinates = self.coordinates
+        return x
+
+
+    def search(self, phase_selected = None, alpha = 1, verbose = True):
+        x = GammaMap_Partial(self.search_core(phase_selected = phase_selected, alpha = alpha, verbose = verbose))
+        x.phases = self.phases
+        x.shape = self.shape
+        x.coordinates = self.coordinates
+        return x
+
+
+    def get_x_y(self, i):
+        return self.coordinates[i]
+
+    def get_index(self, x, y):
+        return self.coordinates.index((x, y))
+
+    def get_pixel(self, x, y):
+        return self[self.get_index(x, y)]
+
+
+class GammaMap(GammaMap_Base):
+    """
+    Construct gamma phase maps.
+    """
+    def from_data(self, data, phases, sigma = 0.2, **kwargs):
+
+        self.phases = phases
+        self.shape = (data.shape[0], data.shape[1], -1)
+
+        d = data.shape[0] * data.shape[1]
+        spectra = [FastSpectraXRD().from_Dataf(data, i) for i in range(d)]
+        self += [GammaSearch(phases, spectrum, sigma, **kwargs) for spectrum in spectra]
+
+        return self
+
+
+    def fit_cycle(self, verbose = True, **kwargs):
+        x = GammaMap(self.fit_cycle_core(verbose, **kwargs))
+        x.phases = self.phases
+        x.shape = self.shape
+        return x
+
+
+    def search(self, phase_selected = None, alpha = 1, verbose = True):
+        x = GammaMap(self.search_core(phase_selected = phase_selected, alpha = alpha, verbose = verbose))
+        x.phases = self.phases
+        x.shape = self.shape
+        return x
+
+
     def get_x_y(self, i):
         y, x = unravel_index(i, self.shape[:2])
         return x, y
@@ -228,6 +309,7 @@ class GammaMap(list):
 
     def get_pixel(self, x, y):
         return self[self.get_index(x, y)]
+
 
     def select_phases(self, criterion, offset = -8):
         phases_new = []
