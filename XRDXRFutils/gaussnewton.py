@@ -32,26 +32,7 @@ class GaussNewton(FastSpectraXRD):
         self.kwargs = kwargs
 
         self.label = phase.label
-
-        """
-        Spectrum
-        """
-
         self.opt = spectrum.opt.copy()
-
-        # Variables along the channels
-
-        self.channel = spectrum.channel
-        self.intensity = spectrum.intensity
-
-        self.channel1 = spectrum.channel1
-        self.intensity1 = spectrum.intensity1
-
-        self.channel2 = spectrum.channel2
-        self.intensity2 = spectrum.intensity2
-
-        self.channel3 = spectrum.channel3
-        self.intensity3 = spectrum.intensity3
 
         """
         Phases
@@ -59,15 +40,14 @@ class GaussNewton(FastSpectraXRD):
         tabulated theta: mu
         tabulated intensity: I
         """
+        # Variables along the diffraction lines
         self.mu, self.I = self.get_theta(**kwargs)
         self.n_peaks = self.mu.shape[0]
-        # Variables along the diffraction lines
 
         """
         parameters g, tau --> gamma, sigma^2
         """
         # Variables along the diffraction lines
-
         self.g = full((1, self.n_peaks), self.iw(1))
         self.tau = full((1, self.n_peaks), sigma)
         
@@ -103,6 +83,16 @@ class GaussNewton(FastSpectraXRD):
     def sigma2(self):
         return self.u(self.tau)
 
+
+    @property
+    def channel(self):
+        return self.spectrum.channel
+
+    @property
+    def intensity(self):
+        return self.spectrum.intensity
+
+
     """
     Plot functions
     """
@@ -121,20 +111,18 @@ class GaussNewton(FastSpectraXRD):
     def theta_range(self):
         return super().theta_range().squeeze()
 
+
     def z(self):
         """
         Synthetic spectrum.
         """
-        theta = self.theta[:,newaxis]
-
-        mu = self.mu[newaxis,:]
-        I = self.I[newaxis,:]
+        mu = self.mu[newaxis, :]
+        I = self.I[newaxis, :]
+        theta = self.theta[:, newaxis]
 
         component_core = exp((theta - mu)**2 / (-2 * self.sigma2))
         component_full = I * self.gamma * component_core
-
         x = component_full.sum(axis = 1)
-
         return x
 
     def z0(self):
@@ -143,17 +131,24 @@ class GaussNewton(FastSpectraXRD):
         """
         mu = self.mu[newaxis, :]
         I = self.I[newaxis, :]
+        theta = self.theta[:, newaxis]
 
-        theta = self.theta[:,newaxis]
         component_core = exp((theta - mu)**2 / (-2 * self.sigma2))
-
         x = (I * component_core).sum(axis = 1)
-
         return x
+
 
     """
     Calculations for fit
     """
+    def downsample(self, level):
+        self.spectrum.downsample(level)
+
+    @property
+    def downsample_level(self):
+        return self.spectrum.downsample_level
+
+
     def calculate_components(self):
 
         self.theta_calc = self.theta[:,newaxis]
@@ -165,19 +160,20 @@ class GaussNewton(FastSpectraXRD):
         self.component_core = exp((self.theta_calc - mu)**2 / (-2 * self.sigma2_calc))
         self.component_full = I * self.gamma * self.component_core
 
-    def del_components(self):
 
+    def del_components(self):
         del self.theta_calc
         del self.sigma2_calc
         del self.component_full
         del self.component_core
+
 
     def der_f_a_s_beta(self):
 
         mu = self.mu[newaxis,:]
         channel = self.channel[:, newaxis]
 
-        a,s,beta = self.opt
+        a, s, beta = self.opt
 
         der_theta_a = (180 / pi) * s / ((channel + a)**2 + s**2)
         der_theta_s = (-180 / pi) * (channel + a) / ((channel + a)**2 + s**2)
@@ -195,7 +191,7 @@ class GaussNewton(FastSpectraXRD):
         mu = self.mu[newaxis,:]
         channel = self.channel[:, newaxis]
 
-        a,s,beta = self.opt
+        a, s, beta = self.opt
 
         der_theta_a = (180 / pi) * (b - k * channel) / ( (channel + a)**2 + (k * a + b)**2 )
 
@@ -207,16 +203,14 @@ class GaussNewton(FastSpectraXRD):
 
 
     def der_f_g(self):
-
         I = self.I[newaxis,:]
-
         return I * self.component_core * self.der_w(self.g)
 
+
     def der_f_tau(self):
-
         mu = self.mu[newaxis,:]
-
         return self.component_full * ((self.theta_calc - mu)**2 / (2 * self.sigma2_calc**2)) * self.der_u(self.tau)
+
 
     def fit(self, k = None, b = None, a = False, s = False, beta = False, gamma = False, sigma = False, alpha = 1, downsample = None):
         """
@@ -224,22 +218,12 @@ class GaussNewton(FastSpectraXRD):
         If you set k and b, parameters a and s are used in optimization (you don't need to explicitly set them to True) and are tied by the relation given by k and b.
         """
 
-        if downsample == 1:
-            self.intensity = self.intensity1
-            self.channel = self.channel1
-
-        elif downsample == 2:
-            self.intensity = self.intensity2
-            self.channel = self.channel2
-
-        elif downsample == 3:
-            self.intensity = self.intensity3
-            self.channel = self.channel3
+        if downsample is not None:
+            downsample_initial = self.downsample_level
+            self.downsample(downsample)
 
         is_used_relation = ((k is not None) and (b is not None))
-
         if is_used_relation:
-
             a = True
             s = False
 
@@ -257,7 +241,6 @@ class GaussNewton(FastSpectraXRD):
         else:
             if (n_opt > 0):
                 der_f_a, der_f_s, der_f_beta = self.der_f_a_s_beta()
-
 
         if a:
             Jacobian_construction.append(der_f_a)
@@ -280,7 +263,7 @@ class GaussNewton(FastSpectraXRD):
         """
         Iterate
         """
-        y = self.intensity[:,newaxis]
+        y = self.intensity[:, newaxis]
         f = self.component_full.sum(axis = 1, keepdims = True)
         r = y - f
 
@@ -305,9 +288,9 @@ class GaussNewton(FastSpectraXRD):
             self.tau += d_params[(n_opt + n_gamma) :].T
 
         self.del_components()
-
-        self.channel = self.spectrum.channel
-        self.intensity = self.spectrum.intensity
+        
+        if downsample is not None:
+            self.downsample(downsample_initial)
 
         return self
 
@@ -326,40 +309,38 @@ class GaussNewton(FastSpectraXRD):
     def area0(self):
         return self.z0().sum()
 
-    def overlap(self):
+
+    def overlap(self, downsample = None):
+        if downsample is not None:
+            downsample_initial = self.downsample_level
+            self.downsample(downsample)
+
         m = minimum(self.z(), self.intensity)
         m = where(m < 0, 0, m)
+
+        if downsample is not None:
+            self.downsample(downsample_initial)
+
         return m
 
-    def overlap_area(self):
-        return self.overlap().sum()
 
-    def overlap_area_ratio(self):
+    def overlap_area(self, downsample = None):
+        return self.overlap(downsample).sum()
+
+
+    def overlap_area_ratio(self, downsample = None):
+        if downsample is not None:
+            downsample_initial = self.downsample_level
+            self.downsample(downsample)
+
         intensity_corrected = maximum(self.intensity, 0)
-        return self.overlap_area() / intensity_corrected.sum()
+        overlap = self.overlap_area() / intensity_corrected.sum()
 
-    def overlap3(self):
-        """
-        Noise reduction for the overlap
-        """
+        if downsample is not None:
+            self.downsample(downsample_initial)
 
-        self.channel = self.channel3
-        self.intensity = self.intensity3
+        return overlap
 
-        m = minimum(self.z(), self.intensity)
-        m = where(m < 0, 0, m)
-
-        self.channel = self.spectrum.channel
-        self.intensity = self.spectrum.intensity
-
-        return m
-
-    def overlap3_area(self):
-        return self.overlap3().sum()
-
-    def overlap3_area_ratio(self):
-        intensity3_corrected = maximum(self.intensity3, 0)
-        return self.overlap3_area() / intensity3_corrected.sum()
 
     def L1loss(self):
         return (fabs(self.intensity - self.z())).mean()

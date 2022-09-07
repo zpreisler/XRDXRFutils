@@ -157,12 +157,9 @@ class SpectraXRD(Spectra):
     def from_array(self, x):
         self.counts = x
         self.channel = arange(self.counts.__len__(), dtype = 'int')
-
-        #self.calculate_signals()
         return self
 
     def from_file(self, filename):
-
         counts = loadtxt(filename, unpack = True, dtype = 'int', usecols = 1)
         return self.from_array(counts)
 
@@ -194,6 +191,11 @@ class SpectraXRD(Spectra):
         self.intensity = counts / self.rescaling
 
         return self
+
+
+    def downsample(self, level):   # Added for compatibility with FastSpectraXRD
+        pass
+
 
     def calibrate_from_parameters(self, opt):
 
@@ -253,18 +255,38 @@ class FastSpectraXRD():
         self.opt = opt
         self.counts = counts
         self.rescaling = rescaling
-        self.intensity = intensity
 
-        self.intensity1 = 0.5 * (self.intensity[::2] + self.intensity[1::2])
-        self.intensity2 = 0.5 * (self.intensity1[::2] + self.intensity1[1::2])
-        self.intensity3 = 0.5 * (self.intensity2[::2] + self.intensity2[1::2])
+        self.downsample_max = 3
+        self.downsample_level = 0
 
-        self.channel = arange(len(counts))
-        self.channel1 = arange(0.5, len(counts), 2)
-        self.channel2 = arange(1.5, len(counts), 4)
-        self.channel3 = arange(3.5, len(counts), 8)
+        # Downsample levels: 0 (original sampling) up to self.downsample_max
+        # The n. of channels is divided by 2 ^ downsample_level
+
+        self.intensity_downsampled = [intensity]
+        for i in range(self.downsample_max):
+            self.intensity_downsampled.append(0.5 * (self.intensity_downsampled[i][::2] + self.intensity_downsampled[i][1::2]))
+
+        self.channel_downsampled = []
+        for i in range(self.downsample_max + 1):
+            self.channel_downsampled.append(arange((2**i - 1) / 2, len(counts), 2**i))
 
         return self
+
+
+    def downsample(self, level):
+        if (level >= 0 and level <= self.downsample_max):
+            self.downsample_level = level
+        else:
+            print('Invalid level for downsample. Keeping present downsample level.')
+
+
+    @property
+    def channel(self):
+        return self.channel_downsampled[self.downsample_level]
+
+    @property
+    def intensity(self):
+        return self.intensity_downsampled[self.downsample_level]
 
 
     @staticmethod
@@ -283,5 +305,5 @@ class FastSpectraXRD():
         x = array([self.channel[0], self.channel[-1]])
         return self.fce_calibration(x, *self.opt)
 
-    def plot(self,*args,**kwargs):
-        plot(self.theta,self.intensity,*args,**kwargs)
+    def plot(self, *args, **kwargs):
+        plot(self.theta, self.intensity, *args, **kwargs)
