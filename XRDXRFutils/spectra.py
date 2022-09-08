@@ -4,6 +4,7 @@ from matplotlib.pyplot import plot
 import xml.etree.ElementTree as et
 from scipy.interpolate import interp1d
 from re import sub as re_sub
+import warnings
 
 from .utils import snip, convolve
 from .calibration import Calibration
@@ -38,9 +39,6 @@ class Spectra():
 
 
 class SpectraXRF(Spectra):
-    # def __init__(self):
-    #     super().__init__()
-
     def from_spe(self, filename):
         is_found = False
 
@@ -57,7 +55,7 @@ class SpectraXRF(Spectra):
                 counts = asarray([int(n) for l in lines for n in re_sub(' +', ' ', l).split()])
                 return self.from_array(counts)
             else:
-                print(f'Unknown data format in file \'{filename}\'')
+                warnings.warn(f'Unknown data format in file \'{filename}\'')
                 return None
 
 
