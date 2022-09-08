@@ -1,36 +1,65 @@
-from numpy import loadtxt,arctan,pi,arange,array, asarray, linspace, zeros
+from numpy import loadtxt, arctan, pi, arange, array, asarray, linspace, zeros, maximum
+from math import ceil
 from matplotlib.pyplot import plot
-from .utils import snip,convolve
 import xml.etree.ElementTree as et
 from scipy.interpolate import interp1d
+from re import sub as re_sub
 
+from .utils import snip, convolve
 from .calibration import Calibration
 
 class Spectra():
     def __init__(self):
         self.calibration = Calibration(self)
 
-    def from_array(self,x):
-        self.counts = x
-        self.channel = arange(self.counts.__len__())
-
+    def from_array(self, counts):
+        self.counts = counts
+        self.channel = arange(self.counts.__len__(), dtype = 'int')
         return self
 
-    def from_file(self,filename):
-        self.counts = loadtxt(filename,unpack=True,usecols=1)
-        self.channel = arange(self.counts.__len__())
+    def from_file(self, filename):
+        counts = loadtxt(filename, unpack = True, dtype = 'int', usecols = 1)
+        return self.from_array(counts)
 
-        return self
+    def from_Dataf(self, data, i):
+        counts = data.data.reshape(-1, data.shape[2])[i]
+        return self.from_array(counts)
 
-    def from_Data(self,data,x=0,y=0):
-        self.counts = data.data[x,y]
-        self.channel = arange(self.counts.__len__(),dtype='int')
+    def from_Data(self, data, x = 0, y = 0):
+        return self.from_Dataf(data, data.get_index(x, y))
 
-        return self
+    @staticmethod
+    def fce_calibration(x, a, b, c):
+        """
+        Calibration function 
+            x is a channel
+        """
+        return a * x**2 + b * x + c
+
 
 class SpectraXRF(Spectra):
-    def __init__(self):
-        super().__init__()
+    # def __init__(self):
+    #     super().__init__()
+
+    def from_spe(self, filename):
+        is_found = False
+
+        with open(filename, 'r') as o_file_xrf:
+            while not is_found:
+                line = o_file_xrf.readline()
+                if line == '$DATA:\n':
+                    is_found = True
+                if not line:
+                    break
+            if is_found:
+                line = o_file_xrf.readline()
+                lines = o_file_xrf.readlines()
+                counts = asarray([int(n) for l in lines for n in re_sub(' +', ' ', l).split()])
+                return self.from_array(counts)
+            else:
+                print(f'Unknown data format in file \'{filename}\'')
+                return None
+
 
 class SyntheticSpectraXRF(Spectra):
     def __init__(self, rl_atnum_list, skip_element = False):
@@ -150,55 +179,69 @@ class SyntheticSpectraXRF(Spectra):
                 l.lines[k] = v * tc
         return self
 
-class SpectraXRD(Spectra):
-    def __init__(self):
-        super().__init__()
 
-    def from_array(self, x):
-        self.counts = x
-        self.channel = arange(self.counts.__len__(), dtype = 'int')
+class SpectraXRD(Spectra):
+
+    def __init__(self, downsample_max = 0):
+        super().__init__()
+        # Downsample levels: from 0 (original sampling) to downsample_max
+        # The n. of channels is divided by 2 ^ downsample_level
+        if downsample_max >= 0:
+            self.downsample_max = downsample_max
+        else:
+            self.downsample_max = 0
+        self.downsample_level = 0
+
+
+    def calculate_downsampled_channel(self):
+        self.channel_downsampled = []
+        for i in range(self.downsample_max + 1):
+            self.channel_downsampled.append(arange((2**i - 1) / 2, len(self.counts), 2**i))
+
+    def calculate_downsampled_intensity(self):
+        self.intensity_downsampled = [self.intensity_downsampled[0]]
+        for i in range(self.downsample_max):
+            self.intensity_downsampled.append(0.5 * (self.intensity_downsampled[i][::2] + self.intensity_downsampled[i][1::2]))
+
+    def downsample(self, level):
+        if (level >= 0 and level <= self.downsample_max):
+            self.downsample_level = level
+
+
+    def from_array(self, counts):
+        self.counts = counts
+        self.calculate_downsampled_channel()
         return self
 
-    def from_file(self, filename):
-        counts = loadtxt(filename, unpack = True, dtype = 'int', usecols = 1)
-        return self.from_array(counts)
-
-
-    def from_Data(self, data, x = 0, y = 0):
-        return self.from_Dataf(data, data.get_index(x, y))
-
+    def from_components(self, opt, counts, rescaling, intensity):
+        self.calibrate_from_parameters(opt)
+        self.from_array(counts)
+        self.rescaling = rescaling
+        self.intensity_downsampled = [intensity]
+        self.calculate_downsampled_intensity()
+        return self
 
     def from_Dataf(self, data, i):
+        return self.from_components(
+            opt = data.opt.copy(),
+            counts = data.data.reshape(-1, data.shape[2])[i],
+            rescaling = data.rescaling.flatten()[i],
+            intensity = data.intensity.reshape(-1, data.shape[2])[i]
+        )
 
-        self.calibrate_from_parameters(data.opt)
 
-        self.counts = data.data.reshape(-1, data.shape[2])[i]
-        self.rescaling = data.rescaling.reshape(-1)[i]
-        self.intensity = data.intensity.reshape(-1, data.shape[2])[i]
-
-        self.channel = arange(self.counts.__len__(), dtype = 'int')
-
+    def background_elimination_and_smoothing(self, n_snip = 21, std_snip = 3, window_snip = 32, offset_background = 0, std_smooth = 0):
+        background = snip(convolve(self.counts, n = n_snip, std = std_snip), m = window_snip)
+        self.background_shifted = background + offset_background
+        counts_no_bg = maximum(self.counts - self.background_shifted, 0)
+        self.counts_smoothed = convolve(counts_no_bg, n = ceil(3 * std_smooth + 1), std = std_smooth)
+        self.rescaling = self.counts_smoothed.max()
+        self.intensity_downsampled = [self.counts_smoothed / self.rescaling]
+        self.calculate_downsampled_intensity()
         return self
-
-
-    def remove_background(self, n = 21, std = 3, m = 32):
-
-        background = snip(convolve(self.counts, n = n, std = std), m = m)
-        #self.counts_clean = self.counts - self.background
-        counts = self.counts - background
-
-        self.rescaling = counts.max()
-        self.intensity = counts / self.rescaling
-
-        return self
-
-
-    def downsample(self, level):   # Added for compatibility with FastSpectraXRD
-        pass
 
 
     def calibrate_from_parameters(self, opt):
-
         self.calibration.from_parameters(opt)
         return self
 
@@ -213,71 +256,14 @@ class SpectraXRD(Spectra):
         self.calibration.from_file(filename)
         return self
 
+
     @staticmethod
-    def fce_calibration(x,a,s,beta):
+    def fce_calibration(x, a, s, beta):
         """
         XRD calibration function 
             x is a channel
         """
         return (arctan((x + a) / s)) * 180 / pi + beta
-
-    @property
-    def theta(self):
-        return self.fce_calibration(self.channel, *self.opt)
-
-    def theta_range(self):
-        x = array([self.channel[0], self.channel[-1]])
-        return self.fce_calibration(x, *self.opt)
-
-    def plot(self,*args,**kwargs):
-        plot(self.theta,self.intensity,*args,**kwargs)
-
-class FastSpectraXRD():
-
-    def __init__(self):
-        pass
-
-
-    def from_Data(self, data, x, y):
-        return self.from_Dataf(data, data.get_index(x, y))
-
-
-    def from_Dataf(self, data, i):
-        return self.from_components(
-            opt = data.opt.copy(),
-            counts = data.data.reshape(-1, data.shape[2])[i],
-            rescaling = data.rescaling.flatten()[i],
-            intensity = data.intensity.reshape(-1, data.shape[2])[i]
-        )
-
-
-    def from_components(self, opt, counts, rescaling, intensity):
-        self.opt = opt
-        self.counts = counts
-        self.rescaling = rescaling
-
-        self.downsample_max = 3
-        self.downsample_level = 0
-
-        # Downsample levels: 0 (original sampling) up to self.downsample_max
-        # The n. of channels is divided by 2 ^ downsample_level
-
-        self.intensity_downsampled = [intensity]
-        for i in range(self.downsample_max):
-            self.intensity_downsampled.append(0.5 * (self.intensity_downsampled[i][::2] + self.intensity_downsampled[i][1::2]))
-
-        self.channel_downsampled = []
-        for i in range(self.downsample_max + 1):
-            self.channel_downsampled.append(arange((2**i - 1) / 2, len(counts), 2**i))
-
-        return self
-
-
-    def downsample(self, level):
-        if (level >= 0 and level <= self.downsample_max):
-            self.downsample_level = level
-        else:
-            print('Invalid level for downsample. Keeping present downsample level.')
 
 
     @property
@@ -288,15 +274,6 @@ class FastSpectraXRD():
     def intensity(self):
         return self.intensity_downsampled[self.downsample_level]
 
-
-    @staticmethod
-    def fce_calibration(x,a,s,beta):
-        """
-        XRD calibration function 
-            x is a channel
-        """
-        return (arctan((x + a) / s)) * 180 / pi + beta
-
     @property
     def theta(self):
         return self.fce_calibration(self.channel, *self.opt)
@@ -305,5 +282,19 @@ class FastSpectraXRD():
         x = array([self.channel[0], self.channel[-1]])
         return self.fce_calibration(x, *self.opt)
 
-    def plot(self, *args, **kwargs):
+
+    def plot(self,*args,**kwargs):
         plot(self.theta, self.intensity, *args, **kwargs)
+
+
+class FastSpectraXRD(SpectraXRD):
+    def __init__(self):
+        super().__init__(downsample_max = 3)
+
+
+
+
+
+
+
+

@@ -25,7 +25,6 @@ class GaussNewton(FastSpectraXRD):
         """
         if type(phase) not in [Phase, PhaseList]:
             raise Exception('Invalid phase type')
-        super().__init__()
 
         self.phase = phase
         self.spectrum = spectrum
