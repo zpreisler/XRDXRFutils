@@ -282,7 +282,7 @@ class SpectraXRD(Spectra):
         return self.fce_calibration(x, *self.opt)
 
 
-    def plot(self,*args,**kwargs):
+    def plot(self, *args, **kwargs):
         plot(self.theta, self.intensity, *args, **kwargs)
 
 
