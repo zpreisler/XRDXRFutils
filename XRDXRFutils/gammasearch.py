@@ -30,11 +30,11 @@ class GammaSearch(list):
 
     def set_opt(self, opt, copy = True):
         self.opt = opt
-        for gaussnewton in self:
+        for gn in self:
             if copy:
-                gaussnewton.opt = self.opt.copy()
+                gn.opt = self.opt.copy()
             else:
-                gaussnewton.opt = self.opt
+                gn.opt = self.opt
 
 
     def select(self, phase_selected):

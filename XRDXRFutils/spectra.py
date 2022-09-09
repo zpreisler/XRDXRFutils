@@ -9,6 +9,7 @@ import warnings
 from .utils import snip, convolve
 from .calibration import Calibration
 
+
 class Spectra():
     def __init__(self):
         self.calibration = Calibration(self)
