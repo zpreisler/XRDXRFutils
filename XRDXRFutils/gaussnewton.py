@@ -293,11 +293,12 @@ class GaussNewton(FastSpectraXRD):
 
         return self
 
+
     def fit_cycle(self, steps = 8, **kwargs):
         for i in range(steps):
             self.fit(**kwargs)
-
         return self
+
 
     """
     Evaluation of the results

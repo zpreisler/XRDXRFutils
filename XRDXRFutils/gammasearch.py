@@ -45,6 +45,12 @@ class GammaSearch(list):
         self.selected = self[self.idx]
 
 
+    def fit(self, **kwargs):
+        for gn in self:
+            gn.fit(**kwargs)
+        return self
+
+
     def fit_cycle(self, **kwargs):
         for gn in self:
             gn.fit_cycle(**kwargs)
@@ -112,6 +118,12 @@ class GammaSearch(list):
 
 
 class GammaMap_Base(list):
+
+    def fit(self, **kwargs):
+        for gs in self:
+            gs.fit(**kwargs)
+        return self
+
 
     @staticmethod
     def fit_cycle_service(x, kwargs):
