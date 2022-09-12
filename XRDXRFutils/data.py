@@ -120,7 +120,7 @@ class Data():
     def remove_background(self, n = 21, std = 3, m = 32):
         print('Removing background...')
         self.background = snip3d(convolve3d(self.data, n = n, std = std), m = m)
-        data_no_bg = self.data - self.background
+        data_no_bg = maximum(self.data - self.background, 0)
         self.rescaling = nanmax(data_no_bg, axis = 2, keepdims = True)
         self.intensity = data_no_bg / self.rescaling
         self.signal_background_ratio = self.data.sum(axis = 2, keepdims = True) / self.background.sum(axis = 2, keepdims = True)
