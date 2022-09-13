@@ -75,6 +75,12 @@ class GammaSearch(list):
         return self
 
 
+    def z(self):
+        return array([gn.z() for gn in self])
+
+    def z0(self):
+        return array([gn.z0() for gn in self])
+
     def area(self):
         return array([gn.area() for gn in self])
 
@@ -208,6 +214,12 @@ class GammaMap_Base(list):
 
     def opt(self):
         return array([gs.opt for gs in self]).reshape(self.shape)
+
+    def z(self):
+        return array([gs.z() for gs in self]).reshape([self.shape[i] for i in range(len(self.shape) - 1)] + [len(self.phases), -1])
+
+    def z0(self):
+        return array([gs.z0() for gs in self]).reshape([self.shape[i] for i in range(len(self.shape) - 1)] + [len(self.phases), -1])
 
     def area(self):
         return array([gs.area() for gs in self]).reshape(self.shape)
