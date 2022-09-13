@@ -237,7 +237,7 @@ class GammaMap_Base(list):
         return array([gs.MSEloss() for gs in self]).reshape(self.shape)
 
     def selected(self):
-        return array([gs.idx for gs in self]).reshape((self.shape[0], self.shape[1]))
+        return array([gs.idx for gs in self]).reshape([self.shape[i] for i in range(len(self.shape) - 1)])
 
 
 class GammaMap_Partial(GammaMap_Base):
