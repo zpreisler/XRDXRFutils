@@ -45,6 +45,12 @@ class GammaSearch(list):
         self.selected = self[self.idx]
 
 
+    def downsample(self, level):
+        for gn in self:
+            gn.downsample(level)
+        return self
+
+
     def fit(self, **kwargs):
         for gn in self:
             gn.fit(**kwargs)
@@ -128,6 +134,12 @@ class GammaMap_Base(list):
     def fit(self, **kwargs):
         for gs in self:
             gs.fit(**kwargs)
+        return self
+
+
+    def downsample(self, level):
+        for gs in self:
+            gs.downsample(level)
         return self
 
 

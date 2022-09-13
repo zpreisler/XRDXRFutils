@@ -142,6 +142,7 @@ class GaussNewton(FastSpectraXRD):
     """
     def downsample(self, level):
         self.spectrum.downsample(level)
+        return self
 
     @property
     def downsample_level(self):

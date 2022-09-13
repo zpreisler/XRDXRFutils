@@ -205,6 +205,7 @@ class SpectraXRD(Spectra):
     def downsample(self, level):
         if (level >= 0 and level <= self.downsample_max):
             self.downsample_level = level
+        return self
 
 
     def from_array(self, counts):
