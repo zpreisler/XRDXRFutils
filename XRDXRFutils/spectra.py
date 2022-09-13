@@ -229,10 +229,12 @@ class SpectraXRD(Spectra):
         )
 
 
-    def background_elimination_and_smoothing(self, n_snip = 21, std_snip = 3, window_snip = 32, offset_background = 0, std_smooth = 0):
+    def background_elimination_and_smoothing(self, n_snip = 21, std_snip = 3, window_snip = 32, offset_background = 0, std_smooth = 0, avoid_negative = False):
         background = snip(convolve(self.counts, n = n_snip, std = std_snip), m = window_snip)
         self.background_shifted = background + offset_background
-        counts_no_bg = maximum(self.counts - self.background_shifted, 0)
+        counts_no_bg = self.counts - self.background_shifted
+        if avoid_negative:
+            counts_no_bg = maximum(counts_no_bg, 0)
         self.counts_smoothed = convolve(counts_no_bg, n = ceil(3 * std_smooth + 1), std = std_smooth)
         self.rescaling = self.counts_smoothed.max()
         self.intensity_downsampled = [self.counts_smoothed / self.rescaling]
@@ -289,11 +291,3 @@ class SpectraXRD(Spectra):
 class FastSpectraXRD(SpectraXRD):
     def __init__(self):
         super().__init__(downsample_max = 3)
-
-
-
-
-
-
-
-
