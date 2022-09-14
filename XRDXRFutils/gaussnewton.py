@@ -218,79 +218,85 @@ class GaussNewton(FastSpectraXRD):
         If you set k and b, parameters a and s are used in optimization (you don't need to explicitly set them to True) and are tied by the relation given by k and b.
         """
 
-        if downsample is not None:
-            downsample_initial = self.downsample_level
-            self.downsample(downsample)
+        n_peaks = len(self.phase.get_theta(**self.kwargs)[0])
+        if n_peaks > 0:
 
-        is_used_relation = ((k is not None) and (b is not None))
-        if is_used_relation:
-            a = True
-            s = False
+            if n_peaks == 1:
+                s = False
 
-        n_opt = a + s + beta
-        n_gamma = gamma * self.n_peaks
+            if downsample is not None:
+                downsample_initial = self.downsample_level
+                self.downsample(downsample)
 
-        self.calculate_components()
+            is_used_relation = ((k is not None) and (b is not None))
+            if is_used_relation:
+                a = True
+                s = False
 
-        Jacobian_construction = []
+            n_opt = a + s + beta
+            n_gamma = gamma * self.n_peaks
 
-        # Calibration parameters
-        if is_used_relation:
-            der_f_a, der_f_beta = self.der_f_a_beta_when_relation_a_s(k, b)
+            self.calculate_components()
 
-        else:
-            if (n_opt > 0):
-                der_f_a, der_f_s, der_f_beta = self.der_f_a_s_beta()
+            Jacobian_construction = []
 
-        if a:
-            Jacobian_construction.append(der_f_a)
-        if s:
-            Jacobian_construction.append(der_f_s)
-        if beta:
-            Jacobian_construction.append(der_f_beta)
+            # Calibration parameters
+            if is_used_relation:
+                der_f_a, der_f_beta = self.der_f_a_beta_when_relation_a_s(k, b)
 
-        # Gamma
-        if gamma:
-            Jacobian_construction.append(self.der_f_g())
+            else:
+                if (n_opt > 0):
+                    der_f_a, der_f_s, der_f_beta = self.der_f_a_s_beta()
 
-        # Sigma
-        if sigma:
-            Jacobian_construction.append(self.der_f_tau())
+            if a:
+                Jacobian_construction.append(der_f_a)
+            if s:
+                Jacobian_construction.append(der_f_s)
+            if beta:
+                Jacobian_construction.append(der_f_beta)
 
-        # Jacobian
-        Jacobian_f = concatenate(Jacobian_construction, axis = 1)
+            # Gamma
+            if gamma:
+                Jacobian_construction.append(self.der_f_g())
 
-        """
-        Iterate
-        """
-        y = self.intensity[:, newaxis]
-        f = self.component_full.sum(axis = 1, keepdims = True)
-        r = y - f
+            # Sigma
+            if sigma:
+                Jacobian_construction.append(self.der_f_tau())
 
-        try:
-            evol = pinv(Jacobian_f) @ r
+            # Jacobian
+            Jacobian_f = concatenate(Jacobian_construction, axis = 1)
 
-        except:
-            evol = full((Jacobian_f.shape[1], 1), 0)
+            """
+            Iterate
+            """
+            y = self.intensity[:, newaxis]
+            f = self.component_full.sum(axis = 1, keepdims = True)
+            r = y - f
 
-        d_params = alpha * evol
+            try:
+                evol = pinv(Jacobian_f) @ r
 
-        mask_opt = [a, s, beta]
-        self.opt[mask_opt] += d_params[0:n_opt, 0]
+            except:
+                evol = full((Jacobian_f.shape[1], 1), 0)
 
-        if is_used_relation:
-            self.opt[1] = k * self.opt[0] + b
+            d_params = alpha * evol
 
-        if gamma:
-            self.g += d_params[n_opt : (n_opt + n_gamma)].T
+            mask_opt = [a, s, beta]
+            self.opt[mask_opt] += d_params[0:n_opt, 0]
 
-        if sigma:
-            self.tau += d_params[(n_opt + n_gamma) :].T
+            if is_used_relation:
+                self.opt[1] = k * self.opt[0] + b
 
-        self.del_components()
-        
-        if downsample is not None:
-            self.downsample(downsample_initial)
+            if gamma:
+                self.g += d_params[n_opt : (n_opt + n_gamma)].T
+
+            if sigma:
+                self.tau += d_params[(n_opt + n_gamma) :].T
+
+            self.del_components()
+
+            if downsample is not None:
+                self.downsample(downsample_initial)
 
         return self
 
