@@ -203,7 +203,11 @@ class SpectraXRD(Spectra):
             self.intensity_downsampled.append(0.5 * (self.intensity_downsampled[i][::2] + self.intensity_downsampled[i][1::2]))
 
     def downsample(self, level):
-        if (level >= 0 and level <= self.downsample_max):
+        if level > self.downsample_max:
+            self.downsample_level = self.downsample_max
+        elif level < 0:
+            self.downsample_level = 0
+        else:
             self.downsample_level = level
         return self
 
