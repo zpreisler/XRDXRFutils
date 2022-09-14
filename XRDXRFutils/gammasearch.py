@@ -1,6 +1,6 @@
 from .database import Phase, PhaseList
 from .data import DataXRD
-from .spectra import SpectraXRD,FastSpectraXRD
+from .spectra import SpectraXRD, FastSpectraXRD
 from .gaussnewton import GaussNewton
 from numpy import (array, full, zeros, nanargmin, nanargmax, newaxis, append,
     concatenate, sqrt, average, square, std, asarray, unravel_index, ravel_multi_index,
@@ -25,7 +25,7 @@ class GammaSearch(list):
         super().__init__([GaussNewton(phase, spectrum, sigma = sigma, **kwargs) for phase in phases])
         self.spectrum = spectrum
         self.intensity = spectrum.intensity
-        self.set_opt(self[0].opt, copy = True)
+        self.set_opt(spectrum.opt.copy(), copy = True)
 
 
     def set_opt(self, opt, copy = True):
