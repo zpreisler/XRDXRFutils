@@ -41,7 +41,6 @@ class GaussNewton(FastSpectraXRD):
         """
         # Variables along the diffraction lines
         self.mu, self.I = self.get_theta(**kwargs)
-        self.n_peaks = self.mu.shape[0]
 
         """
         parameters g, tau --> gamma, sigma^2
@@ -90,6 +89,10 @@ class GaussNewton(FastSpectraXRD):
     @property
     def intensity(self):
         return self.spectrum.intensity
+
+    @property
+    def n_peaks(self):
+        return self.mu.shape[0]
 
 
     """
@@ -217,11 +220,17 @@ class GaussNewton(FastSpectraXRD):
         Performs a step of Gauss-Newton optimization. You need to choose the parameters that will be used to optimize. The other ones will be kept fixed.
         If you set k and b, parameters a and s are used in optimization (you don't need to explicitly set them to True) and are tied by the relation given by k and b.
         """
+        # Remove peaks that fall outside theta_range, because they can cause anomalous values
+        # tr_min, tr_max = self.theta_range()
+        # mu_old = self.mu
+        # self.mu = self.mu[(mu_old > tr_min) & (mu_old < tr_max)]
+        # self.I = self.I[(mu_old > tr_min) & (mu_old < tr_max)]
+        # self.g = self.g[(mu_old > tr_min) & (mu_old < tr_max)]
+        # self.tau = self.tau[(mu_old > tr_min) & (mu_old < tr_max)]
 
-        n_peaks = len(self.phase.get_theta(**self.kwargs)[0])
-        if n_peaks > 0:
+        if self.n_peaks > 0:
 
-            if n_peaks == 1:
+            if self.n_peaks == 1:
                 s = False
 
             if downsample is not None:
