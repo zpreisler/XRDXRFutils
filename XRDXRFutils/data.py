@@ -709,13 +709,12 @@ class DataXRD(Data):
                     for j_small in range(0, step_j):
                         data_new.data[i + i_small, j + j_small] = aggr
 
-        data_new.background_elimination_and_smoothing()
-
         if hasattr(self, 'calibration'):
             if hasattr(self.calibration, 'opt'):
                 data_new.calibration = Calibration(data_new).from_parameters(self.calibration.opt)
 
         print('Done.')
+        #data_new.background_elimination_and_smoothing()
         return data_new
 
 
