@@ -38,14 +38,12 @@ class GammaSearch_Secondary(GammaSearch):
 
 class GammaMap_Secondary(GammaMap):
 
-    def from_data(self, gammamap_1, data, phases, sigma = 0.2, **kwargs):
+    def from_data(self, gammamap_1, phases, sigma = 0.2, **kwargs):
         self.primary_phases = gammamap_1.phases
         self.phases = phases
-        self.shape = (data.shape[0], data.shape[1], -1)
+        self.shape = gammamap_1.shape
 
-        d = data.shape[0] * data.shape[1]
-        spectra = [FastSpectraXRD().from_Dataf(data, i) for i in range(d)]
-        self += [GammaSearch_Secondary(gs1, phases, spectrum, sigma, **kwargs) for gs1, spectrum in zip(gammamap_1, spectra)]
+        self += [GammaSearch_Secondary(gs1, phases, gs1.spectrum, sigma, **kwargs) for gs1 in gammamap_1]
 
         return self
 
