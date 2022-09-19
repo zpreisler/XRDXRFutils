@@ -1,6 +1,6 @@
 from .database import Phase, PhaseList
 from .data import DataXRD
-from .spectra import SpectraXRD,FastSpectraXRD
+from .spectra import SpectraXRD, FastSpectraXRD
 from .gaussnewton import GaussNewton
 from numpy import (array, full, zeros, nanargmin, nanargmax, newaxis, append,
     concatenate, sqrt, average, square, std, asarray, unravel_index, ravel_multi_index,
@@ -25,24 +25,36 @@ class GammaSearch(list):
         super().__init__([GaussNewton(phase, spectrum, sigma = sigma, **kwargs) for phase in phases])
         self.spectrum = spectrum
         self.intensity = spectrum.intensity
-        self.set_opt(self[0].opt, copy = True)
+        self.set_opt(spectrum.opt.copy(), copy = True)
 
 
     def set_opt(self, opt, copy = True):
         self.opt = opt
-        for gaussnewton in self:
+        for gn in self:
             if copy:
-                gaussnewton.opt = self.opt.copy()
+                gn.opt = self.opt.copy()
             else:
-                gaussnewton.opt = self.opt
+                gn.opt = self.opt
 
 
     def select(self, phase_selected):
         if phase_selected is None:
-            self.idx = self.overlap3_area().argmax()
+            self.idx = self.overlap_area(downsample = 3).argmax()
         else:
             self.idx = phase_selected
         self.selected = self[self.idx]
+
+
+    def downsample(self, level):
+        for gn in self:
+            gn.downsample(level)
+        return self
+
+
+    def fit(self, **kwargs):
+        for gn in self:
+            gn.fit(**kwargs)
+        return self
 
 
     def fit_cycle(self, **kwargs):
@@ -69,26 +81,26 @@ class GammaSearch(list):
         return self
 
 
+    def z(self):
+        return array([gn.z() for gn in self])
+
+    def z0(self):
+        return array([gn.z0() for gn in self])
+
     def area(self):
         return array([gn.area() for gn in self])
 
     def area0(self):
         return array([gn.area0() for gn in self])
 
-    def overlap(self):
-        return array([gn.overlap() for gn in self])
+    def overlap(self, downsample = None):
+        return array([gn.overlap(downsample) for gn in self])
 
-    def overlap_area(self):
-        return array([gn.overlap_area() for gn in self])
+    def overlap_area(self, downsample = None):
+        return array([gn.overlap_area(downsample) for gn in self])
 
-    def overlap_area_ratio(self):
-        return array([gn.overlap_area_ratio() for gn in self])
-
-    def overlap3_area(self):
-        return array([gn.overlap3_area() for gn in self])
-
-    def overlap3_area_ratio(self):
-        return array([gn.overlap3_area_ratio() for gn in self])
+    def overlap_area_ratio(self, downsample = None):
+        return array([gn.overlap_area_ratio(downsample) for gn in self])
 
     def L1loss(self):
         return array([gn.L1loss() for gn in self])
@@ -96,8 +108,8 @@ class GammaSearch(list):
     def MSEloss(self):
         return array([gn.MSEloss() for gn in self])
 
-    def metrics(self):
-        return self.L1loss(), self.MSEloss(), self.overlap3_area()
+    def metrics(self, downsample = None):
+        return self.L1loss(), self.MSEloss(), self.overlap_area(downsample)
 
 
     def overlap_total(self):
@@ -118,6 +130,18 @@ class GammaSearch(list):
 
 
 class GammaMap_Base(list):
+
+    def fit(self, **kwargs):
+        for gs in self:
+            gs.fit(**kwargs)
+        return self
+
+
+    def downsample(self, level):
+        for gs in self:
+            gs.downsample(level)
+        return self
+
 
     @staticmethod
     def fit_cycle_service(x, kwargs):
@@ -158,50 +182,56 @@ class GammaMap_Base(list):
 
 
     @staticmethod
-    def metrics_service(x):
-        return x.metrics()
+    def metrics_service(x, downsample):
+        return x.metrics(downsample = downsample)
 
-    def metrics(self, verbose = True):
+    def metrics(self, downsample = None, verbose = True):
         if system() == 'Darwin':
             n_cpu = cpu_count()
             if verbose:
                 print(f'Using {n_cpu} CPUs')
-            results = Parallel(n_jobs = n_cpu)( delayed(gs.metrics)() for gs in self )
+            results = Parallel(n_jobs = n_cpu)( delayed(gs.metrics)(downsample = downsample) for gs in self )
         else:
             n_cpu = cpu_count() - 2
             if verbose:
                 print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
-                results = p.map(self.metrics_service, self)
+                results = p.map(partial(self.metrics_service, downsample = downsample), self)
 
         results = asarray(results)
         L1loss = results[:,0,:].reshape(self.shape)
         MSEloss = results[:,1,:].reshape(self.shape)
-        overlap3_area = results[:,2,:].reshape(self.shape)
-        return L1loss, MSEloss, overlap3_area
+        overlap_area = results[:,2,:].reshape(self.shape)
+        return L1loss, MSEloss, overlap_area
 
 
     @staticmethod
-    def overlap3_area_ratio_service(x):
-        return x.overlap3_area_ratio()
+    def overlap_area_ratio_service(x, downsample):
+        return x.overlap_area_ratio(downsample = downsample)
 
-    def overlap3_area_ratio(self, verbose = True):
+    def overlap_area_ratio(self, downsample = None, verbose = True):
         if system() == 'Darwin':
             n_cpu = cpu_count()
             if verbose:
                 print(f'Using {n_cpu} CPUs')
-            results = Parallel(n_jobs = n_cpu)( delayed(gs.overlap3_area_ratio)() for gs in self )
+            results = Parallel(n_jobs = n_cpu)( delayed(gs.overlap_area_ratio)(downsample = downsample) for gs in self )
         else:
             n_cpu = cpu_count() - 2
             if verbose:
                 print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
-                results = p.map(self.overlap3_area_ratio_service, self)
+                results = p.map(partial(self.overlap_area_ratio_service, downsample = downsample), self)
         return asarray(results).reshape(self.shape)
 
 
     def opt(self):
         return array([gs.opt for gs in self]).reshape(self.shape)
+
+    def z(self):
+        return array([gs.z() for gs in self]).reshape([self.shape[i] for i in range(len(self.shape) - 1)] + [len(self.phases), -1])
+
+    def z0(self):
+        return array([gs.z0() for gs in self]).reshape([self.shape[i] for i in range(len(self.shape) - 1)] + [len(self.phases), -1])
 
     def area(self):
         return array([gs.area() for gs in self]).reshape(self.shape)
@@ -209,11 +239,8 @@ class GammaMap_Base(list):
     def area0(self):
         return array([gs.area0() for gs in self]).reshape(self.shape)
 
-    def overlap_area(self):
-        return array([gs.overlap_area() for gs in self]).reshape(self.shape)
-
-    def overlap3_area(self):
-        return array([gs.overlap3_area() for gs in self]).reshape(self.shape)
+    def overlap_area(self, downsample = None):
+        return array([gs.overlap_area(downsample = downsample) for gs in self]).reshape(self.shape)
 
     def L1loss(self):
         return array([gs.L1loss() for gs in self]).reshape(self.shape)
@@ -222,7 +249,7 @@ class GammaMap_Base(list):
         return array([gs.MSEloss() for gs in self]).reshape(self.shape)
 
     def selected(self):
-        return array([gs.idx for gs in self]).reshape((self.shape[0], self.shape[1]))
+        return array([gs.idx for gs in self]).reshape([self.shape[i] for i in range(len(self.shape) - 1)])
 
 
 class GammaMap_Partial(GammaMap_Base):

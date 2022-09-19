@@ -117,23 +117,17 @@ class Data():
             return self._x
 
 
-    def remove_background(self, n = 21, std = 3, m = 32):
+    def remove_background(self, n = 21, std = 3, m = 32, avoid_negative = False):
         print('Removing background...')
         self.background = snip3d(convolve3d(self.data, n = n, std = std), m = m)
         data_no_bg = self.data - self.background
+        if avoid_negative:
+            data_no_bg = maximum(data_no_bg, 0)
         self.rescaling = nanmax(data_no_bg, axis = 2, keepdims = True)
         self.intensity = data_no_bg / self.rescaling
         self.signal_background_ratio = self.data.sum(axis = 2, keepdims = True) / self.background.sum(axis = 2, keepdims = True)
         self.signal_background_ratio = maximum(self.signal_background_ratio, 0)
         print('Done.')
-        return self
-
-    def smooth_channels(self, offset_background, std_smooth):
-        background_shifted = self.background + offset_background
-        data_no_bg = maximum(self.data - background_shifted, 0)
-        data_smoothed = convolve3d(data_no_bg, n = ceil(3 * std_smooth + 1), std = std_smooth)
-        self.rescaling = nanmax(data_smoothed, axis = 2, keepdims = True)
-        self.intensity = data_smoothed / self.rescaling
         return self
 
 
@@ -676,6 +670,22 @@ class DataXRD(Data):
         self.data = z[::-1,::-1]
 
 
+    def background_elimination_and_smoothing(self, n_snip = 21, std_snip = 3, window_snip = 32, offset_background = 0, std_smooth = 0, avoid_negative = False):
+        print('Removing background and smoothing along channels...')
+        self.background = snip3d(convolve3d(self.data, n = n_snip, std = std_snip), m = window_snip)
+        background_shifted = self.background + offset_background
+        data_no_bg = self.data - background_shifted
+        if avoid_negative:
+            data_no_bg = maximum(data_no_bg, 0)
+        data_smoothed = convolve3d(data_no_bg, n = ceil(3 * std_smooth + 1), std = std_smooth)
+        self.rescaling = nanmax(data_smoothed, axis = 2, keepdims = True)
+        self.intensity = data_smoothed / self.rescaling
+        self.signal_background_ratio = self.data.sum(axis = 2, keepdims = True) / self.background.sum(axis = 2, keepdims = True)
+        self.signal_background_ratio = maximum(self.signal_background_ratio, 0)
+        print('Done.')
+        return self
+
+
     def generate_spatial_smooth(self, step = 2, method = 'mean'):
         if method not in ['mean', 'max']:
             raise Exception('Invalid method parameter')
@@ -699,13 +709,12 @@ class DataXRD(Data):
                     for j_small in range(0, step_j):
                         data_new.data[i + i_small, j + j_small] = aggr
 
-        data_new.remove_background()
-
         if hasattr(self, 'calibration'):
             if hasattr(self.calibration, 'opt'):
                 data_new.calibration = Calibration(data_new).from_parameters(self.calibration.opt)
 
         print('Done.')
+        #data_new.background_elimination_and_smoothing()
         return data_new
 
 
