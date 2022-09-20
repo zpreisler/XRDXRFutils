@@ -2,7 +2,7 @@ from .database import Phase, PhaseList
 from .data import DataXRD
 from .spectra import SpectraXRD, FastSpectraXRD
 from .gaussnewton import GaussNewton
-from numpy import (array, full, zeros, nanargmin, nanargmax, newaxis, append,
+from numpy import (array, full, zeros, ones, nanargmin, nanargmax, newaxis, append,
     concatenate, sqrt, average, square, std, asarray, unravel_index, ravel_multi_index,
     minimum, where)
 from numpy.linalg import pinv
@@ -15,6 +15,7 @@ import pickle
 import pathlib
 
 import gc
+
 
 
 class GammaSearch(list):
@@ -131,6 +132,7 @@ class GammaSearch(list):
         intensity_corrected = where(self.intensity < 0, 0, self.intensity)
         integral_intensity = intensity_corrected.sum()
         return (integral_intersection / integral_intensity)
+
 
 
 class GammaMap_Base(list):
@@ -256,38 +258,58 @@ class GammaMap_Base(list):
         return array([gs.idx for gs in self]).reshape([self.shape[i] for i in range(len(self.shape) - 1)])
 
 
+
 class GammaMap_Partial(GammaMap_Base):
 
-    def from_data(self, data, phases, indices_sel, sigma = 0.2, **kwargs):
+    def from_data(self, data, phases, indices_sel = None, sigma = 0.2, **kwargs):
+        if indices_sel is None:
+            indices_sel = ones(data.shape[:2], bool)
+
+        if data.shape[:2] != indices_sel.shape:
+            raise Exception('Incompatible shapes of data and indices_sel')
 
         self.phases = phases
+        self.indices_sel = indices_sel
+        #self.shape = (data.shape[0], data.shape[1], -1)
         self.shape = (indices_sel.sum(), -1)
-        self.coordinates = []
 
-        spectra = []
+        self.coordinates = []
         for x in range(data.shape[1]):
             for y in range(data.shape[0]):
                 if indices_sel[y, x]:
-                    spectra.append(FastSpectraXRD().from_Data(data, x, y))
+                    spectrum = FastSpectraXRD().from_Data(data, x, y)
                     self.coordinates.append((x, y))
-        self += [GammaSearch(phases, spectrum, sigma, **kwargs) for spectrum in spectra]
+                    self += [GammaSearch(phases, spectrum, sigma, **kwargs)]
 
         return self
 
 
+    @property
+    def n_pixels(self):
+        return self.indices_sel.sum()
+
+
+    def set_attributes_from(self, map):
+        for attr_name in ['phases', 'indices_sel', 'shape', 'coordinates']:
+            if hasattr(map, attr_name):
+                setattr(self, attr_name, getattr(map, attr_name))
+
+
     def fit_cycle(self, verbose = True, **kwargs):
         x = GammaMap_Partial(self.fit_cycle_core(verbose, **kwargs))
-        x.phases = self.phases
-        x.shape = self.shape
-        x.coordinates = self.coordinates
+        x.set_attributes_from(self)
+        # x.phases = self.phases
+        # x.shape = self.shape
+        # x.coordinates = self.coordinates
         return x
 
 
     def search(self, phase_selected = None, alpha = 1, verbose = True):
         x = GammaMap_Partial(self.search_core(phase_selected = phase_selected, alpha = alpha, verbose = verbose))
-        x.phases = self.phases
-        x.shape = self.shape
-        x.coordinates = self.coordinates
+        x.set_attributes_from(self)
+        # x.phases = self.phases
+        # x.shape = self.shape
+        # x.coordinates = self.coordinates
         return x
 
 
@@ -299,6 +321,7 @@ class GammaMap_Partial(GammaMap_Base):
 
     def get_pixel(self, x, y):
         return self[self.get_index(x, y)]
+
 
 
 class GammaMap(GammaMap_Base):
