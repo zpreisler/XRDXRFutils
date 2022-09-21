@@ -358,11 +358,24 @@ class GaussNewton(FastSpectraXRD):
         return overlap
 
 
-    def L1loss(self):
-        return (fabs(self.intensity - self.z())).mean()
+    def L1loss(self, downsample = None):
+        if downsample is not None:
+            downsample_initial = self.downsample_level
+            self.downsample(downsample)
+        result = (fabs(self.intensity - self.z())).mean()
+        if downsample is not None:
+            self.downsample(downsample_initial)
+        return result
 
-    def MSEloss(self):
-        return ((self.intensity - self.z())**2).mean()
+
+    def MSEloss(self, downsample = None):
+        if downsample is not None:
+            downsample_initial = self.downsample_level
+            self.downsample(downsample)
+        result = ((self.intensity - self.z())**2).mean()
+        if downsample is not None:
+            self.downsample(downsample_initial)
+        return result
 
 
     def make_phase(self):
