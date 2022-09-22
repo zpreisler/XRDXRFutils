@@ -61,7 +61,7 @@ class GammaMap_Secondary(GammaMap):
             Standard deviation of Gaussian peaks of the synthetic XRD patterns. Default is 0.2.
         - kwargs: (different types, optional)
             Arguments that will be passed down to Phase.get_theta().
-            They out restrictions which peaks of tabulated phases are chosen to build synthetic XRD patterns.
+            They put restrictions on which peaks of tabulated phases are chosen to build synthetic XRD patterns.
         """
         self.set_attributes_from(gammamap_1)
         self.primary_phases = gammamap_1.phases
