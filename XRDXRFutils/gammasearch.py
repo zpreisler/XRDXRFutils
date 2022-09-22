@@ -148,6 +148,7 @@ class GammaMap(list):
 
         self.phases = phases
         self.indices_sel = indices_sel
+        self.n_pixels = indices_sel.sum()
         self.shape = (data.shape[0], data.shape[1], len(phases), data.shape[2])
 
         self.coordinates = []
@@ -161,11 +162,6 @@ class GammaMap(list):
         return self
 
 
-    @property
-    def n_pixels(self):
-        return self.indices_sel.sum()
-
-
     ### Manipulation ###
 
     def downsample(self, level):
@@ -175,7 +171,7 @@ class GammaMap(list):
 
 
     def set_attributes_from(self, map):
-        for attr_name in ['phases', 'indices_sel', 'shape', 'coordinates']:
+        for attr_name in ['phases', 'indices_sel', 'n_pixels', 'shape', 'coordinates']:
             if hasattr(map, attr_name):
                 setattr(self, attr_name, getattr(map, attr_name))
 
