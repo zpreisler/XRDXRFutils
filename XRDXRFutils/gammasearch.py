@@ -2,8 +2,8 @@ from .database import Phase, PhaseList
 from .data import DataXRD
 from .spectra import SpectraXRD, FastSpectraXRD
 from .gaussnewton import GaussNewton
-from numpy import (ndarray, array, full, zeros, ones, nan, nanargmin, nanargmax, newaxis, append,
-    concatenate, sqrt, average, square, std, asarray, unravel_index, ravel_multi_index,
+from numpy import (ndarray, array, full, zeros, ones, nan, isnan, nanargmin, nanargmax, newaxis,
+    append, concatenate, sqrt, average, square, std, asarray, unravel_index, ravel_multi_index,
     minimum, where)
 from numpy.linalg import pinv
 from multiprocessing import Pool, cpu_count
@@ -154,8 +154,8 @@ class GammaMap(list):
         for y in range(data.shape[0]):
             for x in range(data.shape[1]):
                 if indices_sel[y, x]:
-                    spectrum = FastSpectraXRD().from_Data(data, x, y)
                     self.coordinates.append((x, y))
+                    spectrum = FastSpectraXRD().from_Data(data, x, y)
                     self += [GammaSearch(phases, spectrum, sigma, **kwargs)]
 
         return self
@@ -286,6 +286,7 @@ class GammaMap(list):
                 results = p.map(partial(self.overlap_area_ratio_service, downsample = downsample), self)
         return asarray(results)
 
+
     def format_as_map(self, x):
         if type(x) != ndarray:
             raise Exception('format_as_matrix requires a ndarray as parameter')
@@ -337,7 +338,13 @@ class GammaMap(list):
         phases_new = []
 
         for i_phase in range(len(self.phases)):
-            i_pixel = criterion[..., i_phase][self.indices_sel].argsort()[offset]
+            criterion_sel_flat = criterion[..., i_phase][self.indices_sel]                # Criterion in selected pixels
+            indices_sorted = criterion_sel_flat.argsort()                                 # Indices sorted according to 'criterion'
+            indices_sorted_clean = indices_sorted[: (~isnan(criterion_sel_flat)).sum()]   # Remove indices corresponding to nan values of criterion
+            if not (-len(indices_sorted_clean) <= offset < len(indices_sorted_clean)):
+                raise Exception(f'{self.phases[i_phase].label}: {len(indices_sorted_clean)} pixels with valid criterion. Chosen offset {offset} is out of range.')
+            i_pixel = indices_sorted_clean[offset]
+
             gauss_newton = self[i_pixel][i_phase]
             phase_made = gauss_newton.make_phase()
             phase_made.set_name('created_%d'%i_phase)
