@@ -16,8 +16,8 @@ class GammaSearch_Secondary(GammaSearch):
     Searches for secondary phases and compares them to primary phases.
     To be created with gammasearch_1 that contains already fitted primary phases.
     """
-    def __init__(self, gammasearch_1, phases, spectrum, sigma = 0.2, **kwargs):
-        super().__init__(phases, spectrum, sigma, **kwargs)
+    def __init__(self, gammasearch_1, phases, sigma = 0.2, **kwargs):
+        super().__init__(phases, gammasearch_1.spectrum, sigma, **kwargs)
         self.gammasearch_1 = gammasearch_1
         self.set_opt(gammasearch_1.opt.copy(), copy = True)
 
@@ -66,7 +66,7 @@ class GammaMap_Secondary(GammaMap):
         self.set_attributes_from(gammamap_1)
         self.primary_phases = gammamap_1.phases
         self.phases = phases
-        self += [GammaSearch_Secondary(gs_1, phases, gs_1.spectrum, sigma, **kwargs) for gs_1 in gammamap_1]
+        self += [GammaSearch_Secondary(gs_1, phases, sigma, **kwargs) for gs_1 in gammamap_1]
         return self
 
 
