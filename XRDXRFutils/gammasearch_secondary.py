@@ -40,6 +40,7 @@ class GammaSearch_Secondary(GammaSearch):
 class GammaMap_Secondary(GammaMap):
     """
     Map that searches for secondary phases in every pixel of the given primary map.
+    The basic structure is a list of GammaSearch_Secondary objects, one for each pixel.
     """
 
     def __init__(self):

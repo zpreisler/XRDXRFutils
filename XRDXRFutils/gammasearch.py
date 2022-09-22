@@ -21,6 +21,7 @@ import gc
 class GammaSearch(list):
     """
     Searches for phases against the given XRD experimental pattern.
+    The basic structure is a list of GaussNewton objects, one for each phase.
     """
 
     def __init__(self, phases, spectrum, sigma = 0.2, **kwargs):
@@ -138,12 +139,14 @@ class GammaSearch(list):
 
 class GammaMap(list):
     """
-    Msp that searches for phases in every pixel of the given data.
+    Map that searches for phases in every pixel of the given data.
+    The basic structure is a list of GammaSearch objects, one for each pixel.
     """
 
     ### Creation ###
 
-    def __init__(self):
+    def __init__(self, list_gammasearch = []):
+        super().__init__(list_gammasearch)
         self.attribute_names_to_set = ['phases', 'indices_sel', 'n_pixels', 'shape', 'coordinates']
 
 
