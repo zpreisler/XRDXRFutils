@@ -273,7 +273,7 @@ class GammaMap(list):
         return map
 
 
-    ### Output information ###
+    ### Output results ###
 
     @staticmethod
     def metrics_service(x, downsample):
@@ -313,7 +313,11 @@ class GammaMap(list):
         return asarray(result)
 
 
-    def format_as_map(self, x):
+    def format_as_1d_from_2d(self, x):
+        cols, rows = zip(*self.coordinates)
+        return x[rows, cols]
+
+    def format_as_2d_from_1d(self, x):
         if type(x) != ndarray:
             raise Exception('format_as_matrix requires a ndarray as parameter')
         shape = list(self.shape[:2]) + list(x.shape[1:])
@@ -324,38 +328,38 @@ class GammaMap(list):
 
 
     def opt(self):
-        return self.format_as_map(array([gs.opt for gs in self]))
+        return self.format_as_2d_from_1d(array([gs.opt for gs in self]))
 
     def z(self):
-        return self.format_as_map(array([gs.z() for gs in self]))
+        return self.format_as_2d_from_1d(array([gs.z() for gs in self]))
 
     def z0(self):
-        return self.format_as_map(array([gs.z0() for gs in self]))
+        return self.format_as_2d_from_1d(array([gs.z0() for gs in self]))
 
     def area(self):
-        return self.format_as_map(array([gs.area() for gs in self]))
+        return self.format_as_2d_from_1d(array([gs.area() for gs in self]))
 
     def area0(self):
-        return self.format_as_map(array([gs.area0() for gs in self]))
+        return self.format_as_2d_from_1d(array([gs.area0() for gs in self]))
 
     def overlap_area(self, downsample = None):
-        return self.format_as_map(array([gs.overlap_area(downsample) for gs in self]))
+        return self.format_as_2d_from_1d(array([gs.overlap_area(downsample) for gs in self]))
 
     def overlap_area_ratio(self, downsample = None, verbose = True):
-        return self.format_as_map(self.overlap_area_ratio_core(downsample, verbose))
+        return self.format_as_2d_from_1d(self.overlap_area_ratio_core(downsample, verbose))
 
     def L1loss(self):
-        return self.format_as_map(array([gs.L1loss() for gs in self]))
+        return self.format_as_2d_from_1d(array([gs.L1loss() for gs in self]))
 
     def MSEloss(self):
-        return self.format_as_map(array([gs.MSEloss() for gs in self]))
+        return self.format_as_2d_from_1d(array([gs.MSEloss() for gs in self]))
 
     def metrics(self, downsample = None, verbose = True):
-        m = self.format_as_map(self.metrics_core(downsample, verbose))
+        m = self.format_as_2d_from_1d(self.metrics_core(downsample, verbose))
         return (m[:, :, i, :] for i in range(3))
 
     def selected(self):
-        return self.format_as_map(array([gs.idx for gs in self]))
+        return self.format_as_2d_from_1d(array([gs.idx for gs in self]))
 
 
     ### Misc ###
