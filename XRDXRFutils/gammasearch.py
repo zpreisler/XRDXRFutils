@@ -139,6 +139,10 @@ class GammaMap(list):
 
     ### Creation ###
 
+    def __init__(self):
+        self.attribute_names_to_set = ['phases', 'indices_sel', 'n_pixels', 'shape', 'coordinates']
+
+
     def from_data(self, data, phases, indices_sel = None, sigma = 0.2, **kwargs):
         if indices_sel is None:
             indices_sel = ones(data.shape[:2], bool)
@@ -164,16 +168,22 @@ class GammaMap(list):
 
     ### Manipulation ###
 
+    def set_attributes_from(self, map):
+        for attr_name in self.attribute_names_to_set:
+            if hasattr(map, attr_name):
+                setattr(self, attr_name, getattr(map, attr_name))
+
+
+    def copy(self):
+        map = type(self)([gs for gs in self])
+        map.set_attributes_from(self)
+        return map
+
+
     def downsample(self, level):
         for gs in self:
             gs.downsample(level)
         return self
-
-
-    def set_attributes_from(self, map):
-        for attr_name in ['phases', 'indices_sel', 'n_pixels', 'shape', 'coordinates']:
-            if hasattr(map, attr_name):
-                setattr(self, attr_name, getattr(map, attr_name))
 
 
     def get_x_y(self, i):
@@ -193,11 +203,12 @@ class GammaMap(list):
             gs.fit(**kwargs)
         return self
 
+
     @staticmethod
     def fit_cycle_service(x, kwargs):
         return x.fit_cycle(**kwargs)
 
-    def fit_cycle_core(self, verbose, **kwargs):
+    def fit_cycle(self, verbose = True, **kwargs):
         if system() == 'Darwin':
             n_cpu = cpu_count()
             if verbose:
@@ -209,20 +220,17 @@ class GammaMap(list):
                 print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
                 result = p.map(partial(self.fit_cycle_service, kwargs = kwargs), self)
-        return result
 
-
-    def fit_cycle(self, verbose = True, **kwargs):
-        x = GammaMap(self.fit_cycle_core(verbose, **kwargs))
-        x.set_attributes_from(self)
-        return x
+        map = type(self)(result)
+        map.set_attributes_from(self)
+        return map
 
 
     @staticmethod
     def search_service(x, phase_selected, alpha):
         return x.search(phase_selected = phase_selected, alpha = alpha)
 
-    def search_core(self, phase_selected, alpha, verbose):
+    def search(self, phase_selected = None, alpha = 1, verbose = True):
         if system() == 'Darwin':
             n_cpu = cpu_count()
             if verbose:
@@ -234,13 +242,10 @@ class GammaMap(list):
                 print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
                 result = p.map(partial(self.search_service, phase_selected = phase_selected, alpha = alpha), self)
-        return result
 
-
-    def search(self, phase_selected = None, alpha = 1, verbose = True):
-        x = GammaMap(self.search_core(phase_selected = phase_selected, alpha = alpha, verbose = verbose))
-        x.set_attributes_from(self)
-        return x
+        map = type(self)(result)
+        map.set_attributes_from(self)
+        return map
 
 
     ### Output information ###
@@ -254,14 +259,14 @@ class GammaMap(list):
             n_cpu = cpu_count()
             if verbose:
                 print(f'Using {n_cpu} CPUs')
-            results = Parallel(n_jobs = n_cpu)( delayed(gs.metrics)(downsample = downsample) for gs in self )
+            result = Parallel(n_jobs = n_cpu)( delayed(gs.metrics)(downsample = downsample) for gs in self )
         else:
             n_cpu = cpu_count() - 2
             if verbose:
                 print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
-                results = p.map(partial(self.metrics_service, downsample = downsample), self)
-        return asarray(results)
+                result = p.map(partial(self.metrics_service, downsample = downsample), self)
+        return asarray(result)
 
 
     @staticmethod
@@ -273,14 +278,14 @@ class GammaMap(list):
             n_cpu = cpu_count()
             if verbose:
                 print(f'Using {n_cpu} CPUs')
-            results = Parallel(n_jobs = n_cpu)( delayed(gs.overlap_area_ratio)(downsample = downsample) for gs in self )
+            result = Parallel(n_jobs = n_cpu)( delayed(gs.overlap_area_ratio)(downsample = downsample) for gs in self )
         else:
             n_cpu = cpu_count() - 2
             if verbose:
                 print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
-                results = p.map(partial(self.overlap_area_ratio_service, downsample = downsample), self)
-        return asarray(results)
+                result = p.map(partial(self.overlap_area_ratio_service, downsample = downsample), self)
+        return asarray(result)
 
 
     def format_as_map(self, x):

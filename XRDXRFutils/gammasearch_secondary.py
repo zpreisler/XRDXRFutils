@@ -36,24 +36,20 @@ class GammaSearch_Secondary(GammaSearch):
         return self.overlap_area_difference() / integral_intensity
 
 
+
 class GammaMap_Secondary(GammaMap):
 
+    def __init__(self):
+        super().__init__()
+        self.attribute_names_to_set += ['primary_phases']
+
+
     def from_data(self, gammamap_1, phases, sigma = 0.2, **kwargs):
+        self.set_attributes_from(gammamap_1)
         self.primary_phases = gammamap_1.phases
         self.phases = phases
-        self.shape = gammamap_1.shape
-
-        self += [GammaSearch_Secondary(gs1, phases, gs1.spectrum, sigma, **kwargs) for gs1 in gammamap_1]
-
+        self += [GammaSearch_Secondary(gs_1, phases, gs_1.spectrum, sigma, **kwargs) for gs_1 in gammamap_1]
         return self
-
-
-    def fit_cycle(self, verbose = True, **kwargs):
-        x = GammaMap_Secondary(self.fit_cycle_core(verbose, **kwargs))
-        x.primary_phases = self.primary_phases
-        x.phases = self.phases
-        x.shape = self.shape
-        return x
 
 
     def overlap_area_difference(self):
