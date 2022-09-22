@@ -20,8 +20,9 @@ import gc
 
 class GammaSearch(list):
     """
-    Iterate gamma.
+    Searches for phases against the given XRD experimental pattern.
     """
+
     def __init__(self, phases, spectrum, sigma = 0.2, **kwargs):
         super().__init__([GaussNewton(phase, spectrum, sigma = sigma, **kwargs) for phase in phases])
         self.spectrum = spectrum
@@ -136,6 +137,9 @@ class GammaSearch(list):
 
 
 class GammaMap(list):
+    """
+    Msp that searches for phases in every pixel of the given data.
+    """
 
     ### Creation ###
 
@@ -144,6 +148,24 @@ class GammaMap(list):
 
 
     def from_data(self, data, phases, indices_sel = None, sigma = 0.2, **kwargs):
+        """
+        Creates an instance of GammaMap.
+        
+        Arguments
+        ---------
+        - data: (DataXRD)
+            Contains the experimental XRD patterns for every pixel.
+        - phases: (list of Phase)
+            Phases that will be fitted to experimental XRD patterns.
+        - indices_sel: (numpy array)
+            2d numpy array of boolean type, of the same dimensions as data, telling for each pixel if it is included or not in the map.
+            The default value is None, in which case all the pixels are included.
+        - sigma: (float)
+            Standard deviation of Gaussian peaks of the synthetic XRD patterns. Default is 0.2.
+        - kwargs: (different types, optional)
+            Arguments that will be passed down to Phase.get_theta().
+            They out restrictions which peaks of tabulated phases are chosen to build synthetic XRD patterns.
+        """
         if indices_sel is None:
             indices_sel = ones(data.shape[:2], bool)
 

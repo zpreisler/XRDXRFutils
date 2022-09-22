@@ -38,6 +38,9 @@ class GammaSearch_Secondary(GammaSearch):
 
 
 class GammaMap_Secondary(GammaMap):
+    """
+    Map that searches for secondary phases in every pixel of the given primary map.
+    """
 
     def __init__(self):
         super().__init__()
@@ -45,6 +48,21 @@ class GammaMap_Secondary(GammaMap):
 
 
     def from_data(self, gammamap_1, phases, sigma = 0.2, **kwargs):
+        """
+        Creates an instance of GammaMap_Secondary.
+
+        Arguments
+        ---------
+        - gammamap_1: (GammaMap)
+            Instance of GammaMap, here acting as primary map with its phases already fitted to data.
+        - phases:  (list of Phase)
+            Secondary phases that will be compared to primary phases.
+        - sigma: (float)
+            Standard deviation of Gaussian peaks of the synthetic XRD patterns. Default is 0.2.
+        - kwargs: (different types, optional)
+            Arguments that will be passed down to Phase.get_theta().
+            They out restrictions which peaks of tabulated phases are chosen to build synthetic XRD patterns.
+        """
         self.set_attributes_from(gammamap_1)
         self.primary_phases = gammamap_1.phases
         self.phases = phases
