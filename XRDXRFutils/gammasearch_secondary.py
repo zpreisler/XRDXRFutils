@@ -72,7 +72,7 @@ class GammaMap_Secondary(GammaMap):
 
 
     def overlap_area_difference(self):
-        return array([gs.overlap_area_difference() for gs in self]).reshape(self.shape)
+        return self.format_as_2d_from_1d(array([gs.overlap_area_difference() for gs in self]))
 
     def overlap_area_difference_ratio(self):
-        return array([gs.overlap_area_difference_ratio() for gs in self]).reshape(self.shape)
+        return self.format_as_2d_from_1d(array([gs.overlap_area_difference_ratio() for gs in self]))
