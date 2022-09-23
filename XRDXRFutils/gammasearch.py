@@ -314,6 +314,8 @@ class GammaMap(list):
 
 
     def format_as_1d_from_2d(self, x):
+        if type(x) != ndarray:
+            raise Exception('format_as_matrix requires a ndarray as parameter')
         cols, rows = zip(*self.coordinates)
         return x[rows, cols]
 
