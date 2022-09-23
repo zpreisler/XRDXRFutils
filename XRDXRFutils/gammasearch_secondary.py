@@ -43,8 +43,8 @@ class GammaMap_Secondary(GammaMap):
     The basic structure is a list of GammaSearch_Secondary objects, one for each pixel.
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, list_gammasearch = []):
+        super().__init__(list_gammasearch)
         self.attribute_names_to_set += ['primary_phases']
 
 
