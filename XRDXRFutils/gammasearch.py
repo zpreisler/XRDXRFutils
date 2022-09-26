@@ -152,7 +152,7 @@ class GammaMap(list):
 
     def from_data(self, data, phases, indices_sel = None, sigma = 0.2, **kwargs):
         """
-        Creates an instance of GammaMap.
+        Builds the map that searches for given phases in given XRD data.
         
         Arguments
         ---------

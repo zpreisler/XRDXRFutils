@@ -50,7 +50,7 @@ class GammaMap_Secondary(GammaMap):
 
     def from_data(self, gammamap_1, phases, sigma = 0.2, **kwargs):
         """
-        Creates an instance of GammaMap_Secondary.
+        Builds the map that searches for given secondary phases, comparing them with phases in the given primary map.
 
         Arguments
         ---------
