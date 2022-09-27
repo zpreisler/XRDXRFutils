@@ -27,7 +27,7 @@ class Spectra():
         counts = data.data.reshape(-1, data.shape[2])[i]
         return self.from_array(counts)
 
-    def from_Data(self, data, x = 0, y = 0):
+    def from_Data(self, data, x, y):
         return self.from_Dataf(data, data.get_index(x, y))
 
 
