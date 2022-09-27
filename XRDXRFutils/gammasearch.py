@@ -173,7 +173,7 @@ class GammaMap(list):
             indices_sel = ones(data.shape[:2], bool)
 
         if data.shape[:2] != indices_sel.shape:
-            raise Exception('Incompatible shapes of data and indices_sel')
+            raise Exception('Method from_data: incompatible shapes of data and indices_sel.')
 
         self.phases = phases
         self.indices_sel = indices_sel
@@ -215,7 +215,10 @@ class GammaMap(list):
         return self.coordinates[i]
 
     def get_index(self, x, y):
-        return self.coordinates.index((x, y))
+        if (x, y) in self.coordinates:
+            return self.coordinates.index((x, y))
+        else:
+            raise Exception(f'Pixel of coordinates {x, y} is not in the map.')
 
     def get_pixel(self, x, y):
         return self[self.get_index(x, y)]
@@ -315,13 +318,13 @@ class GammaMap(list):
 
     def format_as_1d_from_2d(self, x):
         if type(x) != ndarray:
-            raise Exception('format_as_matrix requires a ndarray as parameter')
+            raise Exception('format_as_1d_from_2d requires a ndarray as parameter.')
         cols, rows = zip(*self.coordinates)
         return x[rows, cols]
 
     def format_as_2d_from_1d(self, x):
         if type(x) != ndarray:
-            raise Exception('format_as_matrix requires a ndarray as parameter')
+            raise Exception('format_as_2d_from_1d requires a ndarray as parameter.')
         shape = list(self.shape[:2]) + list(x.shape[1:])
         x_formatted = full(shape, nan, float)
         cols, rows = zip(*self.coordinates)

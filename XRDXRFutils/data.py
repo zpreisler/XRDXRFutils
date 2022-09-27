@@ -688,7 +688,7 @@ class DataXRD(Data):
 
     def generate_spatial_smooth(self, step = 2, method = 'mean'):
         if method not in ['mean', 'max']:
-            raise Exception('Invalid method parameter')
+            raise Exception('generate_spatial_smooth: invalid method parameter.')
 
         print('Generating smooth data...')
         data_new = DataXRD()

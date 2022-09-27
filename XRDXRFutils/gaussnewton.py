@@ -24,7 +24,7 @@ class GaussNewton(FastSpectraXRD):
         spectrum: experimental spectrum; FastSpectraXRD class
         """
         if type(phase) not in [Phase, PhaseList]:
-            raise Exception('Invalid phase type')
+            raise Exception('GaussNewton initialization: invalid phase type.')
 
         self.phase = phase
         self.spectrum = spectrum
