@@ -3,7 +3,8 @@ from scipy.interpolate import interp1d
 from math import ceil
 from numpy import (pi, arctan, loadtxt, frombuffer, array, asarray,
     linspace, arange, trapz, flip, stack, where, zeros, empty, unravel_index,
-    ravel_multi_index, concatenate, append, maximum, nanmax, rot90)
+    ravel_multi_index, concatenate, append, maximum, nanmin, nanmax, rot90,
+    quantile, clip)
 from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
 from os.path import basename
 import os
@@ -136,6 +137,26 @@ class Data():
             if hasattr(self, name_attr):
                 setattr(self, name_attr, rot90(getattr(self, name_attr), k = k, axes = (0, 1)))
         return self
+
+
+    def correct_pixels(self, indices_to_correct):
+        for name_attr in ['data', 'background', 'rescaling', 'intensity', 'signal_background_ratio']:
+            if hasattr(self, name_attr):
+                x = getattr(self, name_attr)
+                x[indices_to_correct] = x[~indices_to_correct].mean(axis = 0, keepdims = True)
+                setattr(self, name_attr, x)
+        print(f'{indices_to_correct.sum()} pixels out of {self.shape[0] * self.shape[1]} were corrected.')
+
+    def correct_quantile_pixels(self, qtl):
+        data_max = (self.data - self.background).max(axis = 2)
+        indices_to_correct = data_max > quantile(data_max, qtl)
+        self.correct_pixels(indices_to_correct)
+
+    def correct_specific_pixels(self, list_x_y):
+        indices_to_correct = zeros(self.shape[:2], bool)
+        for x, y in list_x_y:
+            indices_to_correct[y, x] = True
+        self.correct_pixels(indices_to_correct)
 
 
     def save_h5(self,filename = None):
@@ -399,6 +420,25 @@ class DataXRF(Data):
         self.__select_labels(labels)
 
         return self
+
+
+    def map_correct_quantile_pixels(self, qtl):
+        qtl_calculated = quantile(self.labels, qtl, axis = (0, 1), keepdims = True)
+        n_corrected = (self.labels > qtl_calculated).sum() / self.labels.shape[-1]
+        self.labels = clip(self.labels, None, qtl_calculated)
+        print(f'{n_corrected:.0f} pixels out of {self.labels.shape[0] * self.labels.shape[1]} were corrected on average in each XRF map.')
+
+    def map_correct_specific_pixels(self, list_x_y):
+        for i in range(self.labels.shape[2]):
+            min_value = nanmin(self.labels[..., i])
+            for x, y in list_x_y:
+                self.labels[y, x, i] = min_value
+
+    def map_correct_scale(self):
+        min_value = self.labels.min(axis = (0, 1), keepdims = True)
+        min_value = clip(min_value, None, 0)
+        self.labels -= min_value
+
 
 class SyntheticDataXRF(DataXRF):
     """
