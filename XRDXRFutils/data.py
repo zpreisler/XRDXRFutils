@@ -132,6 +132,13 @@ class Data():
         return self
 
 
+    def flip(self, axis):
+        for name_attr in ['data', 'labels', 'weights', 'background', 'rescaling', 'intensity', 'signal_background_ratio']:
+            if hasattr(self, name_attr):
+                setattr(self, name_attr, flip(getattr(self, name_attr), axis = axis))
+        return self
+
+
     def rotate(self, k):
         for name_attr in ['data', 'labels', 'weights', 'background', 'rescaling', 'intensity', 'signal_background_ratio']:
             if hasattr(self, name_attr):
