@@ -153,17 +153,18 @@ class Data():
                 x[indices_to_correct] = x[~indices_to_correct].mean(axis = 0, keepdims = True)
                 setattr(self, name_attr, x)
         print(f'{indices_to_correct.sum()} pixels out of {self.shape[0] * self.shape[1]} were corrected.')
+        return self
 
     def correct_quantile_pixels(self, qtl):
         data_max = (self.data - self.background).max(axis = 2)
         indices_to_correct = data_max > quantile(data_max, qtl)
-        self.correct_pixels(indices_to_correct)
+        return self.correct_pixels(indices_to_correct)
 
     def correct_specific_pixels(self, list_x_y):
         indices_to_correct = zeros(self.shape[:2], bool)
         for x, y in list_x_y:
             indices_to_correct[y, x] = True
-        self.correct_pixels(indices_to_correct)
+        return self.correct_pixels(indices_to_correct)
 
 
     def save_h5(self,filename = None):
@@ -434,17 +435,20 @@ class DataXRF(Data):
         n_corrected = (self.labels > qtl_calculated).sum() / self.labels.shape[-1]
         self.labels = clip(self.labels, None, qtl_calculated)
         print(f'{n_corrected:.0f} pixels out of {self.labels.shape[0] * self.labels.shape[1]} were corrected on average in each XRF map.')
+        return self
 
     def map_correct_specific_pixels(self, list_x_y):
         for i in range(self.labels.shape[2]):
             min_value = nanmin(self.labels[..., i])
             for x, y in list_x_y:
                 self.labels[y, x, i] = min_value
+        return self
 
     def map_correct_scale(self):
         min_value = self.labels.min(axis = (0, 1), keepdims = True)
         min_value = clip(min_value, None, 0)
         self.labels -= min_value
+        return self
 
 
 class SyntheticDataXRF(DataXRF):
