@@ -350,9 +350,9 @@ class DataXRF(Data):
         if not filenames:
             warnings.warn('No files found')
 
-        print("Reading XRF data")
+        print("Reading XRF data...")
         self.__read__(filenames)
-        print("Done")
+        print("Done.")
 
         return self
 
