@@ -16,7 +16,7 @@ class Spectra():
 
     def from_array(self, counts):
         self.counts = counts
-        self.channel = arange(self.counts.__len__(), dtype = 'int')
+        self.channel = arange(len(self.counts), dtype = 'int')
         return self
 
     def from_file(self, filename):
@@ -27,8 +27,14 @@ class Spectra():
         counts = data.data.reshape(-1, data.shape[2])[i]
         return self.from_array(counts)
 
-    def from_Data(self, data, x = 0, y = 0):
+    def from_Data(self, data, x, y):
         return self.from_Dataf(data, data.get_index(x, y))
+
+
+    @property
+    def length(self):
+        return len(self.counts)
+
 
     @staticmethod
     def fce_calibration(x, a, b, c):

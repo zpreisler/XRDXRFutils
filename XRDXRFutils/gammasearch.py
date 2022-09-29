@@ -2,8 +2,8 @@ from .database import Phase, PhaseList
 from .data import DataXRD
 from .spectra import SpectraXRD, FastSpectraXRD
 from .gaussnewton import GaussNewton
-from numpy import (array, full, zeros, nanargmin, nanargmax, newaxis, append,
-    concatenate, sqrt, average, square, std, asarray, unravel_index, ravel_multi_index,
+from numpy import (ndarray, array, full, zeros, ones, nan, isnan, nanargmin, nanargmax, newaxis,
+    append, concatenate, sqrt, average, square, std, asarray, unravel_index, ravel_multi_index,
     minimum, where)
 from numpy.linalg import pinv
 from multiprocessing import Pool, cpu_count
@@ -17,15 +17,22 @@ import pathlib
 import gc
 
 
+
 class GammaSearch(list):
     """
-    Iterate gamma.
+    Searches for phases against the given XRD experimental pattern.
+    The basic structure is a list of GaussNewton objects, one for each phase.
     """
+
     def __init__(self, phases, spectrum, sigma = 0.2, **kwargs):
         super().__init__([GaussNewton(phase, spectrum, sigma = sigma, **kwargs) for phase in phases])
         self.spectrum = spectrum
-        self.intensity = spectrum.intensity
         self.set_opt(spectrum.opt.copy(), copy = True)
+
+
+    @property
+    def intensity(self):
+        return self.spectrum.intensity
 
 
     def set_opt(self, opt, copy = True):
@@ -102,14 +109,14 @@ class GammaSearch(list):
     def overlap_area_ratio(self, downsample = None):
         return array([gn.overlap_area_ratio(downsample) for gn in self])
 
-    def L1loss(self):
-        return array([gn.L1loss() for gn in self])
+    def L1loss(self, downsample = None):
+        return array([gn.L1loss(downsample) for gn in self])
 
-    def MSEloss(self):
-        return array([gn.MSEloss() for gn in self])
+    def MSEloss(self, downsample = None):
+        return array([gn.MSEloss(downsample) for gn in self])
 
     def metrics(self, downsample = None):
-        return self.L1loss(), self.MSEloss(), self.overlap_area(downsample)
+        return self.L1loss(downsample), self.MSEloss(downsample), self.overlap_area(downsample)
 
 
     def overlap_total(self):
@@ -129,12 +136,73 @@ class GammaSearch(list):
         return (integral_intersection / integral_intensity)
 
 
-class GammaMap_Base(list):
 
-    def fit(self, **kwargs):
-        for gs in self:
-            gs.fit(**kwargs)
+class GammaMap(list):
+    """
+    Map that searches for phases in every pixel of the given data.
+    The basic structure is a list of GammaSearch objects, one for each pixel.
+    """
+
+    ### Creation ###
+
+    def __init__(self, list_gammasearch = []):
+        super().__init__(list_gammasearch)
+        self.attribute_names_to_set = ['phases', 'indices_sel', 'n_pixels', 'shape', 'coordinates']
+
+
+    def from_data(self, data, phases, indices_sel = None, sigma = 0.2, **kwargs):
+        """
+        Builds the map that searches for given phases in given XRD data.
+        
+        Arguments
+        ---------
+        - data: (DataXRD)
+            Contains the experimental XRD patterns for every pixel.
+        - phases: (list of Phase)
+            Phases that will be fitted to experimental XRD patterns.
+        - indices_sel: (numpy array)
+            2d numpy array of boolean type, of the same dimensions as data, telling for each pixel if it is included or not in the map.
+            The default value is None, in which case all the pixels are included.
+        - sigma: (float)
+            Standard deviation of Gaussian peaks of the synthetic XRD patterns. Default is 0.2.
+        - kwargs: (different types, optional)
+            Arguments that will be passed down to Phase.get_theta().
+            They put restrictions on which peaks of tabulated phases are chosen to build synthetic XRD patterns.
+        """
+        if indices_sel is None:
+            indices_sel = ones(data.shape[:2], bool)
+
+        if data.shape[:2] != indices_sel.shape:
+            raise Exception('Method from_data: incompatible shapes of data and indices_sel.')
+
+        self.phases = phases
+        self.indices_sel = indices_sel
+        self.n_pixels = indices_sel.sum()
+        self.shape = (data.shape[0], data.shape[1], len(phases), data.shape[2])
+
+        self.coordinates = []
+        for y in range(data.shape[0]):
+            for x in range(data.shape[1]):
+                if indices_sel[y, x]:
+                    self.coordinates.append((x, y))
+                    spectrum = FastSpectraXRD().from_Data(data, x, y)
+                    self += [GammaSearch(phases, spectrum, sigma, **kwargs)]
+
         return self
+
+
+    ### Manipulation ###
+
+    def set_attributes_from(self, map):
+        for attr_name in self.attribute_names_to_set:
+            if hasattr(map, attr_name):
+                setattr(self, attr_name, getattr(map, attr_name))
+
+
+    def copy(self):
+        map = type(self)([gs for gs in self])
+        map.set_attributes_from(self)
+        return map
 
 
     def downsample(self, level):
@@ -143,11 +211,32 @@ class GammaMap_Base(list):
         return self
 
 
+    def get_x_y(self, i):
+        return self.coordinates[i]
+
+    def get_index(self, x, y):
+        if (x, y) in self.coordinates:
+            return self.coordinates.index((x, y))
+        else:
+            raise Exception(f'Pixel of coordinates {x, y} is not in the map.')
+
+    def get_pixel(self, x, y):
+        return self[self.get_index(x, y)]
+
+
+    ### Calculations for fit ###
+
+    def fit(self, **kwargs):
+        for gs in self:
+            gs.fit(**kwargs)
+        return self
+
+
     @staticmethod
     def fit_cycle_service(x, kwargs):
         return x.fit_cycle(**kwargs)
 
-    def fit_cycle_core(self, verbose, **kwargs):
+    def fit_cycle(self, verbose = True, **kwargs):
         if system() == 'Darwin':
             n_cpu = cpu_count()
             if verbose:
@@ -159,14 +248,17 @@ class GammaMap_Base(list):
                 print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
                 result = p.map(partial(self.fit_cycle_service, kwargs = kwargs), self)
-        return result
+
+        map = type(self)(result)
+        map.set_attributes_from(self)
+        return map
 
 
     @staticmethod
     def search_service(x, phase_selected, alpha):
         return x.search(phase_selected = phase_selected, alpha = alpha)
 
-    def search_core(self, phase_selected, alpha, verbose):
+    def search(self, phase_selected = None, alpha = 1, verbose = True):
         if system() == 'Darwin':
             n_cpu = cpu_count()
             if verbose:
@@ -178,175 +270,120 @@ class GammaMap_Base(list):
                 print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
                 result = p.map(partial(self.search_service, phase_selected = phase_selected, alpha = alpha), self)
-        return result
 
+        map = type(self)(result)
+        map.set_attributes_from(self)
+        return map
+
+
+    ### Output results ###
 
     @staticmethod
     def metrics_service(x, downsample):
         return x.metrics(downsample = downsample)
 
-    def metrics(self, downsample = None, verbose = True):
+    def metrics_core(self, downsample, verbose):
         if system() == 'Darwin':
             n_cpu = cpu_count()
             if verbose:
                 print(f'Using {n_cpu} CPUs')
-            results = Parallel(n_jobs = n_cpu)( delayed(gs.metrics)(downsample = downsample) for gs in self )
+            result = Parallel(n_jobs = n_cpu)( delayed(gs.metrics)(downsample = downsample) for gs in self )
         else:
             n_cpu = cpu_count() - 2
             if verbose:
                 print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
-                results = p.map(partial(self.metrics_service, downsample = downsample), self)
-
-        results = asarray(results)
-        L1loss = results[:,0,:].reshape(self.shape)
-        MSEloss = results[:,1,:].reshape(self.shape)
-        overlap_area = results[:,2,:].reshape(self.shape)
-        return L1loss, MSEloss, overlap_area
+                result = p.map(partial(self.metrics_service, downsample = downsample), self)
+        return asarray(result)
 
 
     @staticmethod
     def overlap_area_ratio_service(x, downsample):
         return x.overlap_area_ratio(downsample = downsample)
 
-    def overlap_area_ratio(self, downsample = None, verbose = True):
+    def overlap_area_ratio_core(self, downsample, verbose):
         if system() == 'Darwin':
             n_cpu = cpu_count()
             if verbose:
                 print(f'Using {n_cpu} CPUs')
-            results = Parallel(n_jobs = n_cpu)( delayed(gs.overlap_area_ratio)(downsample = downsample) for gs in self )
+            result = Parallel(n_jobs = n_cpu)( delayed(gs.overlap_area_ratio)(downsample = downsample) for gs in self )
         else:
             n_cpu = cpu_count() - 2
             if verbose:
                 print(f'Using {n_cpu} CPUs')
             with Pool(n_cpu) as p:
-                results = p.map(partial(self.overlap_area_ratio_service, downsample = downsample), self)
-        return asarray(results).reshape(self.shape)
+                result = p.map(partial(self.overlap_area_ratio_service, downsample = downsample), self)
+        return asarray(result)
+
+
+    def format_as_1d_from_2d(self, x):
+        if type(x) != ndarray:
+            raise Exception('format_as_1d_from_2d requires a ndarray as parameter.')
+        cols, rows = zip(*self.coordinates)
+        return x[rows, cols]
+
+    def format_as_2d_from_1d(self, x):
+        if type(x) != ndarray:
+            raise Exception('format_as_2d_from_1d requires a ndarray as parameter.')
+        shape = list(self.shape[:2]) + list(x.shape[1:])
+        x_formatted = full(shape, nan, float)
+        cols, rows = zip(*self.coordinates)
+        x_formatted[rows, cols] = x
+        return x_formatted
 
 
     def opt(self):
-        return array([gs.opt for gs in self]).reshape(self.shape)
+        return self.format_as_2d_from_1d(array([gs.opt for gs in self]))
 
     def z(self):
-        return array([gs.z() for gs in self]).reshape([self.shape[i] for i in range(len(self.shape) - 1)] + [len(self.phases), -1])
+        return self.format_as_2d_from_1d(array([gs.z() for gs in self]))
 
     def z0(self):
-        return array([gs.z0() for gs in self]).reshape([self.shape[i] for i in range(len(self.shape) - 1)] + [len(self.phases), -1])
+        return self.format_as_2d_from_1d(array([gs.z0() for gs in self]))
 
     def area(self):
-        return array([gs.area() for gs in self]).reshape(self.shape)
+        return self.format_as_2d_from_1d(array([gs.area() for gs in self]))
 
     def area0(self):
-        return array([gs.area0() for gs in self]).reshape(self.shape)
+        return self.format_as_2d_from_1d(array([gs.area0() for gs in self]))
 
     def overlap_area(self, downsample = None):
-        return array([gs.overlap_area(downsample = downsample) for gs in self]).reshape(self.shape)
+        return self.format_as_2d_from_1d(array([gs.overlap_area(downsample) for gs in self]))
+
+    def overlap_area_ratio(self, downsample = None, verbose = True):
+        return self.format_as_2d_from_1d(self.overlap_area_ratio_core(downsample, verbose))
 
     def L1loss(self):
-        return array([gs.L1loss() for gs in self]).reshape(self.shape)
+        return self.format_as_2d_from_1d(array([gs.L1loss() for gs in self]))
 
     def MSEloss(self):
-        return array([gs.MSEloss() for gs in self]).reshape(self.shape)
+        return self.format_as_2d_from_1d(array([gs.MSEloss() for gs in self]))
+
+    def metrics(self, downsample = None, verbose = True):
+        m = self.format_as_2d_from_1d(self.metrics_core(downsample, verbose))
+        return (m[:, :, i, :] for i in range(3))
 
     def selected(self):
-        return array([gs.idx for gs in self]).reshape([self.shape[i] for i in range(len(self.shape) - 1)])
+        return self.format_as_2d_from_1d(array([gs.idx for gs in self]))
 
 
-class GammaMap_Partial(GammaMap_Base):
-
-    def from_data(self, data, phases, indices_sel, sigma = 0.2, **kwargs):
-
-        self.phases = phases
-        self.shape = (indices_sel.sum(), -1)
-        self.coordinates = []
-
-        spectra = []
-        for x in range(data.shape[1]):
-            for y in range(data.shape[0]):
-                if indices_sel[y, x]:
-                    spectra.append(FastSpectraXRD().from_Data(data, x, y))
-                    self.coordinates.append((x, y))
-        self += [GammaSearch(phases, spectrum, sigma, **kwargs) for spectrum in spectra]
-
-        return self
-
-
-    def fit_cycle(self, verbose = True, **kwargs):
-        x = GammaMap_Partial(self.fit_cycle_core(verbose, **kwargs))
-        x.phases = self.phases
-        x.shape = self.shape
-        x.coordinates = self.coordinates
-        return x
-
-
-    def search(self, phase_selected = None, alpha = 1, verbose = True):
-        x = GammaMap_Partial(self.search_core(phase_selected = phase_selected, alpha = alpha, verbose = verbose))
-        x.phases = self.phases
-        x.shape = self.shape
-        x.coordinates = self.coordinates
-        return x
-
-
-    def get_x_y(self, i):
-        return self.coordinates[i]
-
-    def get_index(self, x, y):
-        return self.coordinates.index((x, y))
-
-    def get_pixel(self, x, y):
-        return self[self.get_index(x, y)]
-
-
-class GammaMap(GammaMap_Base):
-    """
-    Construct gamma phase maps.
-    """
-    def from_data(self, data, phases, sigma = 0.2, **kwargs):
-
-        self.phases = phases
-        self.shape = (data.shape[0], data.shape[1], -1)
-
-        d = data.shape[0] * data.shape[1]
-        spectra = [FastSpectraXRD().from_Dataf(data, i) for i in range(d)]
-        self += [GammaSearch(phases, spectrum, sigma, **kwargs) for spectrum in spectra]
-
-        return self
-
-
-    def fit_cycle(self, verbose = True, **kwargs):
-        x = GammaMap(self.fit_cycle_core(verbose, **kwargs))
-        x.phases = self.phases
-        x.shape = self.shape
-        return x
-
-
-    def search(self, phase_selected = None, alpha = 1, verbose = True):
-        x = GammaMap(self.search_core(phase_selected = phase_selected, alpha = alpha, verbose = verbose))
-        x.phases = self.phases
-        x.shape = self.shape
-        return x
-
-
-    def get_x_y(self, i):
-        y, x = unravel_index(i, self.shape[:2])
-        return x, y
-
-    def get_index(self, x, y):
-        return ravel_multi_index((y, x), self.shape[:2])
-
-    def get_pixel(self, x, y):
-        return self[self.get_index(x, y)]
-
+    ### Misc ###
 
     def select_phases(self, criterion, offset = -8):
         phases_new = []
 
-        for idx in range(len(self.phases)):
-            point = criterion[:, :, idx].flatten().argsort()[offset]
-            gauss_newton = self[point][idx]
+        for i_phase in range(len(self.phases)):
+            criterion_sel_flat = criterion[..., i_phase][self.indices_sel]                # Criterion in selected pixels
+            indices_sorted = criterion_sel_flat.argsort()                                 # Indices sorted according to 'criterion'
+            indices_sorted_clean = indices_sorted[: (~isnan(criterion_sel_flat)).sum()]   # Remove indices corresponding to nan values of criterion
+            if not (-len(indices_sorted_clean) <= offset < len(indices_sorted_clean)):
+                raise Exception(f'{self.phases[i_phase].label}: {len(indices_sorted_clean)} pixels with valid criterion. Chosen offset {offset} is out of range.')
+            i_pixel = indices_sorted_clean[offset]
+
+            gauss_newton = self[i_pixel][i_phase]
             phase_made = gauss_newton.make_phase()
-            phase_made.set_name('created_%d'%idx)
-            phase_made.set_point(point)
+            phase_made.set_name('created_%d'%i_phase)
+            phase_made.set_point(i_pixel)
             phases_new += [phase_made]
 
         return phases_new

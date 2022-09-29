@@ -16,8 +16,8 @@ class GammaSearch_Secondary(GammaSearch):
     Searches for secondary phases and compares them to primary phases.
     To be created with gammasearch_1 that contains already fitted primary phases.
     """
-    def __init__(self, gammasearch_1, phases, spectrum, sigma = 0.2, **kwargs):
-        super().__init__(phases, spectrum, sigma, **kwargs)
+    def __init__(self, gammasearch_1, phases, sigma = 0.2, **kwargs):
+        super().__init__(phases, gammasearch_1.spectrum, sigma, **kwargs)
         self.gammasearch_1 = gammasearch_1
         self.set_opt(gammasearch_1.opt.copy(), copy = True)
 
@@ -36,28 +36,43 @@ class GammaSearch_Secondary(GammaSearch):
         return self.overlap_area_difference() / integral_intensity
 
 
+
 class GammaMap_Secondary(GammaMap):
+    """
+    Map that searches for secondary phases in every pixel of the given primary map.
+    The basic structure is a list of GammaSearch_Secondary objects, one for each pixel.
+    """
+
+    def __init__(self, list_gammasearch = []):
+        super().__init__(list_gammasearch)
+        self.attribute_names_to_set += ['primary_phases']
+
 
     def from_data(self, gammamap_1, phases, sigma = 0.2, **kwargs):
+        """
+        Builds the map that searches for given secondary phases, comparing them with phases in the given primary map.
+
+        Arguments
+        ---------
+        - gammamap_1: (GammaMap)
+            Instance of GammaMap, here acting as primary map with its phases already fitted to data.
+        - phases:  (list of Phase)
+            Secondary phases that will be compared to primary phases.
+        - sigma: (float)
+            Standard deviation of Gaussian peaks of the synthetic XRD patterns. Default is 0.2.
+        - kwargs: (different types, optional)
+            Arguments that will be passed down to Phase.get_theta().
+            They put restrictions on which peaks of tabulated phases are chosen to build synthetic XRD patterns.
+        """
+        self.set_attributes_from(gammamap_1)
         self.primary_phases = gammamap_1.phases
         self.phases = phases
-        self.shape = gammamap_1.shape
-
-        self += [GammaSearch_Secondary(gs1, phases, gs1.spectrum, sigma, **kwargs) for gs1 in gammamap_1]
-
+        self += [GammaSearch_Secondary(gs_1, phases, sigma, **kwargs) for gs_1 in gammamap_1]
         return self
 
 
-    def fit_cycle(self, verbose = True, **kwargs):
-        x = GammaMap_Secondary(self.fit_cycle_core(verbose, **kwargs))
-        x.primary_phases = self.primary_phases
-        x.phases = self.phases
-        x.shape = self.shape
-        return x
-
-
     def overlap_area_difference(self):
-        return array([gs.overlap_area_difference() for gs in self]).reshape(self.shape)
+        return self.format_as_2d_from_1d(array([gs.overlap_area_difference() for gs in self]))
 
     def overlap_area_difference_ratio(self):
-        return array([gs.overlap_area_difference_ratio() for gs in self]).reshape(self.shape)
+        return self.format_as_2d_from_1d(array([gs.overlap_area_difference_ratio() for gs in self]))
