@@ -18,14 +18,12 @@ class Phase(dict):
 
     def get_theta(self, l = [1.541874], scale = [1.0], min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None):
 
-        if (hasattr(self, 'l_last') and hasattr(self, 'scale_last') and hasattr(self, 'min_theta_last') and
+        if not (hasattr(self, 'l_last') and hasattr(self, 'scale_last') and hasattr(self, 'min_theta_last') and
             hasattr(self, 'max_theta_last') and hasattr(self, 'min_intensity_last') and hasattr(self, 'first_n_peaks_last') and
             l == self.l_last and scale == self.scale_last and min_theta == self.min_theta_last and
             max_theta == self.max_theta_last and min_intensity == self.min_intensity_last and first_n_peaks == self.first_n_peaks_last and
             hasattr(self, 'theta') and hasattr(self, 'intensity')
         ):
-            return self.theta, self.intensity
-        else:
             self.l_last = l
             self.scale_last = scale
             self.min_theta_last = min_theta
@@ -37,12 +35,10 @@ class Phase(dict):
 
             theta = []
             intensity = []
-
             for _l, s in zip(l,scale):
                 g = _l / (2.0 * d)
                 theta += [360.0 * arcsin(g) / pi]
                 intensity += [i * s]
-
             theta = concatenate(theta)
             intensity = concatenate(intensity) / 1000.0
 
@@ -60,7 +56,7 @@ class Phase(dict):
                     self.intensity, self.theta = array(sorted(zip(self.intensity, self.theta), reverse = True)).T[:, 0:first_n_peaks]
                     self.theta, self.intensity = array(sorted(zip(self.theta, self.intensity))).T
 
-            return self.theta, self.intensity
+        return self.theta.copy(), self.intensity.copy()
 
 
     def set_name(self, name):
