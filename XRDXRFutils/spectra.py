@@ -202,11 +202,13 @@ class SpectraXRD(Spectra):
         self.channel_downsampled = []
         for i in range(self.downsample_max + 1):
             self.channel_downsampled.append(arange((2**i - 1) / 2, len(self.counts), 2**i))
+        return self
 
-    def calculate_downsampled_intensity(self):
-        self.intensity_downsampled = [self.intensity_downsampled[0]]
+    def calculate_downsampled_intensity(self, intensity):
+        self.intensity_downsampled = [intensity]
         for i in range(self.downsample_max):
             self.intensity_downsampled.append(0.5 * (self.intensity_downsampled[i][::2] + self.intensity_downsampled[i][1::2]))
+        return self
 
     def downsample(self, level):
         if level > self.downsample_max:
@@ -227,8 +229,7 @@ class SpectraXRD(Spectra):
         self.calibrate_from_parameters(opt)
         self.from_array(counts)
         self.rescaling = rescaling
-        self.intensity_downsampled = [intensity]
-        self.calculate_downsampled_intensity()
+        self.calculate_downsampled_intensity(intensity)
         return self
 
     def from_Dataf(self, data, i):
@@ -248,8 +249,7 @@ class SpectraXRD(Spectra):
             counts_no_bg = maximum(counts_no_bg, 0)
         self.counts_smoothed = convolve(counts_no_bg, n = ceil(3 * std_smooth + 1), std = std_smooth)
         self.rescaling = self.counts_smoothed.max()
-        self.intensity_downsampled = [self.counts_smoothed / self.rescaling]
-        self.calculate_downsampled_intensity()
+        self.calculate_downsampled_intensity(self.counts_smoothed / self.rescaling)
         return self
 
 
