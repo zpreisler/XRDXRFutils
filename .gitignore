@@ -1,5 +1,6 @@
-.DS_Store
+.ipynb_checkpoints/**
 build/**
+doc/**
 XRDXRFutils.egg-info/**
 XRDXRFutils/__pycache__/**
-doc/**
+.DS_Store
