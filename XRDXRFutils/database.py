@@ -43,11 +43,11 @@ class Phase(dict):
             intensity = concatenate(intensity) / 1000.0
 
             mask = array([True]*len(theta))
-            if min_theta:
+            if min_theta is not None:
                 mask &= (theta > min_theta)
-            if max_theta:
+            if max_theta is not None:
                 mask &= (theta < max_theta) 
-            if min_intensity:
+            if min_intensity is not None:
                 mask &= (intensity > min_intensity)
             self.theta, self.intensity = theta[mask], intensity[mask]
 
