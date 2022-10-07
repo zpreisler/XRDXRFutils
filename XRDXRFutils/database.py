@@ -14,7 +14,6 @@ class Phase(dict):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.label_set = None
         self.select_peaks(None)
 
 
@@ -24,9 +23,7 @@ class Phase(dict):
 
     @property
     def label(self):
-        if self.label_set is not None:
-            return self.label_set
-        for field in ['_chemical_name_mineral', '_chemical_name_common', '_chemical_formula_sum']:
+        for field in ['label', '_chemical_name_mineral', '_chemical_name_common', '_chemical_formula_sum']:
             if field in self:
                 return self[field]
         return None
@@ -94,13 +91,22 @@ class Phase(dict):
         self.peaks_selected = peaks_selected
         return self
 
-    def set_name(self, name):
-        self['name'] = name
+
+    def set_key(self, key, value):
+        if value is None:
+            self.pop(key, None)
+        else:
+            self[key] = value
         return self
 
-    def set_point(self, point):
-        self['point'] = point
-        return self
+    def set_label(self, label = None):
+        return self.set_key('label', label)
+
+    def set_name(self, name = None):
+        return self.set_key('name', name)
+
+    def set_point(self, point = None):
+        return self.set_key('point', point)
 
 
     def plot(self, positions = False, colors = 'red', linestyles = 'dashed', label = None, lineheight = None,
