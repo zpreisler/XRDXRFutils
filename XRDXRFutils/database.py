@@ -26,14 +26,10 @@ class Phase(dict):
     def label(self):
         if self.label_set is not None:
             return self.label_set
-        if '_chemical_name_mineral' in self:
-            return self['_chemical_name_mineral']
-        elif '_chemical_name_common' in self:
-            return self['_chemical_name_common']
-        elif '_chemical_formula_sum' in self:
-            return self['_chemical_formula_sum']
-        else:
-            return None
+        for field in ['_chemical_name_mineral', '_chemical_name_common', '_chemical_formula_sum']:
+            if field in self:
+                return self[field]
+        return None
 
 
     @staticmethod
@@ -130,17 +126,9 @@ class Phase(dict):
 
         with open(filename, 'w') as file:
 
-            if '_chemical_formula_sum' in self:
-                file.write('_chemical_formula_sum  \'' + self['_chemical_formula_sum'] + '\'\n')
-
-            if '_chemical_name_mineral' in self:
-                file.write('_chemical_name_mineral  \'' + self['_chemical_name_mineral'] + '\'\n')
-
-            if '_chemical_name_common' in self:
-                file.write('_chemical_name_common  \'' + self['_chemical_name_common'] + '\'\n')
-
-            if 'name' in self:
-                file.write('name  \'' + self['name'] + '\'\n')
+            for field in ['_chemical_formula_sum', '_chemical_name_mineral', '_chemical_name_common', 'name']:
+                if field in self:
+                    file.write(field + "  '" + self[field] + "'\n")
 
             if 'point' in self:
                 file.write('point  ' + format(self['point'], 'd') + '\n')
