@@ -154,7 +154,7 @@ class PhaseList(list):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if 'label' in kwargs:
-            self.label_arg = kwargs.pop('label')
+            self.set_label(kwargs.pop('label'))
 
 
     @property
@@ -182,12 +182,19 @@ class PhaseList(list):
         return concatenate(theta), concatenate(intensity), concatenate(position)
 
 
-    def set_name(self, name):
+    def set_label(self, label = None):
+        if label is None:
+            if hasattr(self, 'label_arg'):
+                delattr(self, 'label_arg')
+        else:
+            self.label_arg = label
+
+    def set_name(self, name = None):
         for phase in self:
             phase.set_name(name)
         return self
 
-    def set_point(self, point):
+    def set_point(self, point = None):
         for phase in self:
             phase.set_point(point)
         return self
