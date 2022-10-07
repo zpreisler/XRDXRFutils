@@ -1,6 +1,6 @@
 from .spectra import SpectraXRD, FastSpectraXRD
 
-from .database import Phase,PhaseList
+from .database import Phase, PhaseList
 
 from numpy import (fabs, sum, exp, log, sin, pi, array, ones, zeros, full, full_like, trapz, minimum,
     maximum, nanmax, std, sign, sqrt, square, average, clip, newaxis, concatenate, append,
@@ -40,7 +40,7 @@ class GaussNewton(FastSpectraXRD):
         tabulated intensity: I
         """
         # Variables along the diffraction lines
-        self.mu, self.I = self.get_theta(**kwargs)
+        self.mu, self.I, p = self.get_theta(**kwargs)
 
         """
         parameters g, tau --> gamma, sigma^2
@@ -396,7 +396,7 @@ class GaussNewton(FastSpectraXRD):
         index_count = 0
 
         for phase in pl:
-            mu, I = phase.get_theta(**self.kwargs)
+            mu, I, p = phase.get_theta(**self.kwargs)
             phase_len = mu.shape[0]
 
             gamma = self.gamma.squeeze()[index_count : (index_count + phase_len)]
@@ -413,12 +413,10 @@ class GaussNewton(FastSpectraXRD):
             # Calculates d, i
             I_new /= nanmax(I_new)
             i = I_new * 1000
-            d = 1.541874 / (2 * sin(pi * mu / 360))
+            d = Phase.d_from_theta(mu)
 
             phase_new = Phase(phase)
             phase_new['_pd_peak_intensity'] = array([d, i])
-            phase_new.theta = mu
-            phase_new.intensity = I_new
 
             # Adds the new phase to the results
             pl_new.append(phase_new)

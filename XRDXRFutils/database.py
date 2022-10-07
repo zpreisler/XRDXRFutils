@@ -1,69 +1,129 @@
 #!/usr/bin/env python
 
-from matplotlib.pyplot import plot,figure,subplots,xlim,ylim,vlines,legend,fill_between,cm
+from matplotlib.pyplot import plot, figure, subplots, xlim, ylim, vlines, legend, fill_between, cm, text
 
-from numpy import loadtxt,arcsin,sin,pi,array,asarray,minimum,concatenate,linspace,arange
+from numpy import (loadtxt, arcsin, sin, pi, array, asarray, minimum, concatenate, linspace, arange,
+    ones, zeros, full)
 from numpy.random import randint
 from glob import glob
 import warnings
 
+
+
 class Phase(dict):
 
-    def __init__(self,*args,**kwargs):
-        super().__init__(*args,**kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.label_set = None
+        self.select_peaks(None)
+
 
     def __len__(self):
         return len(self['_pd_peak_intensity'][0])
 
-    def get_theta(self, l = [1.541874], scale = [1.0], min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None):
 
-        if not (hasattr(self, 'l_last') and hasattr(self, 'scale_last') and hasattr(self, 'min_theta_last') and
-            hasattr(self, 'max_theta_last') and hasattr(self, 'min_intensity_last') and hasattr(self, 'first_n_peaks_last') and
-            l == self.l_last and scale == self.scale_last and min_theta == self.min_theta_last and
-            max_theta == self.max_theta_last and min_intensity == self.min_intensity_last and first_n_peaks == self.first_n_peaks_last and
-            hasattr(self, 'theta') and hasattr(self, 'intensity')
+    @property
+    def label(self):
+        if self.label_set is not None:
+            return self.label_set
+        if '_chemical_name_mineral' in self:
+            return self['_chemical_name_mineral']
+        elif '_chemical_name_common' in self:
+            return self['_chemical_name_common']
+        elif '_chemical_formula_sum' in self:
+            return self['_chemical_formula_sum']
+        else:
+            return None
+
+
+    @staticmethod
+    def theta_from_d(d, l = 1.541874):
+        return (360 / pi) * arcsin(l / (2 * d))
+
+    @staticmethod
+    def d_from_theta(theta, l = 1.541874):
+        return l / (2 * sin(pi * theta / 360))
+
+
+    def get_theta(self, length = [1.541874], scale = [1.0], min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None):
+
+        if not (hasattr(self, 'length_last') and length == self.length_last
+            and hasattr(self, 'scale_last') and scale == self.scale_last
+            and hasattr(self, 'min_theta_last') and min_theta == self.min_theta_last
+            and hasattr(self, 'max_theta_last') and max_theta == self.max_theta_last
+            and hasattr(self, 'min_intensity_last') and min_intensity == self.min_intensity_last
+            and hasattr(self, 'first_n_peaks_last') and first_n_peaks == self.first_n_peaks_last
+            and hasattr(self, 'peaks_selected_last') and self.peaks_selected == self.peaks_selected_last
+            and hasattr(self, 'theta') and hasattr(self, 'intensity')
         ):
-            self.l_last = l
+            self.length_last = length
             self.scale_last = scale
             self.min_theta_last = min_theta
             self.max_theta_last = max_theta
             self.min_intensity_last = min_intensity
             self.first_n_peaks_last = first_n_peaks
+            self.peaks_selected_last = self.peaks_selected
 
             d, i = self['_pd_peak_intensity']
-
             theta = []
             intensity = []
-            for _l, s in zip(l,scale):
-                g = _l / (2.0 * d)
-                theta += [360.0 * arcsin(g) / pi]
+            for l, s in zip(length, scale):
+                theta += [self.theta_from_d(d, l)]
                 intensity += [i * s]
             theta = concatenate(theta)
             intensity = concatenate(intensity) / 1000.0
+            intensity, theta = array(sorted(zip(intensity, theta), reverse = True)).T
+            position = array(range(len(theta)))
 
-            mask = array([True] * len(theta))
+            mask = ones(len(theta), bool)
             if min_theta is not None:
                 mask &= (theta > min_theta)
             if max_theta is not None:
                 mask &= (theta < max_theta) 
             if min_intensity is not None:
                 mask &= (intensity > min_intensity)
-            self.theta, self.intensity = theta[mask], intensity[mask]
+            if first_n_peaks is not None:
+                mask &= (position < first_n_peaks)
+            if (self.peaks_selected is not None) and (self.peaks_selected != []):
+                mask_peaks_selected = zeros(len(theta), bool)
+                mask_peaks_selected[self.peaks_selected] = True
+                mask &= mask_peaks_selected
+            self.theta, self.intensity, self.position = theta[mask], intensity[mask], position[mask]
+            self.theta, self.intensity, self.position = array(sorted(zip(self.theta, self.intensity, self.position))).T
 
-            if (self.theta.shape[0] > 0):
-                if (first_n_peaks is not None):
-                    self.intensity, self.theta = array(sorted(zip(self.intensity, self.theta), reverse = True)).T[:, 0:first_n_peaks]
-                    self.theta, self.intensity = array(sorted(zip(self.theta, self.intensity))).T
+        return self.theta.copy(), self.intensity.copy(), self.position.copy()
 
-        return self.theta.copy(), self.intensity.copy()
 
+    def select_peaks(self, peaks_selected = None):
+        self.peaks_selected = peaks_selected
+        return self
 
     def set_name(self, name):
         self['name'] = name
+        return self
 
     def set_point(self, point):
         self['point'] = point
+        return self
+
+
+    def plot(self, positions = False, colors = 'red', linestyles = 'dashed', label = None, lineheight = None,
+         min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, **kwargs):
+
+        theta, intensity, position = self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity, first_n_peaks = first_n_peaks)
+
+        if label is None:
+            label = self.label
+
+        if lineheight is None:
+            lineheight = intensity
+        else:
+            lineheight = full(intensity.shape, lineheight)
+
+        vlines(theta, 0, intensity, colors = colors, linestyles = linestyles, label = label, **kwargs)
+        if positions:
+            for i in range(len(theta)):
+                text(theta[i], lineheight[i], f'{position[i]:.0f}', ha = 'center', va = 'bottom', fontsize = 'x-small')
 
 
     def save_cif(self, filename):
@@ -94,41 +154,14 @@ class Phase(dict):
                 file.write('     ' + str(d) + f'{str(i):>14}' + '\n')
 
 
-    @property
-    def label(self):
-        if self.label_set is not None:
-            return self.label_set
-        if '_chemical_name_mineral' in self:
-            return self['_chemical_name_mineral']
-        elif '_chemical_name_common' in self:
-            return self['_chemical_name_common']
-        elif '_chemical_formula_sum' in self:
-            return self['_chemical_formula_sum']
-        else:
-            return None
-
-
-    def plot(self, colors = 'red', linestyles = 'dashed', label = None, lineheight = None,
-         min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, **kwargs):
-
-        self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity, first_n_peaks = first_n_peaks)
-
-        if label is None:
-            label = self.label
-
-        if lineheight is None:
-            vlines(self.theta, 0, self.intensity, colors = colors, linestyles = linestyles, label = label, **kwargs)
-        else:
-            vlines(self.theta, 0, lineheight, colors = colors, linestyles = linestyles, label = label, **kwargs)
-
 
 class PhaseList(list):
-#class PhaseList(Phase):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if 'label' in kwargs:
             self.label_arg = kwargs.pop('label')
+
 
     @property
     def label(self):
@@ -137,41 +170,47 @@ class PhaseList(list):
         else:
             return '[' + ', '.join([elem.label for elem in self]) + ']'
 
-    def get_theta(self, **kwargs):
-        theta = []
-        intensity = []
-        for phase in self:
-            t, i = phase.get_theta(**kwargs)
-            theta += [t]
-            intensity += [i]
-        return concatenate(theta), concatenate(intensity)
-
-
-    def set_name(self, name):
-        for phase in self:
-            phase.set_name(name)
-
-    def set_point(self, point):
-        for phase in self:
-            phase.set_point(point)
-
-
-    def plot(self, cmap = 'tab10', min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, **kwargs):
-        cmap_sel = cm.get_cmap(cmap)
-        for i, phase in enumerate(self):
-            idx_color = i % cmap_sel.N
-            phase.plot(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity,
-                first_n_peaks = first_n_peaks, colors = cmap_sel(idx_color), **kwargs)
-
 
     def random(self):
         idx = randint(self.__len__())
         return self[idx]
 
 
+    def get_theta(self, **kwargs):
+        theta = []
+        intensity = []
+        position = []
+        for phase in self:
+            t, i, p = phase.get_theta(**kwargs)
+            theta += [t]
+            intensity += [i]
+            position += [p]
+        return concatenate(theta), concatenate(intensity), concatenate(position)
+
+
+    def set_name(self, name):
+        for phase in self:
+            phase.set_name(name)
+        return self
+
+    def set_point(self, point):
+        for phase in self:
+            phase.set_point(point)
+        return self
+
+
+    def plot(self, positions = False, cmap = 'tab10', min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, **kwargs):
+        cmap_sel = cm.get_cmap(cmap)
+        for i, phase in enumerate(self):
+            idx_color = i % cmap_sel.N
+            phase.plot(positions = positions, min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity,
+                first_n_peaks = first_n_peaks, colors = cmap_sel(idx_color), **kwargs)
+
+
     def save_cif(self, filename):
         for phase in self:
             phase.save_cif(filename[:-4] + '_' + phase.label + '.cif')
+
 
 
 class DatabaseXRD(dict):
