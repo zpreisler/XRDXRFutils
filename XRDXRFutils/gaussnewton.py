@@ -319,6 +319,19 @@ class GaussNewton(FastSpectraXRD):
     """
     Evaluation of the results
     """
+    def downsampled_function(self, downsample, f, **kwargs):
+        if downsample is not None:
+            downsample_initial = self.downsample_level
+            self.downsample(downsample)
+
+        result = f(self, **kwargs)
+
+        if downsample is not None:
+            self.downsample(downsample_initial)
+
+        return result
+
+
     def area(self):
         return self.z().sum()
 
@@ -327,17 +340,10 @@ class GaussNewton(FastSpectraXRD):
 
 
     def overlap(self, downsample = None):
-        if downsample is not None:
-            downsample_initial = self.downsample_level
-            self.downsample(downsample)
+        def f(self):
+            return maximum(minimum(self.z(), self.intensity), 0)
 
-        m = minimum(self.z(), self.intensity)
-        m = where(m < 0, 0, m)
-
-        if downsample is not None:
-            self.downsample(downsample_initial)
-
-        return m
+        return self.downsampled_function(downsample, f)
 
 
     def overlap_area(self, downsample = None):
@@ -345,37 +351,25 @@ class GaussNewton(FastSpectraXRD):
 
 
     def overlap_area_ratio(self, downsample = None):
-        if downsample is not None:
-            downsample_initial = self.downsample_level
-            self.downsample(downsample)
+        def f(self):
+            intensity_corrected = maximum(self.intensity, 0)
+            return self.overlap_area() / intensity_corrected.sum()
 
-        intensity_corrected = maximum(self.intensity, 0)
-        overlap = self.overlap_area() / intensity_corrected.sum()
-
-        if downsample is not None:
-            self.downsample(downsample_initial)
-
-        return overlap
+        return self.downsampled_function(downsample, f)
 
 
     def L1loss(self, downsample = None):
-        if downsample is not None:
-            downsample_initial = self.downsample_level
-            self.downsample(downsample)
-        result = (fabs(self.intensity - self.z())).mean()
-        if downsample is not None:
-            self.downsample(downsample_initial)
-        return result
+        def f(self):
+            return (fabs(self.intensity - self.z())).mean()
+
+        return self.downsampled_function(downsample, f)
 
 
     def MSEloss(self, downsample = None):
-        if downsample is not None:
-            downsample_initial = self.downsample_level
-            self.downsample(downsample)
-        result = ((self.intensity - self.z())**2).mean()
-        if downsample is not None:
-            self.downsample(downsample_initial)
-        return result
+        def f(self):
+            return ((self.intensity - self.z())**2).mean()
+
+        return self.downsampled_function(downsample, f)
 
 
     def make_phase(self):
