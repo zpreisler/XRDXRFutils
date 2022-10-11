@@ -190,7 +190,8 @@ class Data():
                 calibration = f.create_group('calibration')
 
                 for attr in ['x', 'y', 'opt']:
-                    calibration.create_dataset(attr, data = getattr(self.calibration, attr))
+                    if hasattr(self.calibration,attr):
+                        calibration.create_dataset(attr, data = getattr(self.calibration, attr))
                 for k, v in self.calibration.metadata.items():
                     calibration.attrs[k] = v
 
