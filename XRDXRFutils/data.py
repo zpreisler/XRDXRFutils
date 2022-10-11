@@ -23,6 +23,7 @@ import h5py
 import warnings
 
 
+
 class Container():
     """
     Container to pass parameters to the Pool.
@@ -61,6 +62,8 @@ class Container():
             scale = 1
 
         return iy * scale
+
+
 
 class Data():
     """
@@ -320,6 +323,8 @@ class Data():
 
         return ix,[Container(_y,x,new_x,fx,gx) for _y in y]
 
+
+
 class DataXRF(Data):
     """
     XRF data class
@@ -445,10 +450,9 @@ class DataXRF(Data):
         return self
 
     def map_correct_scale(self):
-        min_value = self.labels.min(axis = (0, 1), keepdims = True)
-        min_value = clip(min_value, None, 0)
-        self.labels -= min_value
+        self.labels = clip(self.labels, 0, None)
         return self
+
 
 
 class SyntheticDataXRF(DataXRF):
@@ -648,6 +652,8 @@ class SyntheticDataXRF(DataXRF):
 
         return self
 
+
+
 class SimulationParams:
     """
     Synthetic data parameters class
@@ -660,6 +666,8 @@ class SimulationParams:
         self.weight_fractions = []
         self.reflayer_thickness = empty((len_data))
         self.sublayer_thickness = empty((len_data))
+
+
 
 class DataXRD(Data):
     """
@@ -767,6 +775,7 @@ class DataXRD(Data):
         print('Done.')
         #data_new.background_elimination_and_smoothing()
         return data_new
+
 
 
 def resample(x,y,nbins=1024,bounds=(0,30)):
