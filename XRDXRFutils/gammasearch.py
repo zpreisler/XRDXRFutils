@@ -247,13 +247,13 @@ class GammaMap(list):
         - verbose: (bool)
             Whether to print the number of CPUs that are used for calculations.
         - f: (method of GammaSearch)
-            Method of gammasearch. It will be calculated in parallel for each element of the map.
+            Method that will be calculated in parallel for each element of the map.
         - kwargs: (different types, optional)
             Arguments that will be passed to f().
 
         Return
         ------
-        List of the values returned by f() applied to each element of the map.
+        List of the values returned by f(**kwargs) applied to each element of the map.
         """
         if system() == 'Darwin':
             n_cpu = cpu_count()

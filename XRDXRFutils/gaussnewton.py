@@ -320,6 +320,22 @@ class GaussNewton(FastSpectraXRD):
     Evaluation of the results
     """
     def downsampled_function(self, downsample, f, **kwargs):
+        """
+        Calls given method with chosen downsample.
+
+        Arguments
+        ---------
+        - downsample: (int)
+            Level of downsample
+        - f: (method of GaussNewton)
+            Method that will be called with the chosen downsample level.
+        - kwargs: (different types, optional)
+            Arguments that will be passed to f().
+
+        Return
+        ------
+        The same as f(self, **kwargs), but calculated with the chosen downsample.
+        """
         if downsample is not None:
             downsample_initial = self.downsample_level
             self.downsample(downsample)
