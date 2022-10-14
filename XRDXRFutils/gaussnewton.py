@@ -48,7 +48,7 @@ class GaussNewton(FastSpectraXRD):
         # Variables along the diffraction lines
         self.g = full((1, self.n_peaks), self.iw(1))
         self.tau = full((1, self.n_peaks), sigma)
-        
+
     """
     Redefined variables
     """
@@ -96,23 +96,25 @@ class GaussNewton(FastSpectraXRD):
 
 
     """
-    Plot functions
+    Setting functions
     """
-    def plot_spectrum(self, *args, **kwargs):
-        super().plot(*args, **kwargs)
+    def downsample(self, level):
+        self.spectrum.downsample(level)
+        return self
 
-    def plot(self, *args, **kwargs):
-        plot(self.theta, self.z(), *args, **kwargs)
+    @property
+    def downsample_level(self):
+        return self.spectrum.downsample_level
+
 
     """
     Utility functions
     """
-    def get_theta(self,**kwargs):
+    def get_theta(self, **kwargs):
         return self.phase.get_theta(**kwargs)
 
     def theta_range(self):
         return super().theta_range().squeeze()
-
 
     def z(self):
         """
@@ -143,14 +145,6 @@ class GaussNewton(FastSpectraXRD):
     """
     Calculations for fit
     """
-    def downsample(self, level):
-        self.spectrum.downsample(level)
-        return self
-
-    @property
-    def downsample_level(self):
-        return self.spectrum.downsample_level
-
 
     def calculate_components(self):
 
@@ -188,6 +182,7 @@ class GaussNewton(FastSpectraXRD):
         der_f_beta = - aux
 
         return der_f_a, der_f_s, der_f_beta
+
 
     def der_f_a_beta_when_relation_a_s(self, k, b):
 
@@ -374,6 +369,35 @@ class GaussNewton(FastSpectraXRD):
         return self.downsampled_function(downsample, f)
 
 
+    def adjustment_ratio(self, downsample = None):
+        def f(self):
+            z = self.z()
+            z0 = self.z0()
+            z_min = minimum(z, z0)
+            z_max = maximum(z, z0)
+            return z_min.sum() / z_max.sum()
+
+        return self.downsampled_function(downsample, f)
+
+
+    def phase_presence(self, downsample = None, method = None, correction = None):
+        # Default values
+        if method is None:
+            method = 'overlap_area'
+        if correction is None:
+            correction = True
+
+        methods_allowed = ['overlap_area', 'overlap_area_ratio', 'adjustment_ratio']
+        if method in methods_allowed:
+            result = getattr(self, method)(downsample)
+            if correction:
+                result *= (self.spectrum.rescaling**0.5)
+        else:
+            raise Exception('GaussNewton.phase_presence(): \'method\' argument has only some allowed values: ' + ', '.join(["'" + m + "'" for m in methods_allowed]) + '.')
+
+        return result
+
+
     def L1loss(self, downsample = None):
         def f(self):
             return (fabs(self.intensity - self.z())).mean()
@@ -388,6 +412,19 @@ class GaussNewton(FastSpectraXRD):
         return self.downsampled_function(downsample, f)
 
 
+    """
+    Plot functions
+    """
+    def plot_spectrum(self, *args, **kwargs):
+        super().plot(*args, **kwargs)
+
+    def plot(self, *args, **kwargs):
+        plot(self.theta, self.z(), *args, **kwargs)
+
+
+    """
+    Misc functions
+    """
     def make_phase(self):
         """
         Creates experimental phase from the phase used to create the given instance of GaussNewton.

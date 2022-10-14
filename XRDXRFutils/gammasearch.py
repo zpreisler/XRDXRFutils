@@ -46,7 +46,7 @@ class GammaSearch(list):
 
     def select(self, phase_selected):
         if phase_selected is None:
-            self.idx = self.overlap_area(downsample = 3).argmax()
+            self.idx = self.overlap_area().argmax()
         else:
             self.idx = phase_selected
         self.selected = self[self.idx]
@@ -109,14 +109,20 @@ class GammaSearch(list):
     def overlap_area_ratio(self, downsample = None):
         return array([gn.overlap_area_ratio(downsample) for gn in self])
 
+    def adjustment_ratio(self, downsample = None):
+        return array([gn.adjustment_ratio(downsample) for gn in self])
+
+    def phase_presence(self, downsample = None, method = None, correction = None):
+        return array([gn.phase_presence(downsample, method, correction) for gn in self])
+
     def L1loss(self, downsample = None):
         return array([gn.L1loss(downsample) for gn in self])
 
     def MSEloss(self, downsample = None):
         return array([gn.MSEloss(downsample) for gn in self])
 
-    def metrics(self, downsample = None):
-        return self.L1loss(downsample), self.MSEloss(downsample), self.overlap_area(downsample)
+    def metrics(self, downsample = None, method = None, correction = None):
+        return self.L1loss(downsample), self.MSEloss(downsample), self.phase_presence(downsample, method, correction)
 
 
     def overlap_total(self):
@@ -279,7 +285,7 @@ class GammaMap(list):
         map.set_attributes_from(self)
         return map
 
-    def search(self, phase_selected = None, alpha = 1, verbose = True):
+    def search(self, verbose = True, phase_selected = None, alpha = 1):
         list_result = self.parallelized(verbose, self.type_of_elements.search, phase_selected = phase_selected, alpha = alpha)
         map = type(self)(list_result)
         map.set_attributes_from(self)
@@ -319,24 +325,32 @@ class GammaMap(list):
     def area0(self):
         return self.format_as_2d_from_1d(array([gs.area0() for gs in self]))
 
-    def overlap_area(self, downsample = None, verbose = True):
+    def overlap_area(self, verbose = True, downsample = None):
         list_result = self.parallelized(verbose, self.type_of_elements.overlap_area, downsample = downsample)
         return self.format_as_2d_from_1d(asarray(list_result))
 
-    def overlap_area_ratio(self, downsample = None, verbose = True):
+    def overlap_area_ratio(self, verbose = True, downsample = None):
         list_result = self.parallelized(verbose, self.type_of_elements.overlap_area_ratio, downsample = downsample)
         return self.format_as_2d_from_1d(asarray(list_result))
 
-    def L1loss(self, downsample = None, verbose = True):
+    def adjustment_ratio(self, verbose = True, downsample = None):
+        list_result = self.parallelized(verbose, self.type_of_elements.adjustment_ratio, downsample = downsample)
+        return self.format_as_2d_from_1d(asarray(list_result))
+
+    def phase_presence(self, verbose = True, downsample = None, method = None, correction = None):
+        list_result = self.parallelized(verbose, self.type_of_elements.phase_presence, downsample = downsample, method = method, correction = correction)
+        return self.format_as_2d_from_1d(asarray(list_result))
+
+    def L1loss(self, verbose = True, downsample = None):
         list_result = self.parallelized(verbose, self.type_of_elements.L1loss, downsample = downsample)
         return self.format_as_2d_from_1d(asarray(list_result))
 
-    def MSEloss(self, downsample = None, verbose = True):
+    def MSEloss(self, verbose = True, downsample = None):
         list_result = self.parallelized(verbose, self.type_of_elements.MSEloss, downsample = downsample)
         return self.format_as_2d_from_1d(asarray(list_result))
 
-    def metrics(self, downsample = None, verbose = True):
-        list_result = self.parallelized(verbose, self.type_of_elements.metrics, downsample = downsample)
+    def metrics(self, verbose = True, downsample = None, method = None, correction = None):
+        list_result = self.parallelized(verbose, self.type_of_elements.metrics, downsample = downsample, method = method, correction = correction)
         m = self.format_as_2d_from_1d(asarray(list_result))
         return (m[:, :, i, :] for i in range(m.shape[2]))
 
@@ -352,7 +366,7 @@ class GammaMap(list):
         for i_phase in range(len(self.phases)):
             criterion_sel_flat = criterion[..., i_phase][self.indices_sel]                # Criterion in selected pixels
             indices_sorted = criterion_sel_flat.argsort()                                 # Indices sorted according to 'criterion'
-            indices_sorted_clean = indices_sorted[: (~isnan(criterion_sel_flat)).sum()]   # Remove indices corresponding to nan values of criterion
+            indices_sorted_clean = indices_sorted[: (~isnan(criterion_sel_flat)).sum()]   # Remove indices corresponding to nan values of 'criterion'
             if not (-len(indices_sorted_clean) <= offset < len(indices_sorted_clean)):
                 raise Exception(f'{self.phases[i_phase].label}: {len(indices_sorted_clean)} pixels with valid criterion. Chosen offset {offset} is out of range.')
             i_pixel = indices_sorted_clean[offset]
