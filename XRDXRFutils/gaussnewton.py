@@ -47,18 +47,18 @@ class GaussNewton(FastSpectraXRD):
         """
         # Variables along the diffraction lines
         self.g = full((1, self.n_peaks), self.iw(1))
-        self.tau = full((1, self.n_peaks), sigma)
+        self.tau = full((1, self.n_peaks), self.iu(sigma**2))
 
     """
     Redefined variables
     """
     @staticmethod
-    def iw(x):
-        return (4 * x**2 -1) / (4 * x)
-
-    @staticmethod
     def w(x):
         return 0.5 * (sqrt(x**2 + 1) + x)
+
+    @staticmethod
+    def iw(x):
+        return (4 * x**2 -1) / (4 * x)
 
     @staticmethod
     def der_w(x):
@@ -72,6 +72,10 @@ class GaussNewton(FastSpectraXRD):
     @staticmethod
     def u(x):
         return x**2
+
+    @staticmethod
+    def iu(x):
+        return sqrt(x)
 
     @staticmethod
     def der_u(x):
