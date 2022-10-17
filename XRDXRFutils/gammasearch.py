@@ -211,6 +211,7 @@ class GammaMap(list):
         for attr_name in self.attribute_names_to_set:
             if hasattr(map, attr_name):
                 setattr(self, attr_name, getattr(map, attr_name))
+        return self
 
 
     def copy(self):
