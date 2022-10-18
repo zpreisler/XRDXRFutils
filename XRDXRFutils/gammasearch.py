@@ -214,7 +214,7 @@ class GammaMap(list):
         return self
 
 
-    def copy(self):
+    def copy(self):   # CAUTION: this method performs shallow copy
         map = type(self)([gs for gs in self])
         map.set_attributes_from(self)
         return map
