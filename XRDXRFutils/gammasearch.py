@@ -46,7 +46,7 @@ class GammaSearch(list):
 
     def select(self, phase_selected):
         if phase_selected is None:
-            self.idx = self.overlap_area(downsample = 3).argmax()
+            self.idx = self.overlap_area().argmax()
         else:
             self.idx = phase_selected
         self.selected = self[self.idx]
@@ -109,14 +109,20 @@ class GammaSearch(list):
     def overlap_area_ratio(self, downsample = None):
         return array([gn.overlap_area_ratio(downsample) for gn in self])
 
+    def adjustment_ratio(self, downsample = None):
+        return array([gn.adjustment_ratio(downsample) for gn in self])
+
+    def phase_presence(self, downsample = None, method = None, correction = None):
+        return array([gn.phase_presence(downsample, method, correction) for gn in self])
+
     def L1loss(self, downsample = None):
         return array([gn.L1loss(downsample) for gn in self])
 
     def MSEloss(self, downsample = None):
         return array([gn.MSEloss(downsample) for gn in self])
 
-    def metrics(self, downsample = None):
-        return self.L1loss(downsample), self.MSEloss(downsample), self.overlap_area(downsample)
+    def metrics(self, downsample = None, method = None, correction = None):
+        return self.L1loss(downsample), self.MSEloss(downsample), self.phase_presence(downsample, method, correction)
 
 
     def overlap_total(self):
@@ -191,15 +197,24 @@ class GammaMap(list):
         return self
 
 
+    @property
+    def type_of_elements(self):
+        if len(self) > 0:
+            return type(self[0])
+        else:
+            raise Exception('GammaMap: cannot identify the type of elements because the map is empty.')
+
+
     ### Manipulation ###
 
     def set_attributes_from(self, map):
         for attr_name in self.attribute_names_to_set:
             if hasattr(map, attr_name):
                 setattr(self, attr_name, getattr(map, attr_name))
+        return self
 
 
-    def copy(self):
+    def copy(self):   # CAUTION: this method performs shallow copy
         map = type(self)([gs for gs in self])
         map.set_attributes_from(self)
         return map
@@ -226,95 +241,59 @@ class GammaMap(list):
 
     ### Calculations for fit ###
 
+    @staticmethod
+    def f_to_parallelize(gs, f, kwargs):
+        return f(gs, **kwargs)
+
+    def parallelized(self, verbose, f, **kwargs):
+        """
+        Calculates function f in every element (GammaSearch) of the map.
+
+        Arguments
+        ---------
+        - verbose: (bool)
+            Whether to print the number of CPUs that are used for calculations.
+        - f: (method of GammaSearch)
+            Method that will be calculated in parallel for each element of the map.
+        - kwargs: (different types, optional)
+            Arguments that will be passed to f().
+
+        Return
+        ------
+        List of the values returned by f(**kwargs) applied to each element of the map.
+        """
+        if system() == 'Darwin':
+            n_cpu = cpu_count()
+            if verbose:
+                print(f'Using {n_cpu} CPUs')
+            return Parallel(n_jobs = n_cpu)( delayed(self.f_to_parallelize)(gs, f, kwargs) for gs in self )
+        else:
+            n_cpu = cpu_count() - 2
+            if verbose:
+                print(f'Using {n_cpu} CPUs')
+            with Pool(n_cpu) as p:
+                return p.map(partial(self.f_to_parallelize, f = f, kwargs = kwargs), self)
+
+
     def fit(self, **kwargs):
         for gs in self:
             gs.fit(**kwargs)
         return self
 
-
-    @staticmethod
-    def fit_cycle_service(x, kwargs):
-        return x.fit_cycle(**kwargs)
-
     def fit_cycle(self, verbose = True, **kwargs):
-        if system() == 'Darwin':
-            n_cpu = cpu_count()
-            if verbose:
-                print(f'Using {n_cpu} CPUs')
-            result = Parallel(n_jobs = n_cpu)( delayed(gs.fit_cycle)(**kwargs) for gs in self )
-        else:
-            n_cpu = cpu_count() - 2
-            if verbose:
-                print(f'Using {n_cpu} CPUs')
-            with Pool(n_cpu) as p:
-                result = p.map(partial(self.fit_cycle_service, kwargs = kwargs), self)
-
-        map = type(self)(result)
+        list_result = self.parallelized(verbose, self.type_of_elements.fit_cycle, **kwargs)
+        map = type(self)(list_result)
         map.set_attributes_from(self)
         return map
 
-
-    @staticmethod
-    def search_service(x, phase_selected, alpha):
-        return x.search(phase_selected = phase_selected, alpha = alpha)
-
-    def search(self, phase_selected = None, alpha = 1, verbose = True):
-        if system() == 'Darwin':
-            n_cpu = cpu_count()
-            if verbose:
-                print(f'Using {n_cpu} CPUs')
-            result = Parallel(n_jobs = n_cpu)( delayed(gs.search)(phase_selected = phase_selected, alpha = alpha) for gs in self )
-        else:
-            n_cpu = cpu_count() - 2
-            if verbose:
-                print(f'Using {n_cpu} CPUs')
-            with Pool(n_cpu) as p:
-                result = p.map(partial(self.search_service, phase_selected = phase_selected, alpha = alpha), self)
-
-        map = type(self)(result)
+    def search(self, verbose = True, phase_selected = None, alpha = 1):
+        list_result = self.parallelized(verbose, self.type_of_elements.search, phase_selected = phase_selected, alpha = alpha)
+        map = type(self)(list_result)
         map.set_attributes_from(self)
         return map
 
 
     ### Output results ###
-
-    @staticmethod
-    def metrics_service(x, downsample):
-        return x.metrics(downsample = downsample)
-
-    def metrics_core(self, downsample, verbose):
-        if system() == 'Darwin':
-            n_cpu = cpu_count()
-            if verbose:
-                print(f'Using {n_cpu} CPUs')
-            result = Parallel(n_jobs = n_cpu)( delayed(gs.metrics)(downsample = downsample) for gs in self )
-        else:
-            n_cpu = cpu_count() - 2
-            if verbose:
-                print(f'Using {n_cpu} CPUs')
-            with Pool(n_cpu) as p:
-                result = p.map(partial(self.metrics_service, downsample = downsample), self)
-        return asarray(result)
-
-
-    @staticmethod
-    def overlap_area_ratio_service(x, downsample):
-        return x.overlap_area_ratio(downsample = downsample)
-
-    def overlap_area_ratio_core(self, downsample, verbose):
-        if system() == 'Darwin':
-            n_cpu = cpu_count()
-            if verbose:
-                print(f'Using {n_cpu} CPUs')
-            result = Parallel(n_jobs = n_cpu)( delayed(gs.overlap_area_ratio)(downsample = downsample) for gs in self )
-        else:
-            n_cpu = cpu_count() - 2
-            if verbose:
-                print(f'Using {n_cpu} CPUs')
-            with Pool(n_cpu) as p:
-                result = p.map(partial(self.overlap_area_ratio_service, downsample = downsample), self)
-        return asarray(result)
-
 
     def format_as_1d_from_2d(self, x):
         if type(x) != ndarray:
@@ -347,21 +326,34 @@ class GammaMap(list):
     def area0(self):
         return self.format_as_2d_from_1d(array([gs.area0() for gs in self]))
 
-    def overlap_area(self, downsample = None):
-        return self.format_as_2d_from_1d(array([gs.overlap_area(downsample) for gs in self]))
+    def overlap_area(self, verbose = True, downsample = None):
+        list_result = self.parallelized(verbose, self.type_of_elements.overlap_area, downsample = downsample)
+        return self.format_as_2d_from_1d(asarray(list_result))
 
-    def overlap_area_ratio(self, downsample = None, verbose = True):
-        return self.format_as_2d_from_1d(self.overlap_area_ratio_core(downsample, verbose))
+    def overlap_area_ratio(self, verbose = True, downsample = None):
+        list_result = self.parallelized(verbose, self.type_of_elements.overlap_area_ratio, downsample = downsample)
+        return self.format_as_2d_from_1d(asarray(list_result))
 
-    def L1loss(self):
-        return self.format_as_2d_from_1d(array([gs.L1loss() for gs in self]))
+    def adjustment_ratio(self, verbose = True, downsample = None):
+        list_result = self.parallelized(verbose, self.type_of_elements.adjustment_ratio, downsample = downsample)
+        return self.format_as_2d_from_1d(asarray(list_result))
 
-    def MSEloss(self):
-        return self.format_as_2d_from_1d(array([gs.MSEloss() for gs in self]))
+    def phase_presence(self, verbose = True, downsample = None, method = None, correction = None):
+        list_result = self.parallelized(verbose, self.type_of_elements.phase_presence, downsample = downsample, method = method, correction = correction)
+        return self.format_as_2d_from_1d(asarray(list_result))
 
-    def metrics(self, downsample = None, verbose = True):
-        m = self.format_as_2d_from_1d(self.metrics_core(downsample, verbose))
-        return (m[:, :, i, :] for i in range(3))
+    def L1loss(self, verbose = True, downsample = None):
+        list_result = self.parallelized(verbose, self.type_of_elements.L1loss, downsample = downsample)
+        return self.format_as_2d_from_1d(asarray(list_result))
+
+    def MSEloss(self, verbose = True, downsample = None):
+        list_result = self.parallelized(verbose, self.type_of_elements.MSEloss, downsample = downsample)
+        return self.format_as_2d_from_1d(asarray(list_result))
+
+    def metrics(self, verbose = True, downsample = None, method = None, correction = None):
+        list_result = self.parallelized(verbose, self.type_of_elements.metrics, downsample = downsample, method = method, correction = correction)
+        m = self.format_as_2d_from_1d(asarray(list_result))
+        return (m[:, :, i, :] for i in range(m.shape[2]))
 
     def selected(self):
         return self.format_as_2d_from_1d(array([gs.idx for gs in self]))
@@ -375,7 +367,7 @@ class GammaMap(list):
         for i_phase in range(len(self.phases)):
             criterion_sel_flat = criterion[..., i_phase][self.indices_sel]                # Criterion in selected pixels
             indices_sorted = criterion_sel_flat.argsort()                                 # Indices sorted according to 'criterion'
-            indices_sorted_clean = indices_sorted[: (~isnan(criterion_sel_flat)).sum()]   # Remove indices corresponding to nan values of criterion
+            indices_sorted_clean = indices_sorted[: (~isnan(criterion_sel_flat)).sum()]   # Remove indices corresponding to nan values of 'criterion'
             if not (-len(indices_sorted_clean) <= offset < len(indices_sorted_clean)):
                 raise Exception(f'{self.phases[i_phase].label}: {len(indices_sorted_clean)} pixels with valid criterion. Chosen offset {offset} is out of range.')
             i_pixel = indices_sorted_clean[offset]
