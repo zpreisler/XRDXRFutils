@@ -100,7 +100,7 @@ class GaussNewton(FastSpectraXRD):
 
 
     """
-    Setting functions
+    Downsample functions
     """
     def downsample(self, level):
         self.spectrum.downsample(level)
@@ -109,6 +109,34 @@ class GaussNewton(FastSpectraXRD):
     @property
     def downsample_level(self):
         return self.spectrum.downsample_level
+
+    def downsampled_function(self, downsample, f, **kwargs):
+        """
+        Calls given method with chosen downsample.
+
+        Arguments
+        ---------
+        - downsample: (int)
+            Level of downsample
+        - f: (method of GaussNewton)
+            Method that will be called with the chosen downsample level.
+        - kwargs: (different types, optional)
+            Arguments that will be passed to f().
+
+        Return
+        ------
+        The same as f(self, **kwargs), but calculated with the chosen downsample.
+        """
+        if downsample is not None:
+            downsample_initial = self.downsample_level
+            self.downsample(downsample)
+
+        result = f(self, **kwargs)
+
+        if downsample is not None:
+            self.downsample(downsample_initial)
+
+        return result
 
 
     """
@@ -219,94 +247,84 @@ class GaussNewton(FastSpectraXRD):
         Performs a step of Gauss-Newton optimization. You need to choose the parameters that will be used to optimize. The other ones will be kept fixed.
         If you set k and b, parameters a and s are used in optimization (you don't need to explicitly set them to True) and are tied by the relation given by k and b.
         """
-        # Remove peaks that fall outside theta_range, because they can cause anomalous values
-        # tr_min, tr_max = self.theta_range()
-        # mu_old = self.mu
-        # self.mu = self.mu[(mu_old > tr_min) & (mu_old < tr_max)]
-        # self.I = self.I[(mu_old > tr_min) & (mu_old < tr_max)]
-        # self.g = self.g[(mu_old > tr_min) & (mu_old < tr_max)]
-        # self.tau = self.tau[(mu_old > tr_min) & (mu_old < tr_max)]
+        # To DO: Remove peaks that fall outside theta_range, because they can cause anomalous values
 
-        if self.n_peaks > 0:
+        def f(self, k, b, a, s, beta, gamma, sigma, alpha):
+            if self.n_peaks > 0:
 
-            if self.n_peaks == 1:
-                s = False
+                if self.n_peaks == 1:
+                    s = False
 
-            if downsample is not None:
-                downsample_initial = self.downsample_level
-                self.downsample(downsample)
+                is_used_relation = ((k is not None) and (b is not None))
+                if is_used_relation:
+                    a = True
+                    s = False
 
-            is_used_relation = ((k is not None) and (b is not None))
-            if is_used_relation:
-                a = True
-                s = False
+                n_opt = a + s + beta
+                n_gamma = gamma * self.n_peaks
 
-            n_opt = a + s + beta
-            n_gamma = gamma * self.n_peaks
+                self.calculate_components()
 
-            self.calculate_components()
+                Jacobian_construction = []
 
-            Jacobian_construction = []
+                # Calibration parameters
+                if is_used_relation:
+                    der_f_a, der_f_beta = self.der_f_a_beta_when_relation_a_s(k, b)
 
-            # Calibration parameters
-            if is_used_relation:
-                der_f_a, der_f_beta = self.der_f_a_beta_when_relation_a_s(k, b)
+                else:
+                    if (n_opt > 0):
+                        der_f_a, der_f_s, der_f_beta = self.der_f_a_s_beta()
 
-            else:
-                if (n_opt > 0):
-                    der_f_a, der_f_s, der_f_beta = self.der_f_a_s_beta()
+                if a:
+                    Jacobian_construction.append(der_f_a)
+                if s:
+                    Jacobian_construction.append(der_f_s)
+                if beta:
+                    Jacobian_construction.append(der_f_beta)
 
-            if a:
-                Jacobian_construction.append(der_f_a)
-            if s:
-                Jacobian_construction.append(der_f_s)
-            if beta:
-                Jacobian_construction.append(der_f_beta)
+                # Gamma
+                if gamma:
+                    Jacobian_construction.append(self.der_f_g())
 
-            # Gamma
-            if gamma:
-                Jacobian_construction.append(self.der_f_g())
+                # Sigma
+                if sigma:
+                    Jacobian_construction.append(self.der_f_tau())
 
-            # Sigma
-            if sigma:
-                Jacobian_construction.append(self.der_f_tau())
+                # Jacobian
+                Jacobian_f = concatenate(Jacobian_construction, axis = 1)
 
-            # Jacobian
-            Jacobian_f = concatenate(Jacobian_construction, axis = 1)
+                """
+                Iterate
+                """
+                y = self.intensity[:, newaxis]
+                f = self.component_full.sum(axis = 1, keepdims = True)
+                r = y - f
 
-            """
-            Iterate
-            """
-            y = self.intensity[:, newaxis]
-            f = self.component_full.sum(axis = 1, keepdims = True)
-            r = y - f
+                try:
+                    evol = pinv(Jacobian_f) @ r
 
-            try:
-                evol = pinv(Jacobian_f) @ r
+                except:
+                    evol = full((Jacobian_f.shape[1], 1), 0)
 
-            except:
-                evol = full((Jacobian_f.shape[1], 1), 0)
+                d_params = alpha * evol
 
-            d_params = alpha * evol
+                mask_opt = [a, s, beta]
+                self.opt[mask_opt] += d_params[0:n_opt, 0]
 
-            mask_opt = [a, s, beta]
-            self.opt[mask_opt] += d_params[0:n_opt, 0]
+                if is_used_relation:
+                    self.opt[1] = k * self.opt[0] + b
 
-            if is_used_relation:
-                self.opt[1] = k * self.opt[0] + b
+                if gamma:
+                    self.g += d_params[n_opt : (n_opt + n_gamma)].T
 
-            if gamma:
-                self.g += d_params[n_opt : (n_opt + n_gamma)].T
+                if sigma:
+                    self.tau += d_params[(n_opt + n_gamma) :].T
 
-            if sigma:
-                self.tau += d_params[(n_opt + n_gamma) :].T
+                self.del_components()
 
-            self.del_components()
+            return self
 
-            if downsample is not None:
-                self.downsample(downsample_initial)
-
-        return self
+        return self.downsampled_function(downsample, f, k = k, b = b, a = a, s = s, beta = beta, gamma = gamma, sigma = sigma, alpha = alpha)
 
 
     def fit_cycle(self, steps = 8, **kwargs):
@@ -318,35 +336,6 @@ class GaussNewton(FastSpectraXRD):
     """
     Evaluation of the results
     """
-    def downsampled_function(self, downsample, f, **kwargs):
-        """
-        Calls given method with chosen downsample.
-
-        Arguments
-        ---------
-        - downsample: (int)
-            Level of downsample
-        - f: (method of GaussNewton)
-            Method that will be called with the chosen downsample level.
-        - kwargs: (different types, optional)
-            Arguments that will be passed to f().
-
-        Return
-        ------
-        The same as f(self, **kwargs), but calculated with the chosen downsample.
-        """
-        if downsample is not None:
-            downsample_initial = self.downsample_level
-            self.downsample(downsample)
-
-        result = f(self, **kwargs)
-
-        if downsample is not None:
-            self.downsample(downsample_initial)
-
-        return result
-
-
     def area(self):
         return self.z().sum()
 
