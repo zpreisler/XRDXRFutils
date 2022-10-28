@@ -46,7 +46,7 @@ class GammaSearch(list):
 
     def select(self, phase_selected, method = None):
         if phase_selected is None:
-            self.idx = self.phase_presence(method = method).argmax()
+            self.idx = self.phase_presence(method = method, correction = False).argmax()
         else:
             self.idx = phase_selected
         self.selected = self[self.idx]
