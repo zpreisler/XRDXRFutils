@@ -31,6 +31,19 @@ class Spectra():
         return self.from_Dataf(data, data.get_index(x, y))
 
 
+    def remove_background(self, std_kernel = 3, window_snip = 32, offset_background = 0):
+        self.background = snip(convolve(self.counts, n = ceil(3 * std_kernel + 1), std = std_kernel), m = window_snip)
+        self.offset_background = offset_background
+        self.counts_no_bg = self.counts - self.background
+        self.counts_no_bg = where(self.counts_no_bg > offset_background, self.counts_no_bg, 0)
+        self.rescaling = nanmax(self.counts_no_bg)
+        return self
+
+    def smooth_channels(self, std_kernel = 0):
+        self.counts_smoothed = convolve(self.counts_no_bg, n = ceil(3 * std_kernel + 1), std = std_kernel)
+        return self
+
+
     @property
     def length(self):
         return len(self.counts)
@@ -242,19 +255,13 @@ class SpectraXRD(Spectra):
 
 
     def remove_background(self, std_kernel = 3, window_snip = 32, offset_background = 0):
-        self.background = snip(convolve(self.counts, n = ceil(3 * std_kernel + 1), std = std_kernel), m = window_snip)
-        self.offset_background = offset_background
-        self.counts_no_bg = self.counts - self.background
-        self.counts_no_bg = where(self.counts_no_bg > offset_background, self.counts_no_bg, 0)
-        self.rescaling = nanmax(self.counts_no_bg)
+        super().remove_background(std_kernel, window_snip, offset_background)
         self.calculate_downsampled_intensity(self.counts_no_bg / self.rescaling)
         return self
 
-
     def smooth_channels(self, std_kernel = 0):
-        self.counts_smoothed = convolve(self.counts_no_bg, n = ceil(3 * std_kernel + 1), std = std_kernel)
-        self.rescaling = nanmax(self.counts_smoothed)
-        self.calculate_downsampled_intensity(self.counts_smoothed / self.rescaling)
+        super().smooth_channels(std_kernel)
+        self.calculate_downsampled_intensity(self.counts_smoothed / nanmax(self.counts_smoothed))
         return self
 
 

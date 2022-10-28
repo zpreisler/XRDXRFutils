@@ -134,12 +134,10 @@ class Data():
         print('Done.')
         return self
 
-
     def smooth_channels(self, std_kernel = 0):
         print('Smoothing along channels...')
         data_smoothed = convolve3d(self.data_no_bg, n = ceil(3 * std_kernel + 1), std = std_kernel)
-        self.rescaling = nanmax(data_smoothed, axis = 2, keepdims = True)
-        self.intensity = data_smoothed / self.rescaling
+        self.intensity = data_smoothed / nanmax(data_smoothed, axis = 2, keepdims = True)
         print('Done.')
         return self
 
