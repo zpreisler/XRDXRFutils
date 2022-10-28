@@ -44,9 +44,9 @@ class GammaSearch(list):
                 gn.opt = self.opt
 
 
-    def select(self, phase_selected):
+    def select(self, phase_selected, method = None):
         if phase_selected is None:
-            self.idx = self.overlap_area().argmax()
+            self.idx = self.phase_presence(method = method).argmax()
         else:
             self.idx = phase_selected
         self.selected = self[self.idx]
@@ -70,11 +70,12 @@ class GammaSearch(list):
         return self
 
 
-    def search(self, phase_selected = None, alpha = 1):
-        self.fit_cycle(steps = 4, gamma = True, alpha = alpha, downsample = 3)
-        self.fit_cycle(steps = 1, a = True, s = True, gamma = True, alpha = alpha, downsample = 2)
+    def search(self, phase_selected = None, method = None, alpha = 1):
+        self.fit_cycle(steps = 2, gamma = True, alpha = alpha, downsample = 3)
+        self.fit_cycle(steps = 6, a = True, s = True, gamma = True, alpha = alpha, downsample = 3)
+        self.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 2)
 
-        self.select(phase_selected)
+        self.select(phase_selected, method)
         self.set_opt(self.selected.opt, copy = False)
 
         self.selected.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 3)
@@ -286,8 +287,8 @@ class GammaMap(list):
         map.set_attributes_from(self)
         return map
 
-    def search(self, verbose = True, phase_selected = None, alpha = 1):
-        list_result = self.parallelized(verbose, self.type_of_elements.search, phase_selected = phase_selected, alpha = alpha)
+    def search(self, verbose = True, phase_selected = None, method = None, alpha = 1):
+        list_result = self.parallelized(verbose, self.type_of_elements.search, phase_selected = phase_selected, method = method, alpha = alpha)
         map = type(self)(list_result)
         map.set_attributes_from(self)
         return map
