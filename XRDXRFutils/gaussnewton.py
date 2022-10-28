@@ -3,7 +3,7 @@ from .spectra import SpectraXRD, FastSpectraXRD
 from .database import Phase, PhaseList
 
 from numpy import (fabs, sum, exp, log, sin, pi, array, ones, zeros, full, full_like, trapz, minimum,
-    maximum, nanmax, std, sign, sqrt, square, average, clip, newaxis, concatenate, append,
+    maximum, nanmax, std, sign, sqrt, square, average, clip, newaxis, concatenate, stack, append,
     where, arange)
 from numpy.linalg import pinv, inv
 
@@ -364,10 +364,11 @@ class GaussNewton(FastSpectraXRD):
 
     def adjustment_ratio(self, downsample = None):
         def f(self):
-            z = self.z()
-            z0 = self.z0()
-            z_min = minimum(z, z0)
-            z_max = maximum(z, z0)
+            z0 = clip(self.z0(), None, 1) # to avoid anomalously high peaks resulting from overlapping tabulated peaks
+            z = clip(self.z(), None, 1)
+            z_stack = stack((z0, z, self.intensity))
+            z_min = z_stack.min(axis = 0)
+            z_max = z_stack.max(axis = 0)
             return z_min.sum() / z_max.sum()
 
         return self.downsampled_function(downsample, f)
@@ -376,9 +377,9 @@ class GaussNewton(FastSpectraXRD):
     def phase_presence(self, downsample = None, method = None, correction = None):
         # Default values
         if method is None:
-            method = 'overlap_area'
+            method = 'adjustment_ratio'
         if correction is None:
-            correction = True
+            correction = False
 
         methods_allowed = ['overlap_area', 'overlap_area_ratio', 'adjustment_ratio']
         if method in methods_allowed:
