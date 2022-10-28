@@ -121,16 +121,25 @@ class Data():
             return self._x
 
 
-    def remove_background(self, n = 21, std = 3, m = 32, avoid_negative = False):
+    def remove_background(self, std_kernel = 3, window_snip = 32, offset_background = 0):
         print('Removing background...')
-        self.background = snip3d(convolve3d(self.data, n = n, std = std), m = m)
-        data_no_bg = self.data - self.background
-        if avoid_negative:
-            data_no_bg = maximum(data_no_bg, 0)
-        self.rescaling = nanmax(data_no_bg, axis = 2, keepdims = True)
-        self.intensity = data_no_bg / self.rescaling
+        self.background = snip3d(convolve3d(self.data, n = ceil(3 * std_kernel + 1), std = std_kernel), m = window_snip)
+        self.offset_background = offset_background
+        self.data_no_bg = self.data - self.background
+        self.data_no_bg = where(self.data_no_bg > offset_background, self.data_no_bg, 0)
+        self.rescaling = nanmax(self.data_no_bg, axis = 2, keepdims = True)
+        self.intensity = self.data_no_bg / self.rescaling
         self.signal_background_ratio = self.data.sum(axis = 2, keepdims = True) / self.background.sum(axis = 2, keepdims = True)
         self.signal_background_ratio = maximum(self.signal_background_ratio, 0)
+        print('Done.')
+        return self
+
+
+    def smooth_channels(self, std_kernel = 0):
+        print('Smoothing along channels...')
+        data_smoothed = convolve3d(self.data_no_bg, n = ceil(3 * std_kernel + 1), std = std_kernel)
+        self.rescaling = nanmax(data_smoothed, axis = 2, keepdims = True)
+        self.intensity = data_smoothed / self.rescaling
         print('Done.')
         return self
 
@@ -728,22 +737,6 @@ class DataXRD(Data):
                 y[:] = y[::-1]
 
         self.data = z[::-1,::-1]
-
-
-    def background_elimination_and_smoothing(self, n_snip = 21, std_snip = 3, window_snip = 32, offset_background = 0, std_smooth = 0, avoid_negative = False):
-        print('Removing background and smoothing along channels...')
-        self.background = snip3d(convolve3d(self.data, n = n_snip, std = std_snip), m = window_snip)
-        background_shifted = self.background + offset_background
-        data_no_bg = self.data - background_shifted
-        if avoid_negative:
-            data_no_bg = maximum(data_no_bg, 0)
-        data_smoothed = convolve3d(data_no_bg, n = ceil(3 * std_smooth + 1), std = std_smooth)
-        self.rescaling = nanmax(data_smoothed, axis = 2, keepdims = True)
-        self.intensity = data_smoothed / self.rescaling
-        self.signal_background_ratio = self.data.sum(axis = 2, keepdims = True) / self.background.sum(axis = 2, keepdims = True)
-        self.signal_background_ratio = maximum(self.signal_background_ratio, 0)
-        print('Done.')
-        return self
 
 
     def generate_spatial_smooth(self, step = 2, method = 'mean'):
