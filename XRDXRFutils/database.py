@@ -82,7 +82,8 @@ class Phase(dict):
                 mask_peaks_selected[self.peaks_selected] = True
                 mask &= mask_peaks_selected
             self.theta, self.intensity, self.position = theta[mask], intensity[mask], position[mask]
-            self.theta, self.intensity, self.position = array(sorted(zip(self.theta, self.intensity, self.position))).T
+            if mask.sum() > 0:
+                self.theta, self.intensity, self.position = array(sorted(zip(self.theta, self.intensity, self.position))).T
 
         return self.theta.copy(), self.intensity.copy(), self.position.copy()
 
