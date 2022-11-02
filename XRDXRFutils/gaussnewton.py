@@ -366,7 +366,8 @@ class GaussNewton(FastSpectraXRD):
         def f(self):
             z0 = clip(self.z0(), None, 1) # to avoid anomalously high peaks resulting from overlapping tabulated peaks
             z = clip(self.z(), None, 1)
-            z_stack = stack((z0, z, self.intensity))
+            intensity_corrected = maximum(self.intensity, 0)
+            z_stack = stack((z0, z, intensity_corrected))
             z_min = z_stack.min(axis = 0)
             z_max = z_stack.max(axis = 0)
             return z_min.sum() / z_max.sum()
