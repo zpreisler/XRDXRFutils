@@ -1,4 +1,4 @@
-from numpy import loadtxt, arctan, pi, arange, array, asarray, linspace, zeros, maximum
+from numpy import loadtxt, arctan, pi, arange, array, asarray, linspace, zeros, maximum, nanmax, where
 from math import ceil
 from matplotlib.pyplot import plot
 import xml.etree.ElementTree as et
@@ -29,6 +29,19 @@ class Spectra():
 
     def from_Data(self, data, x, y):
         return self.from_Dataf(data, data.get_index(x, y))
+
+
+    def remove_background(self, std_kernel = 3, window_snip = 32, offset_background = 0):
+        self.background = snip(convolve(self.counts, n = ceil(3 * std_kernel + 1), std = std_kernel), m = window_snip)
+        self.offset_background = offset_background
+        self.counts_no_bg = self.counts - self.background
+        self.counts_no_bg = where(self.counts_no_bg > offset_background, self.counts_no_bg, 0)
+        self.rescaling = nanmax(self.counts_no_bg)
+        return self
+
+    def smooth_channels(self, std_kernel = 0):
+        self.counts_smoothed = convolve(self.counts_no_bg, n = ceil(3 * std_kernel + 1), std = std_kernel)
+        return self
 
 
     @property
@@ -241,15 +254,14 @@ class SpectraXRD(Spectra):
         )
 
 
-    def background_elimination_and_smoothing(self, n_snip = 21, std_snip = 3, window_snip = 32, offset_background = 0, std_smooth = 0, avoid_negative = False):
-        background = snip(convolve(self.counts, n = n_snip, std = std_snip), m = window_snip)
-        self.background_shifted = background + offset_background
-        counts_no_bg = self.counts - self.background_shifted
-        if avoid_negative:
-            counts_no_bg = maximum(counts_no_bg, 0)
-        self.counts_smoothed = convolve(counts_no_bg, n = ceil(3 * std_smooth + 1), std = std_smooth)
-        self.rescaling = self.counts_smoothed.max()
-        self.calculate_downsampled_intensity(self.counts_smoothed / self.rescaling)
+    def remove_background(self, std_kernel = 3, window_snip = 32, offset_background = 0):
+        super().remove_background(std_kernel, window_snip, offset_background)
+        self.calculate_downsampled_intensity(self.counts_no_bg / self.rescaling)
+        return self
+
+    def smooth_channels(self, std_kernel = 0):
+        super().smooth_channels(std_kernel)
+        self.calculate_downsampled_intensity(self.counts_smoothed / nanmax(self.counts_smoothed))
         return self
 
 
