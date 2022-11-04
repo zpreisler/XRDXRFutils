@@ -3,7 +3,7 @@
 from matplotlib.pyplot import plot, figure, subplots, xlim, ylim, vlines, legend, fill_between, cm, text
 
 from numpy import (loadtxt, arcsin, sin, pi, array, asarray, argmin, minimum, concatenate, delete,
-    linspace, arange, ones, zeros, full)
+    linspace, arange, ones, zeros, full, newaxis, exp)
 from numpy.random import randint
 from glob import glob
 import warnings
@@ -134,10 +134,10 @@ class Phase(dict):
         return self.set_key('point', point)
 
 
-    def plot(self, positions = False, colors = 'red', linestyles = 'dashed', label = None, lineheight = None,
-         min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, **kwargs):
+    def plot(self, convolution = False, positions = False, colors = 'red', linestyles = 'dashed', label = None, lineheight = None,
+         min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, sigma = None, **kwargs):
 
-        theta, intensity, position = self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity, first_n_peaks = first_n_peaks)
+        theta, intensity, position = self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity, first_n_peaks = first_n_peaks, sigma = sigma)
 
         if label is None:
             label = self.label
@@ -147,6 +147,16 @@ class Phase(dict):
         else:
             lineheight = full(intensity.shape, lineheight)
 
+        if (convolution and (sigma is not None)):
+            gamma = full((1, len(theta)), 1)
+            sigma2 = full((1, len(theta)), sigma**2)
+            mu = theta[newaxis, :]
+            I = intensity[newaxis, :]
+            theta_to_plot = arange(min_theta, max_theta, 0.01)[:, newaxis]
+            component_core = exp((theta_to_plot - mu)**2 / (-2 * sigma2))
+            component_full = I * gamma * component_core
+            z = component_full.sum(axis = 1)
+            plot(theta_to_plot, z)
         vlines(theta, 0, intensity, colors = colors, linestyles = linestyles, label = label, **kwargs)
         if positions:
             for i in range(len(theta)):
