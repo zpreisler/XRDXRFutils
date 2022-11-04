@@ -2,8 +2,8 @@
 
 from matplotlib.pyplot import plot, figure, subplots, xlim, ylim, vlines, legend, fill_between, cm, text
 
-from numpy import (loadtxt, arcsin, sin, pi, array, asarray, minimum, concatenate, linspace, arange,
-    ones, zeros, full)
+from numpy import (loadtxt, arcsin, sin, pi, array, asarray, argmin, minimum, concatenate, delete,
+    linspace, arange, ones, zeros, full)
 from numpy.random import randint
 from glob import glob
 import warnings
@@ -38,16 +38,17 @@ class Phase(dict):
         return l / (2 * sin(pi * theta / 360))
 
 
-    def get_theta(self, length = [1.541874], scale = [1.0], min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None):
-
+    def get_theta(self, length = [1.541874], scale = [1.0], min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, sigma = None):
+        # Check if arguments have different values compared to last call to this function
         if not (hasattr(self, 'length_last') and length == self.length_last
             and hasattr(self, 'scale_last') and scale == self.scale_last
             and hasattr(self, 'min_theta_last') and min_theta == self.min_theta_last
             and hasattr(self, 'max_theta_last') and max_theta == self.max_theta_last
             and hasattr(self, 'min_intensity_last') and min_intensity == self.min_intensity_last
             and hasattr(self, 'first_n_peaks_last') and first_n_peaks == self.first_n_peaks_last
+            and hasattr(self, 'sigma_last') and sigma == self.sigma_last
             and hasattr(self, 'peaks_selected_last') and self.peaks_selected == self.peaks_selected_last
-            and hasattr(self, 'theta') and hasattr(self, 'intensity')
+            and hasattr(self, 'theta') and hasattr(self, 'intensity') and hasattr(self, 'position')
         ):
             self.length_last = length
             self.scale_last = scale
@@ -55,8 +56,10 @@ class Phase(dict):
             self.max_theta_last = max_theta
             self.min_intensity_last = min_intensity
             self.first_n_peaks_last = first_n_peaks
+            self.sigma_last = sigma
             self.peaks_selected_last = self.peaks_selected
 
+            # Obtain list of peaks
             d, i = self['_pd_peak_intensity']
             theta = []
             intensity = []
@@ -65,9 +68,28 @@ class Phase(dict):
                 intensity += [i * s]
             theta = concatenate(theta)
             intensity = concatenate(intensity) / 1000.0
+
+            # Merge peaks
+            if sigma is not None:
+                theta, intensity = array(sorted(zip(theta, intensity))).T
+                while True:
+                    theta_diff = theta[1:] - theta[:-1]
+                    idx_min = argmin(theta_diff)
+                    if (theta_diff[idx_min] > sigma):
+                        break
+                    theta_point = (intensity[idx_min] * theta[idx_min] + intensity[idx_min + 1] * theta[idx_min + 1]) / (intensity[idx_min] + intensity[idx_min + 1])
+                    intensity_point = intensity[idx_min] + intensity[idx_min + 1]
+                    theta[idx_min] = theta_point
+                    intensity[idx_min] = intensity_point
+                    theta = delete(theta, [idx_min + 1])
+                    intensity = delete(intensity, [idx_min + 1])
+                intensity /= intensity.max()
+
+            # Sort peaks by decreasing intensity
             intensity, theta = array(sorted(zip(intensity, theta), reverse = True)).T
             position = array(range(len(theta)))
 
+            # Select by angle, intensity and first n peaks
             mask = ones(len(theta), bool)
             if min_theta is not None:
                 mask &= (theta > min_theta)
@@ -82,6 +104,8 @@ class Phase(dict):
                 mask_peaks_selected[self.peaks_selected] = True
                 mask &= mask_peaks_selected
             self.theta, self.intensity, self.position = theta[mask], intensity[mask], position[mask]
+
+            # Sort peaks by increasing theta
             if mask.sum() > 0:
                 self.theta, self.intensity, self.position = array(sorted(zip(self.theta, self.intensity, self.position))).T
 
