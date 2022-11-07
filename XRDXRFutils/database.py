@@ -61,6 +61,8 @@ class Phase(dict):
 
             # Obtain list of peaks
             d, i = self['_pd_peak_intensity']
+            mask = (i > 1e-2) # avoid peaks with null intensity
+            d, i = d[mask], i[mask]
             theta = []
             intensity = []
             for l, s in zip(length, scale):
