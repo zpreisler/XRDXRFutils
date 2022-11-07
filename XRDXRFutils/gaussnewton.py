@@ -28,6 +28,7 @@ class GaussNewton(FastSpectraXRD):
 
         self.phase = phase
         self.spectrum = spectrum
+        self.sigma = sigma
         self.kwargs = kwargs
 
         self.label = phase.label
@@ -40,7 +41,7 @@ class GaussNewton(FastSpectraXRD):
         tabulated intensity: I
         """
         # Variables along the diffraction lines
-        self.mu, self.I, p = self.get_theta(**kwargs)
+        self.mu, self.I, p = self.get_theta(sigma = sigma, **kwargs)
 
         """
         parameters g, tau --> gamma, sigma^2
@@ -438,7 +439,7 @@ class GaussNewton(FastSpectraXRD):
         index_count = 0
 
         for phase in pl:
-            mu, I, p = phase.get_theta(**self.kwargs)
+            mu, I, p = phase.get_theta(sigma = self.sigma, **self.kwargs)
             phase_len = mu.shape[0]
 
             gamma = self.gamma.squeeze()[index_count : (index_count + phase_len)]
