@@ -69,45 +69,52 @@ class Phase(dict):
             theta = concatenate(theta)
             intensity = concatenate(intensity) / 1000.0
 
-            # Merge peaks
-            if sigma is not None:
-                theta, intensity = array(sorted(zip(theta, intensity))).T
-                while True:
-                    theta_diff = theta[1:] - theta[:-1]
-                    idx_min = argmin(theta_diff)
-                    if (theta_diff[idx_min] > sigma):
-                        break
-                    theta_point = (intensity[idx_min] * theta[idx_min] + intensity[idx_min + 1] * theta[idx_min + 1]) / (intensity[idx_min] + intensity[idx_min + 1])
-                    intensity_point = intensity[idx_min] + intensity[idx_min + 1]
-                    theta[idx_min] = theta_point
-                    intensity[idx_min] = intensity_point
-                    theta = delete(theta, [idx_min + 1])
-                    intensity = delete(intensity, [idx_min + 1])
-                intensity /= intensity.max()
+            if len(theta) > 0:
+                # Merge peaks
+                if sigma is not None:
+                    theta, intensity = array(sorted(zip(theta, intensity))).T
+                    while len(theta) > 1:
+                        theta_diff = theta[1:] - theta[:-1]
+                        idx_min = argmin(theta_diff)
+                        if (theta_diff[idx_min] <= sigma):
+                            theta_point = (intensity[idx_min] * theta[idx_min] + intensity[idx_min + 1] * theta[idx_min + 1]) / (intensity[idx_min] + intensity[idx_min + 1])
+                            #intensity_point = intensity[idx_min] + intensity[idx_min + 1]
+                            intensity_point = (intensity[idx_min] * exp((theta_point - theta[idx_min])**2 / (-2 * sigma**2)) +
+                                intensity[idx_min + 1] * exp((theta_point - theta[idx_min + 1])**2 / (-2 * sigma**2)))
+                            theta[idx_min] = theta_point
+                            intensity[idx_min] = intensity_point
+                            theta = delete(theta, [idx_min + 1])
+                            intensity = delete(intensity, [idx_min + 1])
+                        else:
+                            break
+                    intensity /= intensity.max()
 
-            # Sort peaks by decreasing intensity
-            intensity, theta = array(sorted(zip(intensity, theta), reverse = True)).T
-            position = array(range(len(theta)))
+                # Sort peaks by decreasing intensity, then assign position
+                intensity, theta = array(sorted(zip(intensity, theta), reverse = True)).T
+                position = array(range(len(theta)))
 
-            # Select by angle, intensity and first n peaks
-            mask = ones(len(theta), bool)
-            if min_theta is not None:
-                mask &= (theta > min_theta)
-            if max_theta is not None:
-                mask &= (theta < max_theta) 
-            if min_intensity is not None:
-                mask &= (intensity > min_intensity)
-            if first_n_peaks is not None:
-                mask &= (position < first_n_peaks)
-            if (self.peaks_selected is not None) and (self.peaks_selected != []):
-                mask_peaks_selected = zeros(len(theta), bool)
-                mask_peaks_selected[self.peaks_selected] = True
-                mask &= mask_peaks_selected
-            self.theta, self.intensity, self.position = theta[mask], intensity[mask], position[mask]
+                # Select by angle, intensity and position
+                mask = ones(len(theta), bool)
+                if min_theta is not None:
+                    mask &= (theta >= min_theta)
+                if max_theta is not None:
+                    mask &= (theta <= max_theta) 
+                if min_intensity is not None:
+                    mask &= (intensity >= min_intensity)
+                if first_n_peaks is not None:
+                    mask &= (position < first_n_peaks)
+                if (self.peaks_selected is not None) and (self.peaks_selected != []):
+                    mask_peaks_selected = zeros(len(theta), bool)
+                    mask_peaks_selected[self.peaks_selected] = True
+                    mask &= mask_peaks_selected
+                theta, intensity, position = theta[mask], intensity[mask], position[mask]
 
-            # Sort peaks by increasing theta
-            if mask.sum() > 0:
-                self.theta, self.intensity, self.position = array(sorted(zip(self.theta, self.intensity, self.position))).T
+                # Sort peaks by increasing theta
+                if len(theta) > 0:
+                    theta, intensity, position = array(sorted(zip(theta, intensity, position))).T
+
+            # Assign attributes
+            self.theta, self.intensity, self.position = theta, intensity, position
 
         return self.theta.copy(), self.intensity.copy(), self.position.copy()
 
