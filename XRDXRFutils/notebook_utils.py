@@ -19,10 +19,10 @@ import h5py
 from glob import glob
 from math import ceil
 
-from numpy import (linspace, concatenate, append, sqrt, log, sin, cos, pi, deg2rad, histogram, array,
-    unravel_index, savetxt, nan, isnan, flip, sum, average, amax, nanmax, nanmin, nanmean, nanargmax, maximum,
-    minimum, arange, empty, newaxis, stack, clip, quantile, nanquantile, ones, zeros, absolute, rot90,
-    asarray, loadtxt, where, argwhere)
+from numpy import (linspace, concatenate, append, delete, exp, sqrt, log, sin, cos, pi, deg2rad, histogram,
+    array, asarray, unravel_index, savetxt, nan, isnan, flip, sum, average, amax, amin, nanmax, nanmin,
+    nanmean, argmax, nanargmax, argmin, nanargmin, maximum, minimum, arange, empty, full, zeros, ones,
+    newaxis, stack, clip, quantile, nanquantile, absolute, rot90, loadtxt, where, argwhere)
 
 from pandas import DataFrame, read_csv, concat
 
@@ -32,7 +32,8 @@ from scipy.optimize import curve_fit, least_squares
 from scipy.signal import find_peaks
 
 from matplotlib.pyplot import (show, close, sca, fill_between, legend, imshow, subplots, plot,
-    xlim, ylim, xlabel, ylabel, cm, title, scatter, colorbar, figure, vlines, savefig, get_cmap, hist)
+    xlim, ylim, xlabel, ylabel, cm, title, scatter, colorbar, figure, vlines, savefig, get_cmap, hist,
+    text)
 from matplotlib import rcParams
 from matplotlib.ticker import FuncFormatter, ScalarFormatter
 from matplotlib.markers import MarkerStyle
