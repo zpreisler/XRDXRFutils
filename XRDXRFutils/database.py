@@ -63,13 +63,11 @@ class Phase(dict):
             d, i = self['_pd_peak_intensity']
             mask = (i > 1e-2) # avoid peaks with null intensity
             d, i = d[mask], i[mask]
-            theta = []
-            intensity = []
+            theta, intensity = [], []
             for l, s in zip(length, scale):
                 theta += [self.theta_from_d(d, l)]
                 intensity += [i * s]
-            theta = concatenate(theta)
-            intensity = concatenate(intensity) / 1000.0
+            theta, intensity = concatenate(theta), concatenate(intensity)
 
             if len(theta) > 0:
                 # Merge peaks
@@ -89,7 +87,6 @@ class Phase(dict):
                             intensity = delete(intensity, [idx_min + 1])
                         else:
                             break
-                    intensity /= intensity.max()
 
                 # Sort peaks by decreasing intensity, then assign position
                 intensity, theta = array(sorted(zip(intensity, theta), reverse = True)).T
@@ -110,6 +107,8 @@ class Phase(dict):
                     mask_peaks_selected[self.peaks_selected] = True
                     mask &= mask_peaks_selected
                 theta, intensity, position = theta[mask], intensity[mask], position[mask]
+                # Rescale intensity
+                intensity /= intensity.max()
 
                 # Sort peaks by increasing theta
                 if len(theta) > 0:
