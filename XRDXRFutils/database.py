@@ -111,6 +111,7 @@ class Phase(dict):
                     mask_peaks_selected[self.peaks_selected] = True
                     mask &= mask_peaks_selected
                 theta, intensity, position = theta[mask], intensity[mask], position[mask]
+
                 # Rescale intensity
                 intensity /= intensity.max()
 
