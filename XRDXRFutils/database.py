@@ -3,7 +3,7 @@
 from matplotlib.pyplot import plot, figure, subplots, xlim, ylim, vlines, legend, fill_between, cm, text
 
 from numpy import (loadtxt, arcsin, sin, pi, array, asarray, argmin, minimum, concatenate, delete,
-    linspace, arange, ones, zeros, full, newaxis, exp)
+    linspace, arange, empty, ones, zeros, full, newaxis, exp, argsort)
 from numpy.random import randint
 from glob import glob
 import warnings
@@ -70,9 +70,12 @@ class Phase(dict):
             theta, intensity = concatenate(theta), concatenate(intensity)
 
             if len(theta) > 0:
+                # Sort peaks by increasing theta
+                idx_sorted = argsort(theta)
+                theta, intensity = theta[idx_sorted], intensity[idx_sorted]
+
                 # Merge peaks
                 if sigma is not None:
-                    theta, intensity = array(sorted(zip(theta, intensity))).T
                     while len(theta) > 1:
                         theta_diff = theta[1:] - theta[:-1]
                         idx_min = argmin(theta_diff)
@@ -88,9 +91,10 @@ class Phase(dict):
                         else:
                             break
 
-                # Sort peaks by decreasing intensity, then assign position
-                intensity, theta = array(sorted(zip(intensity, theta), reverse = True)).T
-                position = array(range(len(theta)))
+                # Assign position to peaks based on decreasing intensity
+                position = empty(len(theta), dtype = int)
+                idx_sorted = argsort(intensity)[::-1]
+                position[idx_sorted] = range(len(theta))
 
                 # Select by angle, intensity and position
                 mask = ones(len(theta), bool)
@@ -109,10 +113,6 @@ class Phase(dict):
                 theta, intensity, position = theta[mask], intensity[mask], position[mask]
                 # Rescale intensity
                 intensity /= intensity.max()
-
-                # Sort peaks by increasing theta
-                if len(theta) > 0:
-                    theta, intensity, position = array(sorted(zip(theta, intensity, position))).T
 
             # Assign attributes
             self.theta, self.intensity, self.position = theta, intensity, position
@@ -168,7 +168,7 @@ class Phase(dict):
         vlines(theta, 0, intensity, colors = colors, linestyles = linestyles, label = label, **kwargs)
         if positions:
             for i in range(len(theta)):
-                text(theta[i], lineheight[i], f'{position[i]:.0f}', ha = 'center', va = 'bottom', fontsize = 'x-small')
+                text(theta[i], lineheight[i], f'{position[i]}', ha = 'center', va = 'bottom', fontsize = 'x-small')
 
 
     def save_cif(self, filename):
