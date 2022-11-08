@@ -85,6 +85,7 @@ class Phase(dict):
                         if (theta_diff[idx_min] <= sigma):
                             theta_point = (intensity[idx_min] * theta[idx_min] + intensity[idx_min + 1] * theta[idx_min + 1]) / (intensity[idx_min] + intensity[idx_min + 1])
                             #intensity_point = intensity[idx_min] + intensity[idx_min + 1]
+                            # The merged peak has the same height as the combination of the two Gaussian peaks (less than the simple sum of the two heights)
                             intensity_point = (intensity[idx_min] * exp((theta_point - theta[idx_min])**2 / (-2 * sigma**2)) +
                                 intensity[idx_min + 1] * exp((theta_point - theta[idx_min + 1])**2 / (-2 * sigma**2)))
                             theta[idx_min] = theta_point
