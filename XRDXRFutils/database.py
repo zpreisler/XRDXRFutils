@@ -117,7 +117,8 @@ class Phase(dict):
                 theta, intensity, position = theta[mask], intensity[mask], position[mask]
 
                 # Rescale intensity
-                intensity /= intensity.max()
+                if len(theta) > 0:
+                    intensity /= intensity.max()
 
             # Assign attributes
             self.theta, self.intensity, self.position = theta, intensity, position
