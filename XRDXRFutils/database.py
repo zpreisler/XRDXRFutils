@@ -2,7 +2,7 @@
 
 from matplotlib.pyplot import plot, figure, subplots, xlim, ylim, vlines, legend, fill_between, cm, text
 
-from numpy import (loadtxt, arcsin, sin, pi, array, asarray, argmin, minimum, concatenate, delete,
+from numpy import (loadtxt, arcsin, sin, pi, array, asarray, argmin, minimum, nanmax, concatenate, delete,
     linspace, arange, empty, ones, zeros, full, newaxis, exp, argsort)
 from numpy.random import randint
 from glob import glob
@@ -61,8 +61,11 @@ class Phase(dict):
 
             # Obtain list of peaks
             d, i = self['_pd_peak_intensity']
-            mask = (i > 1e-2) # avoid peaks with null intensity
+            # Avoid peaks with null intensity
+            i_max = nanmax(i)
+            mask = (i > (i_max * 1e-4))
             d, i = d[mask], i[mask]
+            # Join peaks given by different wavelengths
             theta, intensity = [], []
             for l, s in zip(length, scale):
                 theta += [self.theta_from_d(d, l)]
@@ -103,7 +106,7 @@ class Phase(dict):
                 if max_theta is not None:
                     mask &= (theta <= max_theta) 
                 if min_intensity is not None:
-                    mask &= (intensity >= min_intensity)
+                    mask &= (intensity >= (i_max * min_intensity))
                 if first_n_peaks is not None:
                     mask &= (position < first_n_peaks)
                 if (self.peaks_selected is not None) and (self.peaks_selected != []):
