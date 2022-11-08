@@ -22,7 +22,7 @@ from math import ceil
 from numpy import (linspace, concatenate, append, delete, exp, sqrt, log, sin, cos, pi, deg2rad, histogram,
     array, asarray, unravel_index, savetxt, nan, isnan, flip, sum, average, amax, amin, nanmax, nanmin,
     nanmean, argmax, nanargmax, argmin, nanargmin, maximum, minimum, arange, empty, full, zeros, ones,
-    newaxis, stack, clip, quantile, nanquantile, absolute, rot90, loadtxt, where, argwhere)
+    newaxis, stack, clip, quantile, nanquantile, absolute, rot90, loadtxt, where, argwhere, sort, argsort)
 
 from pandas import DataFrame, read_csv, concat
 
