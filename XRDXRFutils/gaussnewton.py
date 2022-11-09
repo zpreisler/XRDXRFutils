@@ -19,8 +19,10 @@ class GaussNewton(FastSpectraXRD):
     """
     def __init__(self, phase, spectrum, **kwargs):
         """
-        phase: tabulated phase; Phase or PhaseList class
-        spectrum: experimental spectrum; FastSpectraXRD class
+        Initialization of GaussNewton
+        - phase: Tabulated phase. (Phase or PhaseList class)
+        - spectrum: Experimental spectrum. (SpectraXRD class)
+        - kwargs: Arguments to select peaks; they are passed to Phase.get_theta(). Also, sigma is used to determine the width of Gaussian peaks of synthetic spectrum.
         """
         if type(phase) not in [Phase, PhaseList]:
             raise Exception('GaussNewton initialization: invalid phase type.')
