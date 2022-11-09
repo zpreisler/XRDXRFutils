@@ -17,8 +17,7 @@ class GaussNewton(FastSpectraXRD):
     """
     Class to calculate Gauss-Newton minimization of the synthetic and the experimental spectrum.
     """
-    def __init__(self, phase, spectrum, sigma = 0.2, **kwargs):
-
+    def __init__(self, phase, spectrum, **kwargs):
         """
         phase: tabulated phase; Phase or PhaseList class
         spectrum: experimental spectrum; FastSpectraXRD class
@@ -28,8 +27,8 @@ class GaussNewton(FastSpectraXRD):
 
         self.phase = phase
         self.spectrum = spectrum
-        self.sigma = sigma
         self.kwargs = kwargs
+        sigma = kwargs.get('sigma', 0.2) # If sigma is not given among kwargs, set it to 0.2
 
         self.label = phase.label
         self.opt = spectrum.opt.copy()
@@ -41,7 +40,7 @@ class GaussNewton(FastSpectraXRD):
         tabulated intensity: I
         """
         # Variables along the diffraction lines
-        self.mu, self.I, p = self.get_theta(sigma = sigma, **kwargs)
+        self.mu, self.I, p = self.get_theta(**kwargs)
 
         """
         parameters g, tau --> gamma, sigma^2
@@ -439,7 +438,7 @@ class GaussNewton(FastSpectraXRD):
         index_count = 0
 
         for phase in pl:
-            mu, I, p = phase.get_theta(sigma = self.sigma, **self.kwargs)
+            mu, I, p = phase.get_theta(**self.kwargs)
             phase_len = mu.shape[0]
 
             gamma = self.gamma.squeeze()[index_count : (index_count + phase_len)]
