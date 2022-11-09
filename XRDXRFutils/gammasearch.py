@@ -24,8 +24,8 @@ class GammaSearch(list):
     The basic structure is a list of GaussNewton objects, one for each phase.
     """
 
-    def __init__(self, phases, spectrum, sigma = 0.2, **kwargs):
-        super().__init__([GaussNewton(phase, spectrum, sigma = sigma, **kwargs) for phase in phases])
+    def __init__(self, phases, spectrum, **kwargs):
+        super().__init__([GaussNewton(phase, spectrum, **kwargs) for phase in phases])
         self.spectrum = spectrum
         self.set_opt(spectrum.opt.copy(), copy = True)
 
@@ -157,7 +157,7 @@ class GammaMap(list):
         self.attribute_names_to_set = ['phases', 'indices_sel', 'n_pixels', 'shape', 'coordinates']
 
 
-    def from_data(self, data, phases, indices_sel = None, sigma = 0.2, **kwargs):
+    def from_data(self, data, phases, indices_sel = None, **kwargs):
         """
         Builds the map that searches for given phases in given XRD data.
         
@@ -170,8 +170,6 @@ class GammaMap(list):
         - indices_sel: (numpy array)
             2d numpy array of boolean type, of the same dimensions as data, telling for each pixel if it is included or not in the map.
             The default value is None, in which case all the pixels are included.
-        - sigma: (float)
-            Standard deviation of Gaussian peaks of the synthetic XRD patterns. Default is 0.2.
         - kwargs: (different types, optional)
             Arguments that will be passed down to Phase.get_theta().
             They put restrictions on which peaks of tabulated phases are chosen to build synthetic XRD patterns.
@@ -193,7 +191,7 @@ class GammaMap(list):
                 if indices_sel[y, x]:
                     self.coordinates.append((x, y))
                     spectrum = FastSpectraXRD().from_Data(data, x, y)
-                    self += [GammaSearch(phases, spectrum, sigma, **kwargs)]
+                    self += [GammaSearch(phases, spectrum, **kwargs)]
 
         return self
 

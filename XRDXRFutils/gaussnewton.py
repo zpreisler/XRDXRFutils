@@ -17,6 +17,7 @@ class GaussNewton(FastSpectraXRD):
     """
     Class to calculate Gauss-Newton minimization of the synthetic and the experimental spectrum.
     """
+
     def __init__(self, phase, spectrum, **kwargs):
         """
         Initialization of GaussNewton
