@@ -423,6 +423,9 @@ class GaussNewton(FastSpectraXRD):
     def plot_spectrum(self, *args, **kwargs):
         super().plot(*args, **kwargs)
 
+    def plot_phase(self, **kwargs):
+        self.phase.plot(**self.kwargs, **kwargs)
+
     def plot(self, *args, **kwargs):
         plot(self.theta, self.z(), *args, **kwargs)
 
