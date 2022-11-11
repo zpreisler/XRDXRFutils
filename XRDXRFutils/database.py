@@ -79,19 +79,23 @@ class Phase(dict):
 
                 # Merge peaks
                 if sigma is not None:
+                    weight = intensity.copy()
                     while len(theta) > 1:
                         theta_diff = theta[1:] - theta[:-1]
                         idx_min = argmin(theta_diff)
                         if (theta_diff[idx_min] <= sigma):
-                            theta_point = (intensity[idx_min] * theta[idx_min] + intensity[idx_min + 1] * theta[idx_min + 1]) / (intensity[idx_min] + intensity[idx_min + 1])
+                            theta_point = (weight[idx_min] * theta[idx_min] + weight[idx_min + 1] * theta[idx_min + 1]) / (weight[idx_min] + weight[idx_min + 1])
                             #intensity_point = intensity[idx_min] + intensity[idx_min + 1]
                             # The merged peak has the same height as the combination of the two Gaussian peaks (less than the simple sum of the two heights)
                             intensity_point = (intensity[idx_min] * exp((theta_point - theta[idx_min])**2 / (-2 * sigma**2)) +
                                 intensity[idx_min + 1] * exp((theta_point - theta[idx_min + 1])**2 / (-2 * sigma**2)))
+                            weight_point = weight[idx_min] + weight[idx_min + 1]
                             theta[idx_min] = theta_point
                             intensity[idx_min] = intensity_point
+                            weight[idx_min] = weight_point
                             theta = delete(theta, [idx_min + 1])
                             intensity = delete(intensity, [idx_min + 1])
+                            weight = delete(weight, [idx_min + 1])
                         else:
                             break
 
