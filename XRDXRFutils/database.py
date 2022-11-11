@@ -38,7 +38,7 @@ class Phase(dict):
         return l / (2 * sin(pi * theta / 360))
 
 
-    def get_theta(self, length = [1.541874], scale = [1.0], min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, sigma = None):
+    def get_theta(self, length = [1.541874], scale = [1.0], min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, distance_merge = None):
         # Check if arguments have different values compared to last call to this function
         if not (hasattr(self, 'length_last') and length == self.length_last
             and hasattr(self, 'scale_last') and scale == self.scale_last
@@ -46,7 +46,7 @@ class Phase(dict):
             and hasattr(self, 'max_theta_last') and max_theta == self.max_theta_last
             and hasattr(self, 'min_intensity_last') and min_intensity == self.min_intensity_last
             and hasattr(self, 'first_n_peaks_last') and first_n_peaks == self.first_n_peaks_last
-            and hasattr(self, 'sigma_last') and sigma == self.sigma_last
+            and hasattr(self, 'distance_merge_last') and distance_merge == self.distance_merge_last
             and hasattr(self, 'peaks_selected_last') and self.peaks_selected == self.peaks_selected_last
             and hasattr(self, 'theta') and hasattr(self, 'intensity') and hasattr(self, 'position')
         ):
@@ -56,7 +56,7 @@ class Phase(dict):
             self.max_theta_last = max_theta
             self.min_intensity_last = min_intensity
             self.first_n_peaks_last = first_n_peaks
-            self.sigma_last = sigma
+            self.distance_merge_last = distance_merge
             self.peaks_selected_last = self.peaks_selected
 
             # Obtain list of peaks
@@ -78,17 +78,17 @@ class Phase(dict):
                 theta, intensity = theta[idx_sorted], intensity[idx_sorted]
 
                 # Merge peaks
-                if sigma is not None:
+                if distance_merge is not None:
                     weight = intensity.copy()
                     while len(theta) > 1:
                         theta_diff = theta[1:] - theta[:-1]
                         idx_min = argmin(theta_diff)
-                        if (theta_diff[idx_min] <= sigma):
+                        if (theta_diff[idx_min] <= distance_merge):
                             theta_point = (weight[idx_min] * theta[idx_min] + weight[idx_min + 1] * theta[idx_min + 1]) / (weight[idx_min] + weight[idx_min + 1])
                             #intensity_point = intensity[idx_min] + intensity[idx_min + 1]
                             # The merged peak has the same height as the combination of the two Gaussian peaks (less than the simple sum of the two heights)
-                            intensity_point = (intensity[idx_min] * exp((theta_point - theta[idx_min])**2 / (-2 * sigma**2)) +
-                                intensity[idx_min + 1] * exp((theta_point - theta[idx_min + 1])**2 / (-2 * sigma**2)))
+                            intensity_point = (intensity[idx_min] * exp((theta_point - theta[idx_min])**2 / (-2 * distance_merge**2)) +
+                                intensity[idx_min + 1] * exp((theta_point - theta[idx_min + 1])**2 / (-2 * distance_merge**2)))
                             weight_point = weight[idx_min] + weight[idx_min + 1]
                             theta[idx_min] = theta_point
                             intensity[idx_min] = intensity_point
@@ -153,9 +153,9 @@ class Phase(dict):
 
 
     def plot(self, convolution = False, positions = False, colors = 'red', linestyles = 'dashed', label = None, lineheight = None,
-         min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, sigma = None, **kwargs):
+         min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, distance_merge = None, **kwargs):
 
-        theta, intensity, position = self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity, first_n_peaks = first_n_peaks, sigma = sigma)
+        theta, intensity, position = self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity, first_n_peaks = first_n_peaks, distance_merge = distance_merge)
 
         if label is None:
             label = self.label
@@ -165,9 +165,9 @@ class Phase(dict):
         else:
             lineheight = full(intensity.shape, lineheight)
 
-        if (convolution and (sigma is not None)):
+        if (convolution and (distance_merge is not None)):
             gamma = full((1, len(theta)), 1)
-            sigma2 = full((1, len(theta)), sigma**2)
+            sigma2 = full((1, len(theta)), distance_merge**2)
             mu = theta[newaxis, :]
             I = intensity[newaxis, :]
             theta_to_plot = arange(min_theta, max_theta, 0.01)[:, newaxis]

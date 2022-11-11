@@ -18,28 +18,24 @@ class GaussNewton(FastSpectraXRD):
     Class to calculate Gauss-Newton minimization of the synthetic and the experimental spectrum.
     """
 
-    def __init__(self, phase, spectrum, merge_peaks = True, **kwargs):
+    def __init__(self, phase, spectrum, sigma = 0.2, **kwargs):
         """
         Initialization of GaussNewton
         - phase: (Phase or PhaseList class)
             Tabulated phase.
         - spectrum: (SpectraXRD class)
             Experimental spectrum.
-        - merge_peaks: (bool)
-            Whether or not to merge peaks with angular distance less than sigma.
+        - sigma: (float)
+            Standard deviation of Gaussian peaks of the synthetic XRD patterns. Default is 0.2.
         - kwargs: (different types, optional)
-            Arguments to select peaks; they are passed to Phase.get_theta(). Also, sigma is used to determine the width of Gaussian peaks of synthetic spectrum.
+            Arguments to select peaks; they are passed to Phase.get_theta().
         """
         if type(phase) not in [Phase, PhaseList]:
             raise Exception('GaussNewton initialization: invalid phase type.')
 
         self.phase = phase
         self.spectrum = spectrum
-        sigma = kwargs.get('sigma', 0.2) # If sigma is not given among kwargs, set it to 0.2
         self.kwargs = kwargs
-        if not merge_peaks:
-            self.kwargs['sigma'] = None
-
         self.label = phase.label
         self.opt = spectrum.opt.copy()
 
