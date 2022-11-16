@@ -17,11 +17,18 @@ class GaussNewton(FastSpectraXRD):
     """
     Class to calculate Gauss-Newton minimization of the synthetic and the experimental spectrum.
     """
-    def __init__(self, phase, spectrum, sigma = 0.2, **kwargs):
 
+    def __init__(self, phase, spectrum, sigma = 0.2, **kwargs):
         """
-        phase: tabulated phase; Phase or PhaseList class
-        spectrum: experimental spectrum; FastSpectraXRD class
+        Initialization of GaussNewton
+        - phase: (Phase or PhaseList class)
+            Tabulated phase.
+        - spectrum: (SpectraXRD class)
+            Experimental spectrum.
+        - sigma: (float)
+            Standard deviation of Gaussian peaks of the synthetic XRD patterns. Default is 0.2.
+        - kwargs: (different types, optional)
+            Arguments to select peaks; they are passed to Phase.get_theta().
         """
         if type(phase) not in [Phase, PhaseList]:
             raise Exception('GaussNewton initialization: invalid phase type.')
@@ -29,7 +36,6 @@ class GaussNewton(FastSpectraXRD):
         self.phase = phase
         self.spectrum = spectrum
         self.kwargs = kwargs
-
         self.label = phase.label
         self.opt = spectrum.opt.copy()
 
@@ -40,7 +46,7 @@ class GaussNewton(FastSpectraXRD):
         tabulated intensity: I
         """
         # Variables along the diffraction lines
-        self.mu, self.I, p = self.get_theta(**kwargs)
+        self.mu, self.I, p = self.get_theta()
 
         """
         parameters g, tau --> gamma, sigma^2
@@ -142,8 +148,8 @@ class GaussNewton(FastSpectraXRD):
     """
     Utility functions
     """
-    def get_theta(self, **kwargs):
-        return self.phase.get_theta(**kwargs)
+    def get_theta(self):
+        return self.phase.get_theta(**self.kwargs)
 
     def theta_range(self):
         return super().theta_range().squeeze()
@@ -413,6 +419,9 @@ class GaussNewton(FastSpectraXRD):
     def plot_spectrum(self, *args, **kwargs):
         super().plot(*args, **kwargs)
 
+    def plot_phase(self, **kwargs):
+        self.phase.plot(**self.kwargs, **kwargs)
+
     def plot(self, *args, **kwargs):
         plot(self.theta, self.z(), *args, **kwargs)
 
@@ -438,7 +447,7 @@ class GaussNewton(FastSpectraXRD):
         index_count = 0
 
         for phase in pl:
-            mu, I, p = phase.get_theta(**self.kwargs)
+            mu, I, p = self.get_theta()
             phase_len = mu.shape[0]
 
             gamma = self.gamma.squeeze()[index_count : (index_count + phase_len)]

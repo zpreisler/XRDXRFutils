@@ -25,7 +25,7 @@ class GammaSearch(list):
     """
 
     def __init__(self, phases, spectrum, sigma = 0.2, **kwargs):
-        super().__init__([GaussNewton(phase, spectrum, sigma = sigma, **kwargs) for phase in phases])
+        super().__init__([GaussNewton(phase, spectrum, sigma, **kwargs) for phase in phases])
         self.spectrum = spectrum
         self.set_opt(spectrum.opt.copy(), copy = True)
 

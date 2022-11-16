@@ -56,7 +56,7 @@ class GammaMap_Secondary(GammaMap):
         ---------
         - gammamap_1: (GammaMap)
             Instance of GammaMap, here acting as primary map with its phases already fitted to data.
-        - phases:  (list of Phase)
+        - phases: (list of Phase)
             Secondary phases that will be compared to primary phases.
         - sigma: (float)
             Standard deviation of Gaussian peaks of the synthetic XRD patterns. Default is 0.2.

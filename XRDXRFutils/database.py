@@ -2,8 +2,8 @@
 
 from matplotlib.pyplot import plot, figure, subplots, xlim, ylim, vlines, legend, fill_between, cm, text
 
-from numpy import (loadtxt, arcsin, sin, pi, array, asarray, minimum, concatenate, linspace, arange,
-    ones, zeros, full)
+from numpy import (loadtxt, arcsin, sin, pi, array, asarray, argmin, minimum, nanmax, concatenate, delete,
+    linspace, arange, empty, ones, zeros, full, newaxis, exp, argsort)
 from numpy.random import randint
 from glob import glob
 import warnings
@@ -38,16 +38,17 @@ class Phase(dict):
         return l / (2 * sin(pi * theta / 360))
 
 
-    def get_theta(self, length = [1.541874], scale = [1.0], min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None):
-
+    def get_theta(self, length = [1.541874], scale = [1.0], min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, distance_merge = None):
+        # Check if arguments have different values compared to last call to this function
         if not (hasattr(self, 'length_last') and length == self.length_last
             and hasattr(self, 'scale_last') and scale == self.scale_last
             and hasattr(self, 'min_theta_last') and min_theta == self.min_theta_last
             and hasattr(self, 'max_theta_last') and max_theta == self.max_theta_last
             and hasattr(self, 'min_intensity_last') and min_intensity == self.min_intensity_last
             and hasattr(self, 'first_n_peaks_last') and first_n_peaks == self.first_n_peaks_last
+            and hasattr(self, 'distance_merge_last') and distance_merge == self.distance_merge_last
             and hasattr(self, 'peaks_selected_last') and self.peaks_selected == self.peaks_selected_last
-            and hasattr(self, 'theta') and hasattr(self, 'intensity')
+            and hasattr(self, 'theta') and hasattr(self, 'intensity') and hasattr(self, 'position')
         ):
             self.length_last = length
             self.scale_last = scale
@@ -55,35 +56,76 @@ class Phase(dict):
             self.max_theta_last = max_theta
             self.min_intensity_last = min_intensity
             self.first_n_peaks_last = first_n_peaks
+            self.distance_merge_last = distance_merge
             self.peaks_selected_last = self.peaks_selected
 
+            # Obtain list of peaks
             d, i = self['_pd_peak_intensity']
-            theta = []
-            intensity = []
+            # Avoid peaks with null intensity
+            i_max = nanmax(i)
+            mask = (i > (i_max * 1e-4))
+            d, i = d[mask], i[mask]
+            # Join peaks given by different wavelengths
+            theta, intensity = [], []
             for l, s in zip(length, scale):
                 theta += [self.theta_from_d(d, l)]
                 intensity += [i * s]
-            theta = concatenate(theta)
-            intensity = concatenate(intensity) / 1000.0
-            intensity, theta = array(sorted(zip(intensity, theta), reverse = True)).T
-            position = array(range(len(theta)))
+            theta, intensity = concatenate(theta), concatenate(intensity)
 
-            mask = ones(len(theta), bool)
-            if min_theta is not None:
-                mask &= (theta > min_theta)
-            if max_theta is not None:
-                mask &= (theta < max_theta) 
-            if min_intensity is not None:
-                mask &= (intensity > min_intensity)
-            if first_n_peaks is not None:
-                mask &= (position < first_n_peaks)
-            if (self.peaks_selected is not None) and (self.peaks_selected != []):
-                mask_peaks_selected = zeros(len(theta), bool)
-                mask_peaks_selected[self.peaks_selected] = True
-                mask &= mask_peaks_selected
-            self.theta, self.intensity, self.position = theta[mask], intensity[mask], position[mask]
-            if mask.sum() > 0:
-                self.theta, self.intensity, self.position = array(sorted(zip(self.theta, self.intensity, self.position))).T
+            if len(theta) > 0:
+                # Sort peaks by increasing theta
+                idx_sorted = argsort(theta)
+                theta, intensity = theta[idx_sorted], intensity[idx_sorted]
+
+                # Merge peaks
+                if distance_merge is not None:
+                    weight = intensity.copy()
+                    while len(theta) > 1:
+                        theta_diff = theta[1:] - theta[:-1]
+                        idx_min = argmin(theta_diff)
+                        if (theta_diff[idx_min] <= distance_merge):
+                            theta_point = (weight[idx_min] * theta[idx_min] + weight[idx_min + 1] * theta[idx_min + 1]) / (weight[idx_min] + weight[idx_min + 1])
+                            #intensity_point = intensity[idx_min] + intensity[idx_min + 1]
+                            # The merged peak has the same height as the combination of the two Gaussian peaks (less than the simple sum of the two heights)
+                            intensity_point = (intensity[idx_min] * exp((theta_point - theta[idx_min])**2 / (-2 * distance_merge**2)) +
+                                intensity[idx_min + 1] * exp((theta_point - theta[idx_min + 1])**2 / (-2 * distance_merge**2)))
+                            weight_point = weight[idx_min] + weight[idx_min + 1]
+                            theta[idx_min] = theta_point
+                            intensity[idx_min] = intensity_point
+                            weight[idx_min] = weight_point
+                            theta = delete(theta, [idx_min + 1])
+                            intensity = delete(intensity, [idx_min + 1])
+                            weight = delete(weight, [idx_min + 1])
+                        else:
+                            break
+
+                # Assign position to peaks based on decreasing intensity
+                position = empty(len(theta), dtype = int)
+                idx_sorted = argsort(intensity)[::-1]
+                position[idx_sorted] = range(len(theta))
+
+                # Select by angle, intensity and position
+                mask = ones(len(theta), bool)
+                if min_theta is not None:
+                    mask &= (theta >= min_theta)
+                if max_theta is not None:
+                    mask &= (theta <= max_theta) 
+                if min_intensity is not None:
+                    mask &= (intensity >= (i_max * min_intensity))
+                if first_n_peaks is not None:
+                    mask &= (position < first_n_peaks)
+                if (self.peaks_selected is not None) and (self.peaks_selected != []):
+                    mask_peaks_selected = zeros(len(theta), bool)
+                    mask_peaks_selected[self.peaks_selected] = True
+                    mask &= mask_peaks_selected
+                theta, intensity, position = theta[mask], intensity[mask], position[mask]
+
+                # Rescale intensity
+                if len(theta) > 0:
+                    intensity /= intensity.max()
+
+            # Assign attributes
+            self.theta, self.intensity, self.position = theta, intensity, position
 
         return self.theta.copy(), self.intensity.copy(), self.position.copy()
 
@@ -110,10 +152,10 @@ class Phase(dict):
         return self.set_key('point', point)
 
 
-    def plot(self, positions = False, colors = 'red', linestyles = 'dashed', label = None, lineheight = None,
-         min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, **kwargs):
+    def plot(self, convolution = False, positions = False, colors = 'red', linestyles = 'dashed', label = None, lineheight = None,
+         min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, distance_merge = None, **kwargs):
 
-        theta, intensity, position = self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity, first_n_peaks = first_n_peaks)
+        theta, intensity, position = self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity, first_n_peaks = first_n_peaks, distance_merge = distance_merge)
 
         if label is None:
             label = self.label
@@ -123,10 +165,20 @@ class Phase(dict):
         else:
             lineheight = full(intensity.shape, lineheight)
 
+        if (convolution and (distance_merge is not None)):
+            gamma = full((1, len(theta)), 1)
+            sigma2 = full((1, len(theta)), distance_merge**2)
+            mu = theta[newaxis, :]
+            I = intensity[newaxis, :]
+            theta_to_plot = arange(min_theta, max_theta, 0.01)[:, newaxis]
+            component_core = exp((theta_to_plot - mu)**2 / (-2 * sigma2))
+            component_full = I * gamma * component_core
+            z = component_full.sum(axis = 1)
+            plot(theta_to_plot, z)
         vlines(theta, 0, intensity, colors = colors, linestyles = linestyles, label = label, **kwargs)
         if positions:
             for i in range(len(theta)):
-                text(theta[i], lineheight[i], f'{position[i]:.0f}', ha = 'center', va = 'bottom', fontsize = 'x-small')
+                text(theta[i], lineheight[i], f'{position[i]}', ha = 'center', va = 'bottom', fontsize = 'x-small')
 
 
     def save_cif(self, filename):
