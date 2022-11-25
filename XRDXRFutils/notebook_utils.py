@@ -8,8 +8,8 @@ from .gammasearch_secondary import GammaSearch_Secondary, GammaMap_Secondary
 from .chisearch import ChiSearch, ChiMap
 from .utils import snip, convolve, convolve3d
 
-from os.path import isdir, exists
-from os import makedirs, remove
+from os import makedirs, remove, walk
+from os.path import isdir, exists, basename, dirname, relpath, join
 from shutil import rmtree
 from pathlib import Path
 from multiprocessing import Pool
@@ -35,7 +35,7 @@ from matplotlib.pyplot import (show, close, sca, fill_between, legend, imshow, s
     xlim, ylim, xlabel, ylabel, cm, title, scatter, colorbar, figure, vlines, savefig, get_cmap, hist,
     text)
 from matplotlib import rcParams
-from matplotlib.ticker import FuncFormatter, ScalarFormatter
+from matplotlib.ticker import FuncFormatter, ScalarFormatter, NullLocator
 from matplotlib.markers import MarkerStyle
 from matplotlib.colors import BoundaryNorm
 from matplotlib.lines import Line2D
