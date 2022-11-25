@@ -3,7 +3,7 @@
 from matplotlib.pyplot import plot, figure, subplots, xlim, ylim, vlines, legend, fill_between, cm, text
 
 from numpy import (loadtxt, arcsin, sin, pi, array, asarray, argmin, minimum, nanmax, concatenate, delete,
-    linspace, arange, empty, ones, zeros, full, newaxis, exp, argsort)
+    linspace, arange, empty, ones, zeros, full, newaxis, exp, argsort, isin)
 from numpy.random import randint
 from glob import glob
 import warnings
@@ -115,9 +115,7 @@ class Phase(dict):
                 if first_n_peaks is not None:
                     mask &= (position < first_n_peaks)
                 if (self.peaks_selected is not None) and (self.peaks_selected != []):
-                    mask_peaks_selected = zeros(len(theta), bool)
-                    mask_peaks_selected[self.peaks_selected] = True
-                    mask &= mask_peaks_selected
+                    mask &= isin(position, self.peaks_selected)
                 theta, intensity, position = theta[mask], intensity[mask], position[mask]
 
                 # Rescale intensity
