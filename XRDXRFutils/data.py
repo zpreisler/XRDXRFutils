@@ -462,221 +462,6 @@ class DataXRF(Data):
         return self
 
 
-
-class SyntheticDataXRF(DataXRF):
-    """
-    Syntetic XRF data class
-    """
-    
-    """
-    Namespace
-    """
-    name = 'synth_xrf'
-    
-    def __init__(self, rl_atnum_list = None, skip_element = False):
-        super().__init__()
-
-        self.nbins = None
-        self.rl_atnum_list = rl_atnum_list
-
-        if self.rl_atnum_list:
-            for i,item in enumerate(rl_atnum_list):
-                if not isinstance(item, int):
-                    raise TypeError(f'{item} at index {i} is not integer.\nIntegers are expected for Atomic Numbers')
-
-        self.skip_element = skip_element
-    
-    def __len__(self):
-        if hasattr(self, 'spe_objs'):
-            return len(self.spe_objs)
-        elif hasattr(self, 'data'):
-            return len(self.data)
-        return 0
-    
-    def set_nbins(self, nbins):
-        self.nbins = nbins
-    
-    def read(self, outdata_path):
-
-        if not self.rl_atnum_list:
-            raise ValueError("Atomic numbers list required to read the data\nSet 'rl_atnum_list' attribute or initialize a new instance.")
-
-        self.rl_atnum_list = sorted(self.rl_atnum_list)
-        self.path = outdata_path
-        xmso_filenames = []
-
-        if not os.path.isdir(outdata_path):
-            raise FileNotFoundError(f"No such file or directory: {outdata_path}")
-
-        for path, dirs, files in os.walk(outdata_path):
-            # to do: use glob to select xmso files
-            for _file in files:
-                xmso_filenames.append(os.path.join(path, _file))
-
-        print(f"Reading SXRF data from {outdata_path}")
-        self.metadata["rl_atnum_list"] = self.rl_atnum_list
-        self.spe_objs = [s for s in self.__read__(xmso_filenames) if s != None]
-        self.metadata["path"] = outdata_path
-        
-        return self
-    
-    def _get_labels(self, symbols, lines):
-        """
-        Generator
-        """
-        if len(symbols) != len(lines):
-            raise ValueError("Symbols and lines differ in length")
-
-        for s in self.spe_objs:
-            np_labels = zeros((len(symbols)))
-
-            for fluo in s.fluorescence_lines:
-                try:
-                    sym_index = symbols.index(fluo.symbol)
-                    np_labels[sym_index] = fluo.lines[lines[sym_index]]
-                except ValueError:
-                    pass
-            yield np_labels
-    
-    def get_data_and_labels(self, symbols, lines):
-
-        if not hasattr(self, 'spe_objs'):
-            raise RuntimeError("xmso files not read yet")
-
-        self.data = asarray([s.counts for s in self.spe_objs])
-        self.energy = self.spe_objs[0].energy
-
-        self.labels = asarray([l for l in self._get_labels(symbols, lines)])
-        self.metadata["symbols"] = symbols
-        self.metadata["lines"] = lines
-        
-        return self
-    
-    def process_file(self, filename):
-
-        sxrf = SyntheticSpectraXRF(self.rl_atnum_list, self.skip_element)
-        self.nbins and sxrf.set_nbins(self.nbins)
-        s = sxrf.from_file(filename)
-
-        return s
-    
-    def __read__(self, xmso_filenames):
-
-        if not self.rl_atnum_list:
-            raise RuntimeError("missing required atomic numbers list")
-        self.rl_atnum_list = sorted(self.rl_atnum_list)
-
-        with Pool() as p:
-            results = p.map(self.process_file, xmso_filenames)
-        return results
-    
-    def get_sim_parameters(self, local = False):
-
-        if not hasattr(self, 'spe_objs'):
-            raise RuntimeError("xmso files not read yet")
-        len_data = len(self.spe_objs)
-
-        if local:
-            self.time = empty((len_data))
-            self.weight_fractions = zeros((len_data,len(self.rl_atnum_list)))
-            self.reflayer_thickness = empty((len_data))
-            self.sublayer_thickness = empty((len_data))
-
-            for i, s in enumerate(self.spe_objs):
-                self.time[i] = s.time
-                self.weight_fractions[i] = s.weight_fractions
-                self.reflayer_thickness[i] = s.reflayer_thickness
-                self.sublayer_thickness[i] = s.sublayer_thickness
-            return
-
-        sp = SimulationParams(len_data)
-
-        for i, s in enumerate(self.spe_objs):
-            sp.time[i] = s.time
-            # sp.reflayer_elements += s.reflayer_elements
-            sp.weight_fractions.append(s.weight_fractions)
-            sp.reflayer_thickness[i] = s.reflayer_thickness
-            sp.sublayer_thickness[i] = s.sublayer_thickness
-
-        sp.weight_fractions = asarray(sp.weight_fractions).reshape(len_data, -1)
-
-        return sp
-        
-    
-    def save_h5(self, filename = None):
-
-        if filename == None:
-            filename = self.path + '/' + self.name + '.h5'
-
-        print('Saving:',filename)
-        with h5py.File(filename,'w') as f:
-
-            for k,v in self.metadata.items():
-                f.attrs[k] = v
-
-            if hasattr(self,'data'):
-                dataset = f.create_dataset('data',data = self.data)
-                dataset = f.create_dataset('x',data = self.x)
-
-            if hasattr(self,'labels'):
-                dataset = f.create_dataset('labels',data = self.labels)
-
-            for attr in ['reflayer_thickness','sublayer_thickness','weight_fractions','time','energy']:
-                if hasattr(self,attr):
-                    dataset = f.create_dataset(attr,data = getattr(self,attr))
-            
-            if hasattr(self,'calibration'):
-                calibration = f.create_group('calibration')
-
-                for attr in ['x','y','opt']:
-                    calibration.create_dataset(attr,data = getattr(self.calibration,attr))
-                for k,v in self.calibration.metadata.items():
-                    calibration.attrs[k] = v
-
-        return self
-
-    def load_h5(self,filename):
-
-        print('Loading:',filename)
-        with h5py.File(filename,'r') as f:
-
-            if 'data' in f:
-                self.data = f.get('data')[()]
-
-                if 'x' in f:
-                    self._x = f.get('x')[()]
-                else:
-                    self._x = f.get('energy')[()]
-
-            if 'labels' in f:
-                self.labels = f.get('labels')[()]
-
-            for attr in ['reflayer_thickness','sublayer_thickness','weight_fractions','time','energy']:
-                if attr in f:
-                    setattr(self,attr,f.get(attr)[()])
-
-            for k,v in f.attrs.items():
-                self.metadata[k] = v
-
-        return self
-
-
-
-class SimulationParams:
-    """
-    Synthetic data parameters class
-    """
-    def __init__(self, len_data = 1):
-
-        self.len_data = len_data
-        self.time = empty((len_data))
-
-        self.weight_fractions = []
-        self.reflayer_thickness = empty((len_data))
-        self.sublayer_thickness = empty((len_data))
-
-
-
 class DataXRD(Data):
     """
     XRD data class
@@ -769,6 +554,303 @@ class DataXRD(Data):
         return data_new
 
 
+class SyntheticDataXRF(Data):
+    """
+    Syntetic XRF data class
+    """
+    
+    """
+    Namespace
+    """
+    name = 'synth_xrf'
+    
+    def __init__(self, nproc = None):
+        
+        super().__init__()
+        
+        delattr(self, "calibration")
+        
+        self.nproc = nproc if nproc else (cpu_count() - 1)
+        
+        self.path = None
+        
+        self.name = "synth_xrf"
+        
+        self.layers_names = None
+            
+    @property
+    def x(self):
+        if hasattr(self, "_x"):
+            return self._x
+    
+    def set_layers_names(self, names):
+        self.layers_names = names
+    
+    def _read_xmso(self,filename):
+        synt = SyntheticSpectraXRF(self.layers_names).from_file(filename)
+        return synt
+    
+    def __read__(self):
+        
+        if hasattr(self, "xmso_list"):
+            with Pool(processes=self.nproc) as p:
+                results = p.map(self._read_xmso, self.xmso_list)
+        else:
+            raise RuntimeError(f"{self} has no attribute xmso_list")
+        
+        return results
+    
+#     def _expand(self, _array, index_map):
+#             res = []
+#             for k,v in index_map.items():
+#                 if k in _array:
+#                     res += [_array[k]]
+#                 else:
+#                     res += [0]
+#             return res
+
+    def _expand(self, datadict, _set):
+            res = []
+            for s in _set:
+                if s in datadict:
+                    res += [datadict[s]]
+                else:
+                    res += [0]
+            return res
+    
+    def _get_labels(self):
+        if hasattr(self,"spectra"):
+            return [self._expand(s.labels, self.labels_set) for s in self.spectra]
+        
+    def _get_data(self):
+        if hasattr(self, "spectra"):
+            return [s.counts for s in self.spectra]
+
+    def _get_wfrac(self, layer):
+        if hasattr(self, "spectra"):
+            return asarray([self._expand(s.layers[layer], self.elem_set) for s in self.spectra])
+        elif hasattr(self, "layers"):
+            out = zeros((self.__len__(), len(self.metadata['elements'])))
+            for i in range(self.__len__()):
+                for j,e in enumerate(self.metadata['elements']):
+                    if e in self.layers[layer]['elements'][i]:
+                        eidx = where(self.layers[layer]['elements'][i] == e)[0][0]
+                        out[i,j] = self.layers[layer]['weight_fractions'][i,eidx]
+            return out
+    
+    def _get_pigments(self, layer):
+        if hasattr(self, "spectra"):
+            return asarray([s.layers[layer].pigments for s in self.spectra], dtype = object_)
+        elif hasattr(self, "layers"):
+            return self.layers[layer]['pigments'].astype('U10')
+        
+    def _get_volume_fractions(self, layer):
+        if hasattr(self, "spectra"):
+            return asarray([s.layers[layer].volume_fractions for s in self.spectra], dtype = float)
+        elif hasattr(self, "layers"):
+            return self.layers[layer]['volume_fractions']
+    
+    def _get_mass_fractions(self, layer):
+        if hasattr(self, "spectra"):
+            return asarray([s.layers[layer].mass_fractions for s in self.spectra], dtype = float)
+        elif hasattr(self, "layers"):
+            return self.layers[layer]['mass_fractions']
+    
+    def _get_unconv_data(self):
+        if hasattr(self, "spectra"):
+            return [s.unconv_counts for s in self.spectra]
+    
+    def _get_thickness(self):
+        if hasattr(self, "spectra"):
+            return asarray([[s.layers[k].thickness  for k in s.layers.keys()] for s in self.spectra])
+        elif hasattr(self, "layers"):
+            return asarray([l['thickness'] for l in self.layers.values()]).T 
+    
+    def read(self, source):
+        
+        if isinstance(source, str):
+            self._datadir = source
+            bn = basename(self._datadir)
+            self.path = bn if bn else basename(self._datadir[:-1])
+            self.metadata["path"] = self.path
+            self.xmso_list = glob(join(self._datadir, '*.xmso'))
+        else:
+            self.xmso_list = source
+        
+        self.spectra = self.__read__()
+        
+        if not self.layers_names:
+            self.layers_names = self[0].layers_names
+        
+        self._x = self.spectra[0].energy
+        
+        self.labels_set = set()
+        self.elem_set = set()
+        for s in self.spectra:
+            self.labels_set.update(list(s.labels.keys()))
+            for v in s.layers.values():
+                self.elem_set.update(v.elements)
+        
+        self.metadata['labels'] = asarray(list(self.labels_set), dtype = object_)
+        self.metadata['elements'] = asarray(list(self.elem_set), dtype = object_)
+        self.metadata['layers'] = asarray(self.spectra[0].layers_names, dtype = object_)
+        
+        self.channels = arange(self.spectra[0].nchannels)
+#         self._labmap = {l:i for i,l in enumerate(labels)}
+#         self._wfmap = {e:i for i,e in enumerate(rlelem)}
+        
+        self.data = asarray([self._get_data()])
+        self.labels = asarray([self._get_labels()])
+        self.unconv_data = asarray([self._get_unconv_data()])
+        #self.weight_fractions = asarray(self._get_wfrac())
+        self.thickness = asarray(self._get_thickness())
+#         self.reflayer_thickness = asarray([s.layers.reference_layer.thickness for s in self.spectra])
+        
+        return self
+    
+    def __getitem__(self,i):
+        if hasattr(self, "spectra"):
+            return self.spectra[i]
+    
+    def __len__(self):
+        if hasattr(self, "spectra"):
+            return self.spectra.__len__()
+        elif hasattr(self, "data"):
+            return self.data.shape[1]
+        elif hasattr(self, "layers"):
+            return len(self.layers[self.metadata['layers'][0]])
+    
+    @property
+    def shape(self):
+        if hasattr(self, "data"):
+            return self.data.shape
+        return None
+    
+    def save_h5(self,filename = None):
+
+        if filename == None:
+            if not self.path:
+                er = 'Path attribute is not set because spectra have been read from a list\n'
+                er += 'Set the path attribute or use a full filename as argument'
+                raise ValueError(er)
+            filename = join(self.path,f"{self.name}.h5")
+            #filename = self.path + '/' + self.name + '.h5'
+
+        print('Saving:',filename)
+        with h5py.File(filename,'w') as f:
+
+            for k,v in self.metadata.items():
+                f.attrs[k] = v
+            
+            if hasattr(self, 'data'):
+                dataset = f.create_dataset("data", data = self.data)
+                dataset = f.create_dataset("x", data = self._x)
+
+            for attr in ['unconv_data','labels']:
+                if hasattr(self,attr):
+                    dataset = f.create_dataset(attr,data = getattr(self,attr))
+            
+        return self
+    
+    def save_layers(self, filename = None):
+        
+        if filename == None:
+            if not self.path:
+                er = 'Path attribute is not set because spectra have been read from a list\n'
+                er += 'Aet the path attribute or use a full filename as argument'
+                raise ValueError(er)
+            filename = join(self.path,f"{self.name}_layers.h5")
+        
+        if hasattr(self, "spectra"):
+            print('Saving:',filename)
+
+            with h5py.File(filename,'w') as f:
+
+                layers = f.create_group('layers')
+                for l in self.layers_names:
+                    layers.create_group(l)
+                    layers[l].create_dataset('thickness', data = asarray([s.layers[l].thickness for s in self.spectra]))
+                    layers[l].create_dataset('weight_fractions', data = asarray([s.layers[l].weight_fractions for s in self.spectra]))
+                    layers[l].attrs['elements'] = asarray([s.layers[l].elements for s in self.spectra], dtype = object_)
+                    layers[l].attrs.create('pigments',data = self._get_pigments(l), dtype = "S10")
+                    layers[l].create_dataset('volume_fractions', data = self._get_volume_fractions(l))
+                    layers[l].create_dataset('mass_fractions', data = self._get_mass_fractions(l))
+                    
+                f.attrs['layers'] = self.layers_names
+        
+        return self
+                
+    
+    def load_h5(self,filename):
+
+        print('Loading:',filename)
+        with h5py.File(filename,'r') as f:
+
+            if 'data' in f:
+                self.data = f.get('data')[()]
+                self._x = f.get('x')[()]
+
+            for attr in ['unconv_data', 'labels']:
+                if attr in f:
+                    setattr(self,attr,f.get(attr)[()])
+            
+            for k,v in f.attrs.items():
+                self.metadata[k] = v
+
+        return self
+    
+    def load_layers(self, filename):
+        
+        print('Loading:',filename)
+        with h5py.File(filename,'r') as f:
+            
+            if "/layers" in f:
+                self.layers = {}
+                layers = list(f['layers'].keys())
+                self.layers_names = layers
+                for l,data in f['layers'].items():
+                    self.layers[l] = {}
+                    if "thickness" in data:
+                        self.layers[l]['thickness'] = data['thickness'][()]
+#                     if "elements" in data:
+#                         self.layers[l]['elements'] = data['elements'][()]
+                    if "weight_fractions" in data:
+                        self.layers[l]['weight_fractions'] = data['weight_fractions'][()]
+                    
+                    if "volume_fractions" in data:
+                        self.layers[l]['volume_fractions'] = data['volume_fractions'][()]
+                    
+                    if "mass_fractions" in data:
+                        self.layers[l]['mass_fractions'] = data['mass_fractions'][()]
+                    
+                    if "elements" in data.attrs:
+                        self.layers[l]['elements'] = data.attrs['elements']
+                    
+                    if "pigments" in data.attrs:
+                        self.layers[l]['pigments'] = data.attrs['pigments']
+        
+        return self
+                
+    
+    def resample(self, nbins = 1024, bounds = (0,30), full = False):
+        
+        res = super().resample(nbins, bounds)
+        
+        if hasattr(self, "unconv_data"):
+            data = SyntheticDataXRF()
+            setattr(data, "data", self.unconv_data)
+            data._x = self._x
+            rdata = data.resample(nbins, bounds)
+            setattr(res, "unconv_data", rdata.data)
+        
+        res.metadata = self.metadata
+        
+        if full:
+            if hasattr(self, "layers"):
+                res.layers = self.layers
+        
+        return res
+        
 
 def resample(x,y,nbins=1024,bounds=(0,30)):
     """

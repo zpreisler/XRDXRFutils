@@ -1,4 +1,4 @@
-from numpy import loadtxt, arctan, pi, arange, array, asarray, linspace, zeros, maximum, nanmax, where
+from numpy import loadtxt, arctan, pi, arange, array, asarray, linspace, zeros, maximum, nanmax, where, empty, empty_like
 from math import ceil
 from matplotlib.pyplot import plot
 import xml.etree.ElementTree as et
@@ -8,7 +8,10 @@ import warnings
 
 from .utils import snip, convolve
 from .calibration import Calibration
+from .Xmendeleev import Xmendeleev
 
+from collections import UserDict
+import yaml
 
 class Spectra():
     def __init__(self):
@@ -221,7 +224,7 @@ def pretty(d, tab = "", buffer = ""):
             #print(f'{link}{node} {k}  {v}')
     return buffer
 
-class Layers_dict(UserDict):
+class Layers(UserDict):
     
     class Layer(UserDict):
         
@@ -377,7 +380,7 @@ class SyntheticSpectraXRF(Spectra):
             self.counts[i] = float(d[1].text)
             self.unconv_counts[i] = float(d[2].text)
         
-        self.layers = Layers_dict(xml_data, self.layers_names)    
+        self.layers = Layers(xml_data, self.layers_names)    
         self.labels = Labels(xml_data)
         
         if not self.layers_names:
