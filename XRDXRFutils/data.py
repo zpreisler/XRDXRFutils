@@ -554,7 +554,7 @@ class DataXRD(Data):
         return data_new
 
 
-class SyntheticDataXRF(Data):
+class SyntheticDataXRF(DataXRF):
     """
     Syntetic XRF data class
     """
