@@ -4,9 +4,9 @@ from math import ceil
 from numpy import (pi, arctan, loadtxt, frombuffer, array, asarray,
     linspace, arange, trapz, flip, stack, where, zeros, empty, unravel_index,
     ravel_multi_index, concatenate, append, maximum, nanmin, nanmax, rot90,
-    quantile, clip)
+    quantile, clip, object_)
 from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
-from os.path import basename
+from os.path import basename, join
 import os
 
 from .calibration import Calibration
@@ -15,7 +15,7 @@ from .utils import convolve3d, snip3d
 
 from PIL import Image
 
-from multiprocessing import Pool
+from multiprocessing import Pool, cpu_count
 
 from glob import glob
 import re
@@ -568,7 +568,7 @@ class SyntheticDataXRF(Data):
         
         super().__init__()
         
-        delattr(self, "calibration")
+        #delattr(self, "calibration")
         
         self.nproc = nproc if nproc else (cpu_count() - 1)
         
@@ -640,9 +640,9 @@ class SyntheticDataXRF(Data):
     
     def _get_pigments(self, layer):
         if hasattr(self, "spectra"):
-            return asarray([s.layers[layer].pigments for s in self.spectra], dtype = object_)
+            return asarray([s.layers[layer].pigments for s in self.spectra], dtype = 'S10')
         elif hasattr(self, "layers"):
-            return self.layers[layer]['pigments'].astype('U10')
+            return self.layers[layer]['pigments'].astype('S10')
         
     def _get_volume_fractions(self, layer):
         if hasattr(self, "spectra"):
@@ -772,9 +772,10 @@ class SyntheticDataXRF(Data):
                     layers[l].create_dataset('thickness', data = asarray([s.layers[l].thickness for s in self.spectra]))
                     layers[l].create_dataset('weight_fractions', data = asarray([s.layers[l].weight_fractions for s in self.spectra]))
                     layers[l].attrs['elements'] = asarray([s.layers[l].elements for s in self.spectra], dtype = object_)
-                    layers[l].attrs.create('pigments',data = self._get_pigments(l), dtype = "S10")
-                    layers[l].create_dataset('volume_fractions', data = self._get_volume_fractions(l))
-                    layers[l].create_dataset('mass_fractions', data = self._get_mass_fractions(l))
+                    if hasattr(self.spectra[0], 'pigments'):
+                        layers[l].attrs.create('pigments',data = self._get_pigments(l), dtype = "S10")
+                        layers[l].create_dataset('volume_fractions', data = self._get_volume_fractions(l))
+                        layers[l].create_dataset('mass_fractions', data = self._get_mass_fractions(l))
                     
                 f.attrs['layers'] = self.layers_names
         
