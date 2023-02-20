@@ -578,10 +578,10 @@ class SyntheticDataXRF(DataXRF):
         
         self.layers_names = None
             
-    @property
-    def x(self):
-        if hasattr(self, "_x"):
-            return self._x
+    #@property
+    #def x(self):
+    #    if hasattr(self, "_x"):
+    #        return self._x
     
     def set_layers_names(self, names):
         self.layers_names = names
