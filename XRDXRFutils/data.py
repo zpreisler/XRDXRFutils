@@ -757,9 +757,9 @@ class SyntheticDataXRF(DataXRF):
                     layers.create_group(l)
                     layers[l].create_dataset('thickness', data = asarray([s.layers[l].thickness for s in self.spectra]))
                     layers[l].create_dataset('weight_fractions', data = asarray([s.layers[l].weight_fractions for s in self.spectra]))
-                    layers[l].create_dataset('elements', data = asarray([s.layers[l].elements for s in self.spectra]).astype('S3'))
+                    layers[l].create_dataset('elements', data = asarray([s.layers[l].elements for s in self.spectra]).astype('S2'))
                     if hasattr(self.spectra[0].layers, 'pigments'):
-                        layers[l].create_dataset('pigments', data = self._get_pigments(l).astype('S25'))
+                        layers[l].create_dataset('pigments', data = self._get_pigments(l).astype('S32'))
                         layers[l].create_dataset('volume_fractions', data = self._get_volume_fractions(l))
                         layers[l].create_dataset('mass_fractions', data = self._get_mass_fractions(l))
 
@@ -769,9 +769,9 @@ class SyntheticDataXRF(DataXRF):
                     layers.create_group(l)
                     for k,v in self.layers[l].items():
                         if k == 'elements':
-                            layers[l].create_dataset(k, data = v.astype('S3'))
+                            layers[l].create_dataset(k, data = v.astype('S2'))
                         elif k == 'pigments':
-                            layers[l].create_dataset(k, data = v.astype('S25'))
+                            layers[l].create_dataset(k, data = v.astype('S32'))
                         else:
                             layers[l].create_dataset(k, data = v)
             
@@ -796,9 +796,9 @@ class SyntheticDataXRF(DataXRF):
                     layers.create_group(l)
                     layers[l].create_dataset('thickness', data = asarray([s.layers[l].thickness for s in self.spectra]))
                     layers[l].create_dataset('weight_fractions', data = asarray([s.layers[l].weight_fractions for s in self.spectra]))
-                    layers[l].create_dataset('elements', data = asarray([s.layers[l].elements for s in self.spectra]).astype('S3'))
+                    layers[l].create_dataset('elements', data = asarray([s.layers[l].elements for s in self.spectra]).astype('S2'))
                     if hasattr(self.spectra[0].layers, 'pigments'):
-                        layers[l].create_dataset('pigments', data = self._get_pigments(l).astype('S25'))
+                        layers[l].create_dataset('pigments', data = self._get_pigments(l).astype('S32'))
                         layers[l].create_dataset('volume_fractions', data = self._get_volume_fractions(l))
                         layers[l].create_dataset('mass_fractions', data = self._get_mass_fractions(l))
                     
@@ -832,9 +832,9 @@ class SyntheticDataXRF(DataXRF):
                     self.layers[l] = {}
                     for k,v in data.items():
                         if k == 'elements':
-                            self.layers[l][k] = v[()].astype('U3')
+                            self.layers[l][k] = v[()].astype('U2')
                         elif k == 'pigments':
-                            self.layers[l][k] = v[()].astype('U25')
+                            self.layers[l][k] = v[()].astype('U32')
                         else:
                             self.layers[l][k] = v[()]
 
@@ -853,9 +853,9 @@ class SyntheticDataXRF(DataXRF):
                     self.layers[l] = {}
                     for k,v in data.items():
                         if k == 'elements':
-                            self.layers[l][k] = v[()].astype('U3')
+                            self.layers[l][k] = v[()].astype('U2')
                         elif k == 'pigments':
-                            self.layers[l][k] = v[()].astype('U25')
+                            self.layers[l][k] = v[()].astype('U32')
                         else:
                             self.layers[l][k] = v[()]
      
