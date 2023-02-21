@@ -7,7 +7,7 @@ from numpy import (pi, arctan, loadtxt, frombuffer, array, asarray,
     quantile, clip, object_)
 from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
 from os.path import basename, join
-import os
+from os.path import dirname
 
 from .calibration import Calibration
 from .spectra import SyntheticSpectraXRF
@@ -672,8 +672,7 @@ class SyntheticDataXRF(DataXRF):
         
         if isinstance(source, str):
             self._datadir = source
-            bn = basename(self._datadir)
-            self.path = bn if bn else basename(self._datadir[:-1])
+            self.path = dirname(self._datadir[:-1])
             self.metadata["path"] = self.path
             self.xmso_list = glob(join(self._datadir, '*.xmso'))
         else:
@@ -735,7 +734,7 @@ class SyntheticDataXRF(DataXRF):
                 er = 'Path attribute is not set because spectra have been read from a list\n'
                 er += 'Set the path attribute or use a full filename as argument'
                 raise ValueError(er)
-            filename = join(self.path,f"{self.name}.h5")
+            filename = join(self.path,f"{basename(self.path)}_{self.name}.h5")
             #filename = self.path + '/' + self.name + '.h5'
 
         print('Saving:',filename)
@@ -785,7 +784,7 @@ class SyntheticDataXRF(DataXRF):
                 er = 'Path attribute is not set because spectra have been read from a list\n'
                 er += 'Aet the path attribute or use a full filename as argument'
                 raise ValueError(er)
-            filename = join(self.path,f"{self.name}_layers.h5")
+            filename = join(self.path,f"{basename(self.path)}_{self.name}_layers.h5")
         
         if hasattr(self, "spectra"):
             print('Saving:',filename)
@@ -823,6 +822,7 @@ class SyntheticDataXRF(DataXRF):
             
             for k,v in f.attrs.items():
                 self.metadata[k] = v
+            self.path = self.metadata['path']
 
             if "/layers" in f:
                 self.layers = {}
