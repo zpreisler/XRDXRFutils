@@ -1,4 +1,4 @@
-from numpy import loadtxt, arctan, pi, arange, array, asarray, linspace, zeros, maximum, nanmax, where
+from numpy import loadtxt, arctan, pi, arange, array, asarray, linspace, zeros, maximum, nanmax, where, empty, empty_like
 from math import ceil
 from matplotlib.pyplot import plot
 import xml.etree.ElementTree as et
@@ -8,7 +8,10 @@ import warnings
 
 from .utils import snip, convolve
 from .calibration import Calibration
+from .Xmendeleev import Xmendeleev
 
+from collections import UserDict
+import yaml
 
 class Spectra():
     def __init__(self):
@@ -77,125 +80,6 @@ class SpectraXRF(Spectra):
             else:
                 warnings.warn(f'Unknown data format in file \'{filename}\'')
                 return None
-
-
-class SyntheticSpectraXRF(Spectra):
-    def __init__(self, rl_atnum_list, skip_element = False):
-        super().__init__()
-        self.nbins = None
-        if not isinstance(rl_atnum_list, list):
-            raise TypeError('list instance expected for elements list')
-        for i,item in enumerate(rl_atnum_list):
-            if not isinstance(item, int):
-                raise TypeError(f'{item} at index {i} is not integer.\nIntegers are expected for Atomic Numbers')
-        self.rl_atnum_list = sorted(rl_atnum_list)
-        self.skip_element = skip_element
-    
-    def set_nbins(self, nbins):
-        self.nbins = nbins
-    
-    @staticmethod
-    def rebin(x,y):
-        xx = x[::2]
-        yp = y[:-1] + y[1:]
-        yy = yp[::2]
-        return xx, yy
-    
-    @staticmethod
-    def get_metadata(xml_data, rl_atnum_list, skip = False):
-        _time = float(xml_data.find('./xmimsim-input/detector/live_time').text)
-        reflayer_index = int(xml_data.find("./xmimsim-input/composition/reference_layer").text) - 1
-        layers = xml_data.findall("./xmimsim-input/composition/layer")
-        reflayer = layers[reflayer_index]
-        reflayer_thicknes = float(reflayer.find("thickness").text)
-        try:
-            sublayer = layers[reflayer_index + 1]
-        except IndexError:
-            sublayer_thicknes = 0.0
-        else:
-            sublayer_thicknes = float(sublayer.find("thickness").text)
-        
-        # elements = np.zeros((len(rl_atnum_list))
-        weight_fractions = zeros((len(rl_atnum_list)))
-        for element in reflayer.findall("element"):
-            atnum = int(element.find("atomic_number").text)
-            wf = float(element.find("weight_fraction").text)
-            try:
-                weight_fractions[rl_atnum_list.index(atnum)] = wf
-            except ValueError:
-                if skip == False:
-                    raise ValueError(f'element with atomic number {atnum} not found in elements list\nSet skip_element = True to ignore this error')
-        
-        return weight_fractions, reflayer_thicknes, sublayer_thicknes, _time
-    
-    @staticmethod
-    def get_fluorescence_lines(xml_data, time_correction = None):
-
-        class Container:
-            def __init__(self, symbol, atomic_number, lines ):
-                self.symbol = symbol
-                self.atomic_number = atomic_number
-                self.lines = lines
-
-        """Generator"""
-        flc = xml_data.findall(".//fluorescence_line_counts")
-        for element in flc:
-            lines = {"K" : 0, "L" : 0, "M" : 0, "others" : 0}
-            for fl in element.findall("fluorescence_line"):
-                line_type = fl.attrib["type"]
-                if line_type.startswith("K"):
-                    lines["K"] += float(fl.attrib["total_counts"]) * time_correction if time_correction else float(fl.attrib["total_counts"])
-                elif line_type.startswith("L"):
-                    lines["L"] += float(fl.attrib["total_counts"]) * time_correction if time_correction else float(fl.attrib["total_counts"])
-                elif line_type.startswith("M"):
-                    lines["M"] += float(fl.attrib["total_counts"]) * time_correction if time_correction else float(fl.attrib["total_counts"])
-                else:
-                    lines["others"] += float(fl.attrib["total_counts"]) * time_correction if time_correction else float(fl.attrib["total_counts"])
-                    
-            yield Container(
-                symbol = element.attrib["symbol"],
-                atomic_number = element.attrib["atomic_number"],
-                lines = lines
-            )
-
-    
-    def from_file(self, xmso_filename, interaction_number = 2, shape = None, time_correction = None):
-        try:
-            xml_data = et.parse(xmso_filename)
-        except et.ParseError:
-            print(f"Error while parsing\n{xmso_filename}")
-            return None
-        convoluted = xml_data.find("spectrum_conv")
-        self.energy = asarray([e.text for e in convoluted.findall(".//energy")], dtype=float)
-        if time_correction:
-            self.counts = time_correction * asarray(
-                [c.text for c in convoluted.findall(f".//counts[@interaction_number = '{interaction_number}']")],
-                dtype=float,
-            )
-        else:
-            self.counts = asarray(
-                [c.text for c in convoluted.findall(f".//counts[@interaction_number = '{interaction_number}']")],
-                dtype=float,
-            )
-        if shape:
-            self.counts = self.counts.reshape(*shape)
-        
-        if self.nbins:
-            self.energy, self.counts = self.rebin(self.energy, self.counts)
-            #b = self.energy[1] - self.energy[0]
-            #self.counts = self.counts / b
-            
-        self.channel = arange(self.counts.__len__(),dtype='int16')
-        self.weight_fractions, self.reflayer_thicknes, self.sublayer_thicknes, self.time = self.get_metadata(xml_data, self.rl_atnum_list, skip = self.skip_element)
-        self.fluorescence_lines = list(self.get_fluorescence_lines(xml_data, time_correction = time_correction))
-        return self
-    
-    def time_correction(self, tc):
-        self.counts = self.counts * tc
-        for l in self.fluorescence_lines:
-            for k, v in l.lines.items():
-                l.lines[k] = v * tc
-        return self
 
 
 class SpectraXRD(Spectra):
@@ -314,3 +198,235 @@ class SpectraXRD(Spectra):
 class FastSpectraXRD(SpectraXRD):
     def __init__(self):
         super().__init__(downsample_max = 3)
+
+        
+xm = Xmendeleev()
+
+def pretty(d, tab = "", buffer = ""):
+    _len = len(d)
+    link = "│"
+    for i,(k,v) in enumerate(d.items()):
+        if i == (_len - 1):
+            node = "└──"
+            link = " "
+        else:
+            node = "├──"
+        if isinstance(v, UserDict) or isinstance(v, dict):
+            if hasattr(v, "density"):
+                k  = f'{k} density = {v.density}'
+            if hasattr(v, "thickness"):
+                k = f"{k} thickness = {v.thickness*1.0e4} \u03bcm"
+            buffer += f'{tab}{node} {k}\n'
+            #print(f'{link}{node} {k}')
+            buffer = pretty(v, link + " "*3 + tab , buffer)
+        else:
+            buffer += f'{tab}{node} {k}  {v}\n'
+            #print(f'{link}{node} {k}  {v}')
+    return buffer
+
+class Layers(UserDict):
+    
+    class Layer(UserDict):
+        
+        def __init__(self,x = None):
+            super().__init__()
+            
+            if x:
+                for element in x.findall('element'):
+                    an = int(element.find('atomic_number').text)
+                    self[xm.get_element(an).symbol] = float(element.find('weight_fraction').text)
+
+                self.density = float(x.find('density').text)
+                self.thickness = float(x.find('thickness').text)
+        
+        @property
+        def elements(self):
+            return list(self.keys())
+        
+        @property
+        def weight_fractions(self):
+            return asarray(list(self.values()))
+        
+        def __repr__(self):
+            return f"""
+    
+    Layer(elements = {self.elements}
+          weight_fractions = {self.weight_fractions}
+          density = {self.density}
+          thickness = {self.thickness})"""
+    
+    def __init__(self,xml_data = None,keys = None):
+        
+        super().__init__()
+        
+        if xml_data:
+            layers = xml_data.findall('./xmimsim-input/composition/layer')
+
+            comments = xml_data.find('./xmimsim-input/general/comments')
+            
+            if comments != None:
+                self.comments = yaml.load(comments.text, yaml.SafeLoader)
+                if not isinstance(self.comments, dict):
+                    delattr(self,'comments')
+            if not keys:
+                if hasattr(self, "comments") and isinstance(self.comments, dict):
+                    keys = list(self.comments['layers'].keys())
+                else:
+                    keys = [f'layer{i}' for i in range(len(layers))]
+
+            for k,layer in zip(keys, layers):
+                self[k] = self.Layer(layer)
+                if hasattr(self, "comments"):
+                    self[k].pigments = self.comments['layers'][k]['pigments']
+                    self[k].volume_fractions = self.comments['layers'][k]['volume_fractions']
+                    self[k].mass_fractions = self.comments['layers'][k]['mass_fractions']
+    #         super().__init__(self.Layer(x) for x in xml_data.findall('./xmimsim-input/composition/layer'))
+            rl_index = int(xml_data.find('./xmimsim-input/composition/reference_layer').text)-1
+            self.reflayer_name = keys[rl_index]
+        
+    @property    
+    def reference_layer(self):
+        if hasattr(self, "reflayer_name"):
+            return self[self.reflayer_name]
+    
+    def __str__(self):
+        ret =  "Layers\n" + pretty(self)
+        if hasattr(self, "comments"):
+            ret += 'Layers\n' + pretty(self.comments['layers'])
+        return ret
+    
+    @property
+    def thickness(self):
+        return [self[layer].thickness for layer in self]
+    
+    @property
+    def density(self):
+        return [self[layer].density for layer in self]
+    
+    @property
+    def elements(self):
+        return [self[layer].elements for layer in self]
+    
+    @property
+    def pigments(self):
+        if hasattr(self, "comments"):
+            return [self[layer].pigments for layer in self]
+    
+            
+class Labels(UserDict):
+        
+    def __init__(self, xml_data):
+        
+        super().__init__()
+        flc = xml_data.findall(".//fluorescence_line_counts")
+        
+        self['time'] = float(xml_data.find('./xmimsim-input/detector/live_time').text)
+        
+        for element in flc:
+            symbol = element.attrib['symbol']
+            #lines = ["KL","KM", "KN", "KO","L1","L2","L3","M1","M2","M3","M4","M5"]
+            
+            #self.update({symbol+'-'+line : 0.0 for line in lines})
+            
+            for fl in element.findall("fluorescence_line"):
+                line_type = fl.attrib["type"]
+                total_counts = float(fl.attrib["total_counts"])
+                
+                key = symbol + '-' + line_type[:2]
+                key_sum = key[:-1]
+                
+                if key_sum not in self:
+                    self[key_sum] = total_counts
+                    self[key] = total_counts
+                else:
+                    self[key_sum] += total_counts
+                    if key not in self:
+                        self[key] = total_counts
+                    else:
+                        self[key] += total_counts
+
+class SyntheticSpectraXRF(Spectra):
+    
+    def __init__(self, layers_names = None):
+        super().__init__()
+        self.layers_names = layers_names
+    
+    def from_file(self, filepath):
+#         try:
+#             xml_data = et.parse(filepath)
+#         except et.ParseError:
+#             print(f"Error while parsing file:\n{filepath}")
+        
+        xml_data = et.parse(filepath)
+        
+        interaction_number = xml_data.find('./spectrum_conv/channel').findall('counts').__len__()
+
+        self.nchannels = int(xml_data.find("./xmimsim-input/detector/nchannels").text)
+        
+        #self.time = float(xml_data.find('./xmimsim-input/detector/live_time').text)
+
+        self.counts = empty((self.nchannels))
+        self.unconv_counts = empty_like(self.counts)
+        self.energy = empty_like(self.counts)
+
+        convoluted = xml_data.find("spectrum_conv")
+        unconvoluted = xml_data.find("spectrum_unconv")
+
+        for i, d in enumerate(zip(convoluted.findall(".//energy"),
+                                  convoluted.findall(f".//counts[@interaction_number = '{interaction_number}']"),
+                                  unconvoluted.findall(f".//counts[@interaction_number = '{interaction_number}']"))):
+
+            self.energy[i] = float(d[0].text)
+            self.counts[i] = float(d[1].text)
+            self.unconv_counts[i] = float(d[2].text)
+        
+        self.layers = Layers(xml_data, self.layers_names)    
+        self.labels = Labels(xml_data)
+        
+        if not self.layers_names:
+            self.layers_names = list(self.layers.keys())
+        
+        return self
+        
+    
+    @property
+    def reference_layer(self):
+        return self.layers.reference_layer
+    
+    @property
+    def reflayer_name(self):
+        return self.layers.reflayer_name
+    
+    def rescale(self, scale_factor):
+        
+        self.counts *= scale_factor
+        self.unconv_counts *= scale_factor
+        self.time *= scale_factor
+        
+        for k,v in self.labels.items():
+            self.labels[k] = v*scale_factor
+        
+        return self
+    
+    def expand_elements(self, elements, layer = None):
+        
+        def _expand(_layer, elements):
+            res = []
+            for e in elements:
+                if e in _layer:
+                    res += [e]
+                else:
+                    res += ["na"]
+            return res
+        
+#         elements = set()
+#         for layer in self.layers:
+#             elements.update(layer.elements)
+        
+        if layer:
+            out = _expand(self.layers[layer], elements)
+        else:
+            out = [_expand(self.layers[layer], elements) for layer in self.layers]
+        
+        return out
+
