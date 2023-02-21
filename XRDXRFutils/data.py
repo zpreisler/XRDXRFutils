@@ -640,9 +640,11 @@ class SyntheticDataXRF(DataXRF):
     
     def _get_pigments(self, layer):
         if hasattr(self, "spectra"):
-            return asarray([s.layers[layer].pigments for s in self.spectra], dtype = 'S10')
+            return asarray([s.layers[layer].pigments for s in self.spectra])
+            #return [s.layers[layer].pigments for s in self.spectra]
         elif hasattr(self, "layers"):
-            return self.layers[layer]['pigments'].astype('S10')
+            return self.layers[layer]['pigments']
+            #return self.layers[layer]['pigments']
         
     def _get_volume_fractions(self, layer):
         if hasattr(self, "spectra"):
@@ -771,9 +773,9 @@ class SyntheticDataXRF(DataXRF):
                     layers.create_group(l)
                     layers[l].create_dataset('thickness', data = asarray([s.layers[l].thickness for s in self.spectra]))
                     layers[l].create_dataset('weight_fractions', data = asarray([s.layers[l].weight_fractions for s in self.spectra]))
-                    layers[l].attrs['elements'] = asarray([s.layers[l].elements for s in self.spectra], dtype = object_)
-                    if hasattr(self.spectra[0], 'pigments'):
-                        layers[l].attrs.create('pigments',data = self._get_pigments(l), dtype = "S10")
+                    layers[l].create_dataset('elements', data = asarray([s.layers[l].elements for s in self.spectra]).astype('S3'))
+                    if hasattr(self.spectra[0].layers, 'pigments'):
+                        layers[l].create_dataset('pigments', data = self._get_pigments(l).astype('S25'))
                         layers[l].create_dataset('volume_fractions', data = self._get_volume_fractions(l))
                         layers[l].create_dataset('mass_fractions', data = self._get_mass_fractions(l))
                     
@@ -824,11 +826,11 @@ class SyntheticDataXRF(DataXRF):
                     if "mass_fractions" in data:
                         self.layers[l]['mass_fractions'] = data['mass_fractions'][()]
                     
-                    if "elements" in data.attrs:
-                        self.layers[l]['elements'] = data.attrs['elements']
+                    if "elements" in data:
+                        self.layers[l]['elements'] = data['elements'][()].astype('U3')
                     
-                    if "pigments" in data.attrs:
-                        self.layers[l]['pigments'] = data.attrs['pigments']
+                    if "pigments" in data:
+                        self.layers[l]['pigments'] = data['pigments'][()].astype('U25')
         
         return self
                 
