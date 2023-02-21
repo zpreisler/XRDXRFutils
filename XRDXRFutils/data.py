@@ -751,6 +751,30 @@ class SyntheticDataXRF(DataXRF):
             for attr in ['unconv_data','labels']:
                 if hasattr(self,attr):
                     dataset = f.create_dataset(attr,data = getattr(self,attr))
+
+            if hasattr(self, 'spectra'):
+                layers = f.create_group('layers')
+                for l in self.layers_names:
+                    layers.create_group(l)
+                    layers[l].create_dataset('thickness', data = asarray([s.layers[l].thickness for s in self.spectra]))
+                    layers[l].create_dataset('weight_fractions', data = asarray([s.layers[l].weight_fractions for s in self.spectra]))
+                    layers[l].create_dataset('elements', data = asarray([s.layers[l].elements for s in self.spectra]).astype('S3'))
+                    if hasattr(self.spectra[0].layers, 'pigments'):
+                        layers[l].create_dataset('pigments', data = self._get_pigments(l).astype('S25'))
+                        layers[l].create_dataset('volume_fractions', data = self._get_volume_fractions(l))
+                        layers[l].create_dataset('mass_fractions', data = self._get_mass_fractions(l))
+
+            if hasattr(self, 'layers'):
+                layers = f.create_group('layers')
+                for l in self.layers_names:
+                    layers.create_group(l)
+                    for k,v in self.layers[l].items():
+                        if k == 'elements':
+                            layers[l].create_dataset(k, data = v.astype('S3'))
+                        elif k == 'pigments':
+                            layers[l].create_dataset(k, data = v.astype('S25'))
+                        else:
+                            layers[l].create_dataset(k, data = v)
             
         return self
     
@@ -800,8 +824,23 @@ class SyntheticDataXRF(DataXRF):
             for k,v in f.attrs.items():
                 self.metadata[k] = v
 
+            if "/layers" in f:
+                self.layers = {}
+                layers = list(f['layers'].keys())
+                self.layers_names = layers
+                for l,data in f['layers'].items():
+                    self.layers[l] = {}
+                    for k,v in data.items():
+                        if k == 'elements':
+                            self.layers[l][k] = v[()].astype('U3')
+                        elif k == 'pigments':
+                            self.layers[l][k] = v[()].astype('U25')
+                        else:
+                            self.layers[l][k] = v[()]
+
         return self
-    
+
+
     def load_layers(self, filename):
         
         print('Loading:',filename)
