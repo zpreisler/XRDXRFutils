@@ -845,32 +845,20 @@ class SyntheticDataXRF(DataXRF):
         
         print('Loading:',filename)
         with h5py.File(filename,'r') as f:
-            
             if "/layers" in f:
                 self.layers = {}
                 layers = list(f['layers'].keys())
                 self.layers_names = layers
                 for l,data in f['layers'].items():
                     self.layers[l] = {}
-                    if "thickness" in data:
-                        self.layers[l]['thickness'] = data['thickness'][()]
-#                     if "elements" in data:
-#                         self.layers[l]['elements'] = data['elements'][()]
-                    if "weight_fractions" in data:
-                        self.layers[l]['weight_fractions'] = data['weight_fractions'][()]
-                    
-                    if "volume_fractions" in data:
-                        self.layers[l]['volume_fractions'] = data['volume_fractions'][()]
-                    
-                    if "mass_fractions" in data:
-                        self.layers[l]['mass_fractions'] = data['mass_fractions'][()]
-                    
-                    if "elements" in data:
-                        self.layers[l]['elements'] = data['elements'][()].astype('U3')
-                    
-                    if "pigments" in data:
-                        self.layers[l]['pigments'] = data['pigments'][()].astype('U25')
-        
+                    for k,v in data.items():
+                        if k == 'elements':
+                            self.layers[l][k] = v[()].astype('U3')
+                        elif k == 'pigments':
+                            self.layers[l][k] = v[()].astype('U25')
+                        else:
+                            self.layers[l][k] = v[()]
+     
         return self
                 
     
