@@ -4,7 +4,7 @@ from math import ceil
 from numpy import (pi, arctan, loadtxt, frombuffer, array, asarray,
     linspace, arange, trapz, flip, stack, where, zeros, empty, unravel_index,
     ravel_multi_index, concatenate, append, maximum, nanmin, nanmax, rot90,
-    quantile, clip, object_)
+    quantile, clip, object_, uint16, flip)
 from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
 from os.path import basename, join
 from os.path import dirname
@@ -21,7 +21,7 @@ from glob import glob
 import re
 import h5py
 import warnings
-
+import io
 
 
 class Container():
@@ -384,7 +384,67 @@ class DataXRF(Data):
 
         #self.data = asarray(x)[::-1]
         self.data = asarray(x)
+    
+    def read_from_map(self, path = None):
+        """
+        Reads XRF data from .map files.
+        """
+        self.path = path
+        self.metadata['path'] = path
+        filenames = sorted(glob(join(path,'*Z0*.map')), key = lambda x: int(re.sub('\D','',x)))
+        if not filenames:
+            warnings.warn('No files found')
+        
+        fs = filenames[0].split('_')[2]
+        ii = fs.find('Z0')
+        rowlen = int(fs[:ii])
+        
+        print("Reading XRF data...")
+        self.__read_map__(filenames, rowlen = rowlen)
+        print("Done.")
+        
+        return self
+    
+    def __read_map__(self, filenames, shape = (-1,2048), rowlen = 2260):
+        
+        def read_map(filename, shape = (-1,2048), rowlen = 2260):
+            buffer = io.BytesIO()
+            nchannels = shape[1]
+            with open(filename, 'rb') as f:
+                buffer.write(f.read())
 
+            bl = len(buffer.getbuffer())
+            n16 = bl//2
+            hlen = n16%nchannels
+
+            buffer.seek(hlen*2)
+            x = frombuffer(buffer.read(), uint16)
+
+            x = x.byteswap()
+
+            size_idx = where(((x % nchannels) == 0) & (x>0))[0]
+
+            newx = []
+            for i in size_idx:
+                for j in range(x[i]//nchannels):
+                    a = i+1+(nchannels)*j
+                    b = a+nchannels
+                    newx += [x[a:b]]
+
+            newx = asarray([zeros(nchannels)]*(rowlen-len(newx)) + newx)
+            newx = newx.reshape(*shape)
+
+            return newx
+        
+        x = [read_map(filename, shape, rowlen) for filename in filenames]
+        
+        x = asarray(x)
+        
+        print("Flipping even rows...")
+        x[::2] = flip(x[::2], axis=1)
+        
+        self.data = x
+    
     def read_tiff(self, path = None):
         
         filenames = sorted(glob(path + '*.tif*'))
