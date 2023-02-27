@@ -395,7 +395,7 @@ class DataXRF(Data):
         if not filenames:
             warnings.warn('No files found')
         
-        fs = filenames[0].split('_')[2]
+        fs = basename(filenames[0]).split('_')[1]
         ii = fs.find('Z0')
         rowlen = int(fs[:ii])
         
@@ -444,6 +444,7 @@ class DataXRF(Data):
         x[::2] = flip(x[::2], axis=1)
         
         self.data = x
+        self._x = zeros(self.data.shape[2])
     
     def read_tiff(self, path = None):
         
