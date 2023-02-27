@@ -385,27 +385,33 @@ class DataXRF(Data):
         #self.data = asarray(x)[::-1]
         self.data = asarray(x)
     
-    def read_from_map(self, path = None):
+    def read_from_map(self, base_path = None, from_multiple_detectors=True):
         """
         Reads XRF data from .map files.
         """
-        self.path = path
-        self.metadata['path'] = path
-        filenames = sorted(glob(join(path,'*Z0*.map')), key = lambda x: int(re.sub('\D','',x)))
-        if not filenames:
-            warnings.warn('No files found')
-        
-        fs = filenames[0].split('_')[2]
-        ii = fs.find('Z0')
-        rowlen = int(fs[:ii])
-        
-        print("Reading XRF data...")
-        self.__read_map__(filenames, rowlen = rowlen)
-        print("Done.")
+        self.path = base_path
+        self.metadata['path'] = base_path
+        detector_folders = glob(base_path+basename(dirname(base_path))+'*')
+        print('found {} detectors...'.format(len(detector_folders)))
+
+        for dec_idx, detector_folder in enumerate(detector_folders):
+            filenames = sorted(glob(join(detector_folder,'*Z0*.map')), key = lambda x: int(re.sub('\D','',x)))
+            if not filenames:
+                warnings.warn('No files found')
+            
+            fs = filenames[0].split('_')[2]
+            ii = fs.find('Z0')
+            rowlen = int(fs[:ii])
+
+            print("Reading XRF data...")
+            update_data_ = True if dec_idx > 0 else False
+            self.__read_map__(filenames, rowlen = rowlen, update_data=update_data_)
+            print("Done.")
+            if not from_multiple_detectors:break
         
         return self
     
-    def __read_map__(self, filenames, shape = (-1,2048), rowlen = 2260):
+    def __read_map__(self, filenames, shape = (-1,2048), rowlen = 2260, update_data=False):
         
         def read_map(filename, shape = (-1,2048), rowlen = 2260):
             buffer = io.BytesIO()
@@ -431,6 +437,7 @@ class DataXRF(Data):
                     b = a+nchannels
                     newx += [x[a:b]]
 
+            if len(newx) > rowlen : newx = newx[:rowlen]
             newx = asarray([zeros(nchannels)]*(rowlen-len(newx)) + newx)
             newx = newx.reshape(*shape)
 
@@ -439,11 +446,13 @@ class DataXRF(Data):
         x = [read_map(filename, shape, rowlen) for filename in filenames]
         
         x = asarray(x)
-        
         print("Flipping even rows...")
         x[::2] = flip(x[::2], axis=1)
         
-        self.data = x
+        if update_data: self.data += x
+        else: self.data = x
+        
+        del x
     
     def read_tiff(self, path = None):
         
