@@ -4,7 +4,7 @@ from math import ceil
 from numpy import (pi, arctan, loadtxt, frombuffer, array, asarray,
     linspace, arange, trapz, flip, stack, where, zeros, empty, unravel_index,
     ravel_multi_index, concatenate, append, maximum, nanmin, nanmax, rot90,
-    quantile, clip, object_, uint16, flip)
+    quantile, clip, object_, uint16, flip, float32)
 from matplotlib.pyplot import plot, xlim, ylim, xlabel, ylabel
 from os.path import basename, join
 from os.path import dirname
@@ -438,14 +438,14 @@ class DataXRF(Data):
                     newx += [x[a:b]]
 
             if len(newx) > rowlen : newx = newx[:rowlen]
-            newx = asarray([zeros(nchannels)]*(rowlen-len(newx)) + newx)
+            newx = asarray([zeros(nchannels)]*(rowlen-len(newx)) + newx, uint16)
             newx = newx.reshape(*shape)
 
             return newx
         
         x = [read_map(filename, shape, rowlen) for filename in filenames]
         
-        x = asarray(x)
+        x = asarray(x, uint16)
         print("Flipping even rows...")
         x[::2] = flip(x[::2], axis=1)
         
