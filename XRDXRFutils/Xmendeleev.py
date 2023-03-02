@@ -5,10 +5,7 @@ class Xmendeleev():
     """Provide elements symbol atomic number and density"""
     def __init__(self, datafile = None):
         if not datafile:
-            if os.name == 'posix':
-                self.datafile = '/home/rosario/xmimsim/xsimspe/mendeleev.dat'
-            else:
-                self.datafile = 'C:\\User\\XRAYLab\\rosario_sim\\xsimspe\\mendeleev.dat'
+            self.datafile = os.path.join(os.path.dirname(__file__), "mendeleev.dat")
         else:
             self.datafile = datafile
         if not os.path.exists(self.datafile):
