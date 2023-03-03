@@ -405,17 +405,16 @@ class DataXRF(Data):
         
         return self
     
-    def __read_map__(self, filenames, shape = (-1,2048), rowlen = 2260):
+    def __read_map__(self, filenames, shape = (-1,2048), rowlen = None):
         
-        def read_map(filename, shape = (-1,2048), rowlen = 2260):
+        def read_map(filename, shape = (-1,2048), rowlen = None, n = None):
             buffer = io.BytesIO()
             nchannels = shape[1]
             with open(filename, 'rb') as f:
                 buffer.write(f.read())
 
             bl = len(buffer.getbuffer())
-            n16 = bl//2
-            hlen = n16%nchannels
+            hlen = bl%2048
 
             buffer.seek(hlen*2)
             x = frombuffer(buffer.read(), uint16)
@@ -430,18 +429,23 @@ class DataXRF(Data):
                     a = i+1+(nchannels)*j
                     b = a+nchannels
                     newx += [x[a:b]]
+            
+            if len(newx) > rowlen: newx = newx[:rowlen]
+            if n%2 == 0:
+                newx = asarray(newx + [zeros(nchannels)]*(rowlen-len(newx)))
+            else:
+                newx = asarray([zeros(nchannels)]*(rowlen-len(newx)) + newx)
 
-            newx = asarray([zeros(nchannels)]*(rowlen-len(newx)) + newx)
             newx = newx.reshape(*shape)
 
             return newx
         
-        x = [read_map(filename, shape, rowlen) for filename in filenames]
+        x = [read_map(filename, shape, rowlen, n) for n,filename in enumerate(filenames)]
         
         x = asarray(x)
         
-        print("Flipping even rows...")
-        x[::2] = flip(x[::2], axis=1)
+        print("Flipping odd rows...")
+        x[1::2] = flip(x[1::2], axis=1)
         
         self.data = x
         self._x = zeros(self.data.shape[2])
