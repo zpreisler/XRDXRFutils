@@ -163,7 +163,7 @@ def shorten_string(s, length_max):
     return s_short
 
 
-def read_parameters_calibration_xrf(filename):
+def read_parameters_calibration_xrf(filename, reverse = True):
     a, b, c = None, None, None
     with open(filename,'r') as f:
         for line in f:
@@ -173,7 +173,10 @@ def read_parameters_calibration_xrf(filename):
                 b = float(line[3:])
             if line[:3] == 'C =':
                 c = float(line[3:])
-    return a, b, c
+    if reverse: # Parameters saved by PyMca need to be reversed
+        return c, b, a
+    else:
+        return a, b, c
 
 
 rcParams.update({
