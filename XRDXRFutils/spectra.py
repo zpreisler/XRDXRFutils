@@ -47,10 +47,20 @@ class Spectra():
         return self
 
 
-    @property
-    def length(self):
-        return len(self.counts)
+    def calibrate_from_parameters(self, opt):
+        self.calibration.from_parameters(opt)
+        return self
 
+    def calibrate_from_file(self, filename):
+        """
+        Read data from file and fit the calibration curve
+
+        Calibration parameters are stored in self.opt
+
+        returns: self
+        """
+        self.calibration.from_file(filename)
+        return self
 
     @staticmethod
     def fce_calibration(x, a, b, c):
@@ -59,6 +69,11 @@ class Spectra():
             x is a channel
         """
         return a * x**2 + b * x + c
+
+
+    @property
+    def length(self):
+        return len(self.counts)
 
 
 class SpectraXRF(Spectra):
@@ -80,6 +95,14 @@ class SpectraXRF(Spectra):
             else:
                 warnings.warn(f'Unknown data format in file \'{filename}\'')
                 return None
+
+    @property
+    def energy(self):
+        return self.fce_calibration(self.channel, *self.opt)
+
+    def energy_range(self):
+        x = array([self.channel[0], self.channel[-1]])
+        return self.fce_calibration(x, *self.opt)
 
 
 class SpectraXRD(Spectra):
@@ -149,31 +172,6 @@ class SpectraXRD(Spectra):
         return self
 
 
-    def calibrate_from_parameters(self, opt):
-        self.calibration.from_parameters(opt)
-        return self
-
-    def calibrate_from_file(self, filename):
-        """
-        Read data from file and fit the calibration curve
-
-        Calibration parameters are stored in self.opt
-
-        returns: self
-        """
-        self.calibration.from_file(filename)
-        return self
-
-
-    @staticmethod
-    def fce_calibration(x, a, s, beta):
-        """
-        XRD calibration function 
-            x is a channel
-        """
-        return (arctan((x + a) / s)) * 180 / pi + beta
-
-
     @property
     def channel(self):
         return self.channel_downsampled[self.downsample_level]
@@ -189,6 +187,14 @@ class SpectraXRD(Spectra):
     def theta_range(self):
         x = array([self.channel[0], self.channel[-1]])
         return self.fce_calibration(x, *self.opt)
+
+    @staticmethod
+    def fce_calibration(x, a, s, beta):
+        """
+        XRD calibration function 
+            x is a channel
+        """
+        return (arctan((x + a) / s)) * 180 / pi + beta
 
 
     def plot(self, *args, **kwargs):
