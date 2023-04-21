@@ -1,5 +1,4 @@
-from numpy import (loadtxt, arctan, tan, pi, arange, array, asarray, linspace, zeros, maximum, nanmax, where,
-                   empty, empty_like, deg2rad, rad2deg)
+from numpy import loadtxt, arctan, pi, arange, array, asarray, linspace, zeros, maximum, nanmax, where, empty, empty_like
 from math import ceil
 from matplotlib.pyplot import plot
 import xml.etree.ElementTree as et
@@ -194,13 +193,8 @@ class SpectraXRD(Spectra):
         """
         XRD calibration function 
             x is a channel
-            beta is in degrees
         """
-        return rad2deg(arctan((x + a) / s)) + beta
-
-    @staticmethod
-    def fce_calibration_inverse(theta, a, s, beta):
-        return s * tan(deg2rad(theta - beta)) - a
+        return (arctan((x + a) / s)) * 180 / pi + beta
 
 
     def plot(self, *args, **kwargs):
