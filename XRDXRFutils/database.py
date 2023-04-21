@@ -173,7 +173,7 @@ class Phase(dict):
             component_full = I * gamma * component_core
             z = component_full.sum(axis = 1)
             plot(theta_to_plot, z)
-        vlines(theta, 0, intensity, colors = colors, linestyles = linestyles, label = label, **kwargs)
+        vlines(theta, 0, lineheight[i], colors = colors, linestyles = linestyles, label = label, **kwargs)
         if positions:
             for i in range(len(theta)):
                 text(theta[i], lineheight[i], f'{position[i]}', ha = 'center', va = 'bottom', fontsize = 'x-small')
