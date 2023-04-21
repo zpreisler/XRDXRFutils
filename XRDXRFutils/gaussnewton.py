@@ -39,25 +39,16 @@ class GaussNewton(FastSpectraXRD):
         self.label = phase.label
         self.opt = spectrum.opt.copy()
 
-        """
-        Phases
-
-        tabulated theta: mu
-        tabulated intensity: I
-        """
-        # Variables along the diffraction lines
+        ### Variables along the diffraction lines ###
+        # tabulated theta: mu
+        # tabulated intensity: I
+        # parameters g, tau --> gamma, sigma^2
         self.mu, self.I, p = self.get_theta()
-
-        """
-        parameters g, tau --> gamma, sigma^2
-        """
-        # Variables along the diffraction lines
         self.g = full((1, self.n_peaks), self.iw(1))
         self.tau = full((1, self.n_peaks), self.iu(sigma**2))
 
-    """
-    Redefined variables
-    """
+
+    ### Redefined variables ###
     @staticmethod
     def w(x):
         return 0.5 * (sqrt(x**2 + 1) + x)
@@ -92,22 +83,8 @@ class GaussNewton(FastSpectraXRD):
         return self.u(self.tau)
 
 
-    @property
-    def channel(self):
-        return self.spectrum.channel
+    ### Downsample functions ###
 
-    @property
-    def intensity(self):
-        return self.spectrum.intensity
-
-    @property
-    def n_peaks(self):
-        return self.mu.shape[0]
-
-
-    """
-    Downsample functions
-    """
     def downsample(self, level):
         self.spectrum.downsample(level)
         return self
@@ -145,19 +122,45 @@ class GaussNewton(FastSpectraXRD):
         return result
 
 
-    """
-    Utility functions
-    """
+    ### Utility functions ###
+
+    @property
+    def channel(self):
+        return self.spectrum.channel
+
+    @property
+    def intensity(self):
+        return self.spectrum.intensity
+
+
+    @property
+    def n_peaks(self):
+        """Number of tabulated peaks."""
+        return self.mu.shape[0]
+
     def get_theta(self):
+        """Tabulated peaks."""
         return self.phase.get_theta(**self.kwargs)
 
+
+    @property
     def theta_range(self):
-        return super().theta_range().squeeze()
+        """Angular range, according to calibration."""
+        return super().theta_range()
+
+
+    def z0(self):
+        """Synthetic spectrum with gamma = 1 for all peaks."""
+        mu = self.mu[newaxis, :]
+        I = self.I[newaxis, :]
+        theta = self.theta[:, newaxis]
+
+        component_core = exp((theta - mu)**2 / (-2 * self.sigma2))
+        x = (I * component_core).sum(axis = 1)
+        return x
 
     def z(self):
-        """
-        Synthetic spectrum.
-        """
+        """Synthetic spectrum."""
         mu = self.mu[newaxis, :]
         I = self.I[newaxis, :]
         theta = self.theta[:, newaxis]
@@ -167,22 +170,8 @@ class GaussNewton(FastSpectraXRD):
         x = component_full.sum(axis = 1)
         return x
 
-    def z0(self):
-        """
-        Synthetic spectrum with gamma=1 for all peaks.
-        """
-        mu = self.mu[newaxis, :]
-        I = self.I[newaxis, :]
-        theta = self.theta[:, newaxis]
 
-        component_core = exp((theta - mu)**2 / (-2 * self.sigma2))
-        x = (I * component_core).sum(axis = 1)
-        return x
-
-
-    """
-    Calculations for fit
-    """
+    ### Calculations for fit ###
 
     def calculate_components(self):
 
@@ -339,9 +328,8 @@ class GaussNewton(FastSpectraXRD):
         return self
 
 
-    """
-    Evaluation of the results
-    """
+    ### Evaluation of the results ###
+
     def area(self):
         return self.z().sum()
 
@@ -413,9 +401,8 @@ class GaussNewton(FastSpectraXRD):
         return self.downsampled_function(downsample, f)
 
 
-    """
-    Plot functions
-    """
+    ### Plot functions ###
+
     def plot_spectrum(self, *args, **kwargs):
         super().plot(*args, **kwargs)
 
@@ -426,9 +413,8 @@ class GaussNewton(FastSpectraXRD):
         plot(self.theta, self.z(), *args, **kwargs)
 
 
-    """
-    Misc functions
-    """
+    ### Misc functions ###
+
     def make_phase(self):
         """
         Creates experimental phase from the phase used to create the given instance of GaussNewton.
@@ -456,7 +442,7 @@ class GaussNewton(FastSpectraXRD):
 
             # Selects only the peaks that lay inside the angle range of experimental signal.
             # Otherwise, external peaks can have anomalously high value in order to fit the last bit of signal. This dwarfs all the other peaks.
-            theta_min, theta_max = self.theta_range()
+            theta_min, theta_max = self.theta_range
             mask_theta = ((mu >= theta_min) & (mu <= theta_max))
             mu = mu[mask_theta]
             I_new = I_new[mask_theta]
