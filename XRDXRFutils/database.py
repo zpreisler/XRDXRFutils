@@ -150,10 +150,18 @@ class Phase(dict):
         return self.set_key('point', point)
 
 
-    def plot(self, convolution = False, positions = False, colors = 'red', linestyles = 'dashed', label = None, lineheight = None,
-         min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, distance_merge = None, **kwargs):
+    def plot(self, x_axis_is_channel = False, calibration_function_theta_to_channel = None, calibration_parameters = None,
+        convolution = False, positions = False, colors = 'red', linestyles = 'dashed', label = None, lineheight = None,
+        min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, distance_merge = None, **kwargs):
 
         theta, intensity, position = self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity, first_n_peaks = first_n_peaks, distance_merge = distance_merge)
+
+        if x_axis_is_channel:
+            if (calibration_function_theta_to_channel is None or calibration_parameters is None):
+                raise Exception('If x_axis_is_channel is True, calibration_function and calibration_parameters need to be provided.')
+            x_points = calibration_function_theta_to_channel(theta, *calibration_parameters)
+        else:
+            x_points = theta
 
         if label is None:
             label = self.label
@@ -172,11 +180,15 @@ class Phase(dict):
             component_core = exp((theta_to_plot - mu)**2 / (-2 * sigma2))
             component_full = I * gamma * component_core
             z = component_full.sum(axis = 1)
-            plot(theta_to_plot, z)
-        vlines(theta, 0, lineheight, colors = colors, linestyles = linestyles, label = label, **kwargs)
+            if x_axis_is_channel:
+                x_to_plot = calibration_function_theta_to_channel(theta_to_plot, *calibration_parameters)
+            else:
+                x_to_plot = theta_to_plot
+            plot(x_to_plot, z)
+        vlines(x_points, 0, lineheight, colors = colors, linestyles = linestyles, label = label, **kwargs)
         if positions:
-            for i in range(len(theta)):
-                text(theta[i], lineheight[i], f'{position[i]}', ha = 'center', va = 'bottom', fontsize = 'x-small')
+            for i in range(len(x_points)):
+                text(x_points[i], lineheight[i], f'{position[i]}', ha = 'center', va = 'bottom', fontsize = 'x-small')
 
 
     def save_cif(self, filename):
