@@ -218,7 +218,7 @@ class GaussNewton(FastSpectraXRD):
 
         a, s, beta = self.opt
 
-        der_theta_a = (180 / pi) * (b - k * channel) / ( (channel + a)**2 + (k * a + b)**2 )
+        der_theta_a = rad2deg((b - k * channel) / ( (channel + a)**2 + (k * a + b)**2 ))
 
         aux = (self.component_full * (self.theta_calc - mu) / self.sigma2_calc).sum(axis = 1, keepdims = True)
         der_f_a = - der_theta_a * aux
