@@ -1,5 +1,5 @@
 from numpy import (loadtxt, arctan, tan, pi, arange, array, asarray, linspace, zeros, maximum, nanmax, where,
-                   empty, empty_like, deg2rad, rad2deg)
+    empty, empty_like, deg2rad, rad2deg)
 from math import ceil
 from matplotlib.pyplot import plot
 import xml.etree.ElementTree as et

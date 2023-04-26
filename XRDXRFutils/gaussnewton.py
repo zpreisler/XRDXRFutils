@@ -4,7 +4,7 @@ from .database import Phase, PhaseList
 
 from numpy import (fabs, sum, exp, log, sin, pi, array, ones, zeros, full, full_like, trapz, minimum,
     maximum, nanmax, std, sign, sqrt, square, average, clip, newaxis, concatenate, stack, append,
-    where, arange)
+    where, arange, deg2rad, rad2deg)
 from numpy.linalg import pinv, inv
 
 from scipy.optimize import newton
@@ -199,8 +199,8 @@ class GaussNewton(FastSpectraXRD):
 
         a, s, beta = self.opt
 
-        der_theta_a = (180 / pi) * s / ((channel + a)**2 + s**2)
-        der_theta_s = (-180 / pi) * (channel + a) / ((channel + a)**2 + s**2)
+        der_theta_a = rad2deg(s / ((channel + a)**2 + s**2))
+        der_theta_s = rad2deg((channel + a) / ((channel + a)**2 + s**2))
 
         aux = (self.component_full * (self.theta_calc - mu) / self.sigma2_calc).sum(axis = 1, keepdims = True)
 
