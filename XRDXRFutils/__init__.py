@@ -2,7 +2,7 @@ from .database import DatabaseXRD, Phase, PhaseList
 from .data import DataXRF, SyntheticDataXRF, DataXRD, resample, Calibration
 from .spectra import SpectraXRF, SyntheticSpectraXRF, SpectraXRD, FastSpectraXRD
 from .calibration import Calibration
-from .gaussnewton import GaussNewton
+from .gaussnewton import GaussNewton, GaussNewton_2Phases
 from .gammasearch import GammaSearch, GammaMap
 from .gammasearch_secondary import GammaSearch_Secondary, GammaMap_Secondary
 from .chisearch import ChiSearch, ChiMap
