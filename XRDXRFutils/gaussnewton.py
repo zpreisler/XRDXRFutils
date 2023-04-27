@@ -462,7 +462,10 @@ class GaussNewton(FastSpectraXRD):
 
 
 class GaussNewton_2Phases(GaussNewton):
-    """Class to calculate Gauss-Newton minimization of the synthetic and the experimental spectrum."""
+    """
+    Class to calculate Gauss-Newton minimization of the synthetic and the experimental spectrum.
+    It performs the minimization with 2 phases that share calibration parameters s, beta and have separate a.
+    """
 
     def __init__(self, phase1, phase2, spectrum, sigma = 0.2, **kwargs):
         """
