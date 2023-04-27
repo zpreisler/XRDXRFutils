@@ -239,7 +239,8 @@ class GaussNewton(FastSpectraXRD):
 
     def fit(self, k = None, b = None, a = False, s = False, beta = False, gamma = False, sigma = False, alpha = 1, downsample = None):
         """
-        Performs a step of Gauss-Newton optimization. You need to choose the parameters that will be used to optimize. The other ones will be kept fixed.
+        Performs a step of Gauss-Newton optimization.
+        You need to choose the parameters that will be used to optimize. The other ones will be kept fixed.
         If you set k and b, parameters a and s are used in optimization (you don't need to explicitly set them to True) and are tied by the relation given by k and b.
         """
         # To DO: Remove peaks that fall outside theta_range, because they can cause anomalous values
@@ -288,19 +289,14 @@ class GaussNewton(FastSpectraXRD):
                 # Jacobian
                 Jacobian_f = concatenate(Jacobian_construction, axis = 1)
 
-                """
-                Iterate
-                """
+                # Evolution of parameters
                 y = self.intensity[:, newaxis]
                 f = self.component_full.sum(axis = 1, keepdims = True)
                 r = y - f
-
                 try:
                     evol = pinv(Jacobian_f) @ r
-
                 except:
                     evol = full((Jacobian_f.shape[1], 1), 0)
-
                 d_params = alpha * evol
 
                 mask_opt = [a, s, beta]
