@@ -624,7 +624,7 @@ class GaussNewton_2Phases(GaussNewton):
         mu = [arr[newaxis, :] for arr in self.mu]
         sigma2 = [arr[newaxis, :] for arr in self.sigma2]
         theta = [arr[:, newaxis] for arr in self.theta]
-        return tuple(self.component_full * ((theta[idx] - mu[idx])**2 / (2 * sigma2[idx]**2)) * self.der_u(self.tau[idx]) for idx in [0, 1])
+        return tuple(self.component_full[idx] * ((theta[idx] - mu[idx])**2 / (2 * sigma2[idx]**2)) * self.der_u(self.tau[idx]) for idx in [0, 1])
 
 
     def fit(self, a = False, s = False, beta = False, gamma = False, sigma = False, alpha = 1, downsample = None):
