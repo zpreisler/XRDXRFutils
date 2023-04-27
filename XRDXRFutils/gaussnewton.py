@@ -200,7 +200,7 @@ class GaussNewton(FastSpectraXRD):
         a, s, beta = self.opt
 
         der_theta_a = rad2deg(s / ((channel + a)**2 + s**2))
-        der_theta_s = rad2deg((channel + a) / ((channel + a)**2 + s**2))
+        der_theta_s = - rad2deg((channel + a) / ((channel + a)**2 + s**2))
 
         aux = (self.component_full * (self.theta_calc - mu) / self.sigma2_calc).sum(axis = 1, keepdims = True)
 
@@ -604,7 +604,7 @@ class GaussNewton_2Phases(GaussNewton):
 
         der_denominator = [(channel + a[idx])**2 + s**2 for idx in [0, 1]]
         der_theta_a = [rad2deg(s / der_denominator[idx]) for idx in [0, 1]]
-        der_theta_s = [rad2deg((channel + a[idx]) / der_denominator[idx]) for idx in [0, 1]]
+        der_theta_s = [- rad2deg((channel + a[idx]) / der_denominator[idx]) for idx in [0, 1]]
 
         aux = [(self.component_full[idx] * (theta[idx] - mu[idx]) / sigma2[idx]).sum(axis = 1, keepdims = True) for idx in [0, 1]]
 
