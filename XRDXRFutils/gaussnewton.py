@@ -634,9 +634,9 @@ class GaussNewton_2Phases(GaussNewton):
         """
 
         def f(self, a, s, beta, gamma, sigma, alpha):
-            if (self.n_peaks[0] + self.n_peaks[1] > 0):
+            if (sum(self.n_peaks) > 0):
 
-                if (self.n_peaks[0] + self.n_peaks[1] == 1):
+                if (sum(self.n_peaks) == 1):
                     s = False
                 n_opt = 2 * a + s + beta
                 n_gamma = [n_peaks * gamma for n_peaks in self.n_peaks]
@@ -676,23 +676,23 @@ class GaussNewton_2Phases(GaussNewton):
                     evol = pinv(Jacobian_f) @ r
                 except:
                     evol = full((Jacobian_f.shape[1], 1), 0)
-                d_params = alpha * evol
+                d_params = alpha * evol.squeeze()
 
                 # Add evolution
                 mask_opt = [a, a, s, beta]
-                self.opt[mask_opt] += d_params[0 : n_opt, 0]
+                self.opt[mask_opt] += d_params[0 : n_opt]
 
                 if gamma:
-                    i_current = n_opt
-                    self.g[0] += d_params[i_current : (i_current + n_gamma[0]), 0]
-                    i_current += n_gamma[0]
-                    self.g[1] += d_params[i_current : (i_current + n_gamma[1]), 0]
+                    j = n_opt
+                    self.g[0] += d_params[j : (j + n_gamma[0])]
+                    j += n_gamma[0]
+                    self.g[1] += d_params[j : (j + n_gamma[1])]
 
                 if sigma:
-                    i_current += n_gamma[1]
-                    self.tau[0] += d_params[i_current : (i_current + n_sigma[0]), 0]
-                    i_current += n_sigma[0]
-                    self.tau[1] += d_params[i_current : (i_current + n_sigma[1]), 0]
+                    j += n_gamma[1]
+                    self.tau[0] += d_params[j : (j + n_sigma[0])]
+                    j += n_sigma[0]
+                    self.tau[1] += d_params[j : (j + n_sigma[1])]
 
                 self.del_components()
 
