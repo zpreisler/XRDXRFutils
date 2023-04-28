@@ -548,7 +548,7 @@ class GaussNewton_2Phases(GaussNewton):
         ]
 
 
-    def synthetic_spectrum(self, idx, rescale_peaks = False):
+    def synthetic_spectrum_partial(self, idx, rescale_peaks = False):
         mu = self.mu[idx][newaxis, :]
         I = self.I[idx][newaxis, :]
         sigma2 = self.sigma2[idx][newaxis, :]
@@ -564,11 +564,11 @@ class GaussNewton_2Phases(GaussNewton):
 
     def z0_partial(self, idx):
         """Synthetic spectrum of the chosen phase, with gamma = 1 for all peaks."""
-        return self.synthetic_spectrum(idx, False)
+        return self.synthetic_spectrum_partial(idx, False)
 
     def z_partial(self, idx):
         """Synthetic spectrum of the chosen phase."""
-        return self.synthetic_spectrum(idx, True)
+        return self.synthetic_spectrum_partial(idx, True)
 
     def z0(self):
         """Synthetic spectrum of the combination of phases, with gamma = 1 for all peaks."""
