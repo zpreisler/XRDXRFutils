@@ -467,10 +467,10 @@ class GaussNewton_2Phases(GaussNewton):
     It performs the minimization with 2 phases that share calibration parameters s, beta and have separate a.
     """
 
-    def __init__(self, phase1, phase2, spectrum, sigma = 0.2, **kwargs):
+    def __init__(self, phases, spectrum, sigma = 0.2, **kwargs):
         """
         Initialization of GaussNewton
-        - phase1, phase2: (Phase or PhaseList class)
+        - phases: (list of Phase or of PhaseList, with length 2)
             Tabulated phase.
         - spectrum: (SpectraXRD class)
             Experimental spectrum.
@@ -479,14 +479,14 @@ class GaussNewton_2Phases(GaussNewton):
         - kwargs: (different types, optional)
             Arguments to select peaks; they are passed to Phase.get_theta().
         """
-        for phase in [phase1, phase2]:
+        for phase in phases:
             if type(phase) not in [Phase, PhaseList]:
                 raise Exception('GaussNewton initialization: invalid phase type.')
 
-        self.phases = [phase1, phase2]
+        self.phases = phases
         self.spectrum = spectrum
         self.kwargs = kwargs
-        self.label = phase1.label + ' + ' + phase2.label
+        self.label = phases[0].label + ' + ' + phases[1].label
         self.opt = spectrum.opt[[0, 0, 1, 2]].copy()
 
         ### Variables along the diffraction lines ###
