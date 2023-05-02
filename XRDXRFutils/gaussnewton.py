@@ -692,7 +692,7 @@ class GaussNewton_2Phases(GaussNewton):
                     self.g[1] += d_params[j : (j + n_gamma[1])]
 
                 if sigma:
-                    j += n_gamma[1]
+                    j = n_opt + sum(n_gamma)
                     self.tau[0] += d_params[j : (j + n_sigma[0])]
                     j += n_sigma[0]
                     self.tau[1] += d_params[j : (j + n_sigma[1])]
