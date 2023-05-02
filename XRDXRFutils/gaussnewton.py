@@ -2,9 +2,9 @@ from .spectra import SpectraXRD, FastSpectraXRD
 
 from .database import Phase, PhaseList
 
-from numpy import (fabs, sum, exp, log, sin, pi, array, ones, zeros, full, full_like, trapz, minimum,
-    maximum, nanmax, std, sign, sqrt, square, average, clip, newaxis, concatenate, stack, append,
-    where, arange, deg2rad, rad2deg)
+from numpy import (fabs, sum, exp, log, sin, pi, array, ones, zeros, full, full_like, trapz, fromiter,
+    minimum, maximum, nanmax, std, sign, sqrt, square, average, clip, newaxis, concatenate, stack,
+    append, where, arange, deg2rad, rad2deg)
 from numpy.linalg import pinv, inv
 
 from scipy.optimize import newton
@@ -461,16 +461,16 @@ class GaussNewton(FastSpectraXRD):
 
 
 
-class GaussNewton_2Phases(GaussNewton):
+class GaussNewton_MultiPhases(GaussNewton):
     """
     Class to calculate Gauss-Newton minimization of the synthetic and the experimental spectrum.
-    It performs the minimization with 2 phases that share calibration parameters s, beta and have separate a.
+    It performs the minimization with multiple phases that share calibration parameters s, beta and have separate a.
     """
 
     def __init__(self, phases, spectrum, sigma = 0.2, **kwargs):
         """
         Initialization of GaussNewton
-        - phases: (list of Phase or of PhaseList, with length 2)
+        - phases: (list of Phase or of PhaseList)
             Tabulated phase.
         - spectrum: (SpectraXRD class)
             Experimental spectrum.
@@ -484,35 +484,36 @@ class GaussNewton_2Phases(GaussNewton):
                 raise Exception('GaussNewton initialization: invalid phase type.')
 
         self.phases = phases
-        self.spectrum = spectrum
-        self.kwargs = kwargs
+        self.n_phases = len(phases)
         self.label = phases[0].label + ' + ' + phases[1].label
-        self.opt = spectrum.opt[[0, 0, 1, 2]].copy()
-
+        self.spectrum = spectrum
+        self.opt = spectrum.opt[ self.n_phases * [0] + [1, 2] ].copy()
+        self.kwargs = kwargs
+        
         ### Variables along the diffraction lines ###
         # tabulated theta: mu
         # tabulated intensity: I
         # parameters g, tau --> gamma, sigma^2
 
         self.mu, self.I = [], []
-        for idx in [0, 1]:
+        for idx in range(self.n_phases):
             mu, I, p = self.get_theta_partial(idx)
             self.mu.append(mu)
             self.I.append(I)
 
-        self.g = [full(self.n_peaks[idx], self.iw(1)) for idx in [0, 1]]
-        self.tau = [full(self.n_peaks[idx], self.iu(sigma**2)) for idx in [0, 1]]
+        self.g = [full(m, self.iw(1)) for m in self.n_peaks]
+        self.tau = [full(m, self.iu(sigma**2)) for m in self.n_peaks]
 
 
     ### Redefined variables ###
 
     @property
     def gamma(self):
-        return [self.w(self.g[idx]) for idx in [0, 1]]
+        return [self.w(g) for g in self.g]
 
     @property
     def sigma2(self):
-        return [self.u(self.tau[idx]) for idx in [0, 1]]
+        return [self.u(tau) for tau in self.tau]
 
 
     ### Utility functions ###
@@ -520,7 +521,8 @@ class GaussNewton_2Phases(GaussNewton):
     @property
     def n_peaks(self):
         """Number of tabulated peaks of each phase."""
-        return [self.mu[idx].shape[0] for idx in [0, 1]]
+        return [mu.shape[0] for mu in self.mu]
+
 
     def get_theta_partial(self, idx):
         """Tabulated peaks of the chosen phase."""
@@ -533,8 +535,8 @@ class GaussNewton_2Phases(GaussNewton):
         return [
             self.spectrum.fce_calibration(
                 self.channel,
-                self.opt[idx], self.opt[2], self.opt[3]
-            ) for idx in [0, 1]
+                * self.opt[[idx, self.n_phases, self.n_phases + 1]]
+            ) for idx in range(self.n_phases)
         ]
 
     @property
@@ -543,8 +545,8 @@ class GaussNewton_2Phases(GaussNewton):
         return [
             self.spectrum.fce_calibration(
                 array([self.channel[0], self.channel[-1]]),
-                self.opt[idx], self.opt[2], self.opt[3]
-            ) for idx in [0, 1]
+                * self.opt[[idx, self.n_phases, self.n_phases + 1]]
+            ) for idx in range(self.n_phases)
         ]
 
 
@@ -588,8 +590,8 @@ class GaussNewton_2Phases(GaussNewton):
         sigma2 = [arr[newaxis, :] for arr in self.sigma2]
         theta = [arr[:, newaxis] for arr in self.theta]
 
-        self.component_core = [exp((theta[idx] - mu[idx])**2 / (-2 * sigma2[idx])) for idx in [0, 1]]
-        self.component_full = [I[idx] * gamma[idx] * self.component_core[idx] for idx in [0, 1]]
+        self.component_core = [exp((theta[idx] - mu[idx])**2 / (-2 * sigma2[idx])) for idx in range(self.n_phases)]
+        self.component_full = [I[idx] * gamma[idx] * self.component_core[idx] for idx in range(self.n_phases)]
 
     def del_components(self):
         del self.component_core
@@ -602,32 +604,32 @@ class GaussNewton_2Phases(GaussNewton):
         channel = self.channel[:, newaxis]
         theta = [arr[:, newaxis] for arr in self.theta]
 
-        a = [self.opt[idx] for idx in [0, 1]]
-        s = self.opt[2]
+        a = self.opt[:self.n_phases]
+        s = self.opt[self.n_phases]
 
-        der_denominator = [(channel + a[idx])**2 + s**2 for idx in [0, 1]]
-        der_theta_a = [rad2deg(s / der_denominator[idx]) for idx in [0, 1]]
-        der_theta_s = [- rad2deg((channel + a[idx]) / der_denominator[idx]) for idx in [0, 1]]
+        der_denominator = [(channel + a[idx])**2 + s**2 for idx in range(self.n_phases)]
+        der_theta_a = [rad2deg(s / der_denominator[idx]) for idx in range(self.n_phases)]
+        der_theta_s = [- rad2deg((channel + a[idx]) / der_denominator[idx]) for idx in range(self.n_phases)]
 
-        aux = [(self.component_full[idx] * (theta[idx] - mu[idx]) / sigma2[idx]).sum(axis = 1, keepdims = True) for idx in [0, 1]]
+        aux = [(self.component_full[idx] * (theta[idx] - mu[idx]) / sigma2[idx]).sum(axis = 1, keepdims = True) for idx in range(self.n_phases)]
 
-        der_f_a = [- der_theta_a[idx] * aux[idx] for idx in [0, 1]]
-        der_f_s = - der_theta_s[0] * aux[0] - der_theta_s[1] * aux[1]
-        der_f_beta = - aux[0] - aux[1]
+        der_f_a = [- der_theta_a[idx] * aux[idx] for idx in range(self.n_phases)]
+        der_f_s = - concatenate([der_theta_s[idx] * aux[idx] for idx in range(self.n_phases)], axis = 1).sum(axis = 1, keepdims = True)
+        der_f_beta = - concatenate(aux, axis = 1).sum(axis = 1, keepdims = True)
 
-        return (der_f_a[0], der_f_a[1], der_f_s, der_f_beta)
+        return der_f_a + [der_f_s, der_f_beta]
 
 
     def der_f_g(self):
         I = [arr[newaxis, :] for arr in self.I]
-        return tuple(I[idx] * self.component_core[idx] * self.der_w(self.g[idx]) for idx in [0, 1])
+        return [I[idx] * self.component_core[idx] * self.der_w(self.g[idx]) for idx in range(self.n_phases)]
 
 
     def der_f_tau(self):
         mu = [arr[newaxis, :] for arr in self.mu]
         sigma2 = [arr[newaxis, :] for arr in self.sigma2]
         theta = [arr[:, newaxis] for arr in self.theta]
-        return tuple(self.component_full[idx] * ((theta[idx] - mu[idx])**2 / (2 * sigma2[idx]**2)) * self.der_u(self.tau[idx]) for idx in [0, 1])
+        return [self.component_full[idx] * ((theta[idx] - mu[idx])**2 / (2 * sigma2[idx]**2)) * self.der_u(self.tau[idx]) for idx in range(self.n_phases)]
 
 
     def fit(self, a = False, s = False, beta = False, gamma = False, sigma = False, alpha = 1, downsample = None):
@@ -641,7 +643,7 @@ class GaussNewton_2Phases(GaussNewton):
 
                 if (sum(self.n_peaks) == 1):
                     s = False
-                n_opt = 2 * a + s + beta
+                n_opt = self.n_phases * a + s + beta
                 n_gamma = [n_peaks * gamma for n_peaks in self.n_peaks]
                 n_sigma = [n_peaks * sigma for n_peaks in self.n_peaks]
 
@@ -652,13 +654,13 @@ class GaussNewton_2Phases(GaussNewton):
 
                 # Calibration parameters
                 if (n_opt > 0):
-                    der_f_a1, der_f_a2, der_f_s, der_f_beta = self.der_f_a_s_beta()
-                if a:
-                    Jacobian_construction.extend((der_f_a1, der_f_a2))
-                if s:
-                    Jacobian_construction.append(der_f_s)
-                if beta:
-                    Jacobian_construction.append(der_f_beta)
+                    der_f_calibration = self.der_f_a_s_beta()
+                    if a:
+                        Jacobian_construction.extend(der_f_calibration[:self.n_phases])
+                    if s:
+                        Jacobian_construction.append(der_f_calibration[self.n_phases])
+                    if beta:
+                        Jacobian_construction.append(der_f_calibration[self.n_phases + 1])
 
                 # Gamma
                 if gamma:
@@ -682,20 +684,20 @@ class GaussNewton_2Phases(GaussNewton):
                 d_params = alpha * evol.squeeze()
 
                 # Add evolution
-                mask_opt = [a, a, s, beta]
+                mask_opt = self.n_phases * [a] + [s, beta]
                 self.opt[mask_opt] += d_params[0 : n_opt]
 
                 if gamma:
                     j = n_opt
-                    self.g[0] += d_params[j : (j + n_gamma[0])]
-                    j += n_gamma[0]
-                    self.g[1] += d_params[j : (j + n_gamma[1])]
+                    for idx in range(self.n_phases):
+                        self.g[idx] += d_params[j : (j + n_gamma[idx])]
+                        j += n_gamma[idx]
 
                 if sigma:
                     j = n_opt + sum(n_gamma)
-                    self.tau[0] += d_params[j : (j + n_sigma[0])]
-                    j += n_sigma[0]
-                    self.tau[1] += d_params[j : (j + n_sigma[1])]
+                    for idx in range(self.n_phases):
+                        self.tau[idx] += d_params[j : (j + n_sigma[idx])]
+                        j += n_sigma[idx]
 
                 self.del_components()
 
