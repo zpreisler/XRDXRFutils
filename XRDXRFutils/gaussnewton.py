@@ -485,7 +485,7 @@ class GaussNewton_MultiPhases(GaussNewton):
 
         self.phases = phases
         self.n_phases = len(phases)
-        self.label = phases[0].label + ' + ' + phases[1].label
+        self.label = ' + '.join([p.label for p in phases])
         self.spectrum = spectrum
         self.opt = spectrum.opt[ self.n_phases * [0] + [1, 2] ].copy()
         self.kwargs = kwargs
