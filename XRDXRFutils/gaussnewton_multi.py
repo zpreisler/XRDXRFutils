@@ -3,7 +3,7 @@ from .gaussnewton import GaussNewton
 
 from numpy import (fabs, sum, exp, log, sin, pi, array, ones, zeros, full, full_like, trapz, fromiter,
     minimum, maximum, nanmax, std, sign, sqrt, square, average, clip, newaxis, concatenate, stack,
-    append, where, arange, deg2rad, rad2deg)
+    append, where, arange, deg2rad, rad2deg, argsort, delete)
 from numpy.linalg import pinv, inv
 
 from matplotlib.pyplot import plot
@@ -16,7 +16,7 @@ class GaussNewton_MultiPhases(GaussNewton):
     It performs the minimization with multiple phases that share calibration parameters s, beta and have separate a.
     """
 
-    def __init__(self, phases, spectrum, sigma = 0.2, **kwargs):
+    def __init__(self, phases, spectrum, sigma = 0.2, clean_peaks = None, **kwargs):
         """
         Initialization of GaussNewton
         - phases: (list of Phase or of PhaseList)
@@ -38,7 +38,7 @@ class GaussNewton_MultiPhases(GaussNewton):
         self.spectrum = spectrum
         self.opt = spectrum.opt[ self.n_phases * [0] + [1, 2] ].copy()
         self.kwargs = kwargs
-        
+
         ### Variables along the diffraction lines ###
         # tabulated theta: mu
         # tabulated intensity: I
@@ -49,9 +49,37 @@ class GaussNewton_MultiPhases(GaussNewton):
             mu, I, p = self.get_theta_partial(idx)
             self.mu.append(mu)
             self.I.append(I)
+        if (clean_peaks is not None):
+            self.clean_tab_peaks(clean_peaks)
 
         self.g = [full(m, self.iw(1)) for m in self.n_peaks]
         self.tau = [full(m, self.iu(sigma**2)) for m in self.n_peaks]
+
+
+    def clean_tab_peaks(self, threshold):
+        mu = concatenate([arr for arr in self.mu])
+        I = concatenate([arr for arr in self.I])
+        i_phase = concatenate([len(arr) * [i] for i, arr in enumerate(self.mu)])
+
+        # Sort by tabulated angle
+        idx_sorted = argsort(mu)
+        mu, I, i_phase = mu[idx_sorted], I[idx_sorted], i_phase[idx_sorted]
+
+        # Find pairs of very close peaks and delete one of the two
+        j_delete = []
+        for j in range(len(mu) - 1):
+            if ((mu[j + 1] - mu[j]) < threshold):
+                if (I[j + 1] > I[j]):
+                    j_delete.append(j)
+                else:
+                    j_delete.append(j + 1)
+        mu = delete(mu, j_delete)
+        I = delete(I, j_delete)
+        i_phase = delete(i_phase, j_delete)
+
+        # Assign mu, I
+        self.mu = [mu[(i_phase == idx)] for idx in range(self.n_phases)]
+        self.I = [I[(i_phase == idx)] for idx in range(self.n_phases)]
 
 
     ### Redefined variables ###
