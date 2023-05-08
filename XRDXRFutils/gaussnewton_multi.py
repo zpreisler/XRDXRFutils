@@ -127,7 +127,7 @@ class GaussNewton_MultiPhases(GaussNewton):
         ]
 
 
-    def synthetic_spectrum_partial(self, idx, rescale_peaks = False):
+    def synthetic_spectrum_partial(self, idx, rescale_peaks):
         mu = self.mu[idx][newaxis, :]
         I = self.I[idx][newaxis, :]
         sigma2 = self.sigma2[idx][newaxis, :]
@@ -150,7 +150,7 @@ class GaussNewton_MultiPhases(GaussNewton):
         return self.synthetic_spectrum_partial(idx, True)
 
 
-    def synthetic_spectrum(self, rescale_peaks = False):
+    def synthetic_spectrum_multiphase(self, rescale_peaks):
         mu = [arr[newaxis, :] for arr in self.mu]
         I = [arr[newaxis, :] for arr in self.I]
         sigma2 = [arr[newaxis, :] for arr in self.sigma2]
@@ -159,18 +159,27 @@ class GaussNewton_MultiPhases(GaussNewton):
         component_core = [exp((theta[idx] - mu[idx])**2 / (-2 * sigma2[idx])) for idx in range(self.n_phases)]
         if (rescale_peaks):
             gamma = [arr[newaxis, :] for arr in self.gamma]
-            component_full = [I[idx] * gamma[idx] * component_core[idx] for idx in range(self.n_phases)]
+            component_full = [(I[idx] * gamma[idx] * component_core[idx]).sum(axis = 1, keepdims = True) for idx in range(self.n_phases)]
         else:
-            component_full = [I[idx] * component_core[idx] for idx in range(self.n_phases)]
-        return concatenate(component_full, axis = 1).sum(axis = 1)
+            component_full = [(I[idx] * component_core[idx]).sum(axis = 1, keepdims = True) for idx in range(self.n_phases)]
+        return concatenate(component_full, axis = 1)
+
+    def z0_multiphase(self):
+        """Synthetic spectrum of each phase, with gamma = 1 for all peaks."""
+        return self.synthetic_spectrum_multiphase(False).T
+
+    def z_multiphase(self):
+        """Synthetic spectrum of each phase."""
+        return self.synthetic_spectrum_multiphase(True).T
+
 
     def z0(self):
         """Synthetic spectrum of the combination of phases, with gamma = 1 for all peaks."""
-        return self.synthetic_spectrum(False)
+        return self.synthetic_spectrum_multiphase(False).sum(axis = 1)
 
     def z(self):
         """Synthetic spectrum of the combination of phases."""
-        return self.synthetic_spectrum(True)
+        return self.synthetic_spectrum_multiphase(True).sum(axis = 1)
 
 
     ### Calculations for fit ###
@@ -297,6 +306,12 @@ class GaussNewton_MultiPhases(GaussNewton):
 
         return self.downsampled_function(downsample, f, a = a, s = s, beta = beta, gamma = gamma, sigma = sigma, alpha = alpha)
 
+
+    def search(self, alpha = 1):
+        self.fit_cycle(steps = 2, a = False, s = False, gamma = True, alpha = alpha, downsample = 3)
+        self.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 2)
+        self.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 1)
+        self.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 0)
 
 
     ### Evaluation of the results ###
