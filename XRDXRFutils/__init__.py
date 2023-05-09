@@ -3,7 +3,7 @@ from .data import DataXRF, SyntheticDataXRF, DataXRD, resample, Calibration
 from .spectra import SpectraXRF, SyntheticSpectraXRF, SpectraXRD, FastSpectraXRD
 from .calibration import Calibration
 from .gaussnewton import GaussNewton
-from .gaussnewton_multi import GaussNewton_MultiPhases
+from .gaussnewton_multi import GaussNewton_MultiPhases, GammaMap_MultiPhases
 from .gammasearch import GammaSearch, GammaMap
 from .gammasearch_secondary import GammaSearch_Secondary, GammaMap_Secondary
 from .chisearch import ChiSearch, ChiMap

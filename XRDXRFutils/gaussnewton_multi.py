@@ -1,5 +1,7 @@
 from .database import Phase, PhaseList
+from .spectra import FastSpectraXRD
 from .gaussnewton import GaussNewton
+from .gammasearch import GammaMap
 
 from numpy import (fabs, sum, exp, log, sin, pi, array, ones, zeros, full, full_like, trapz, fromiter,
     minimum, maximum, nanmax, std, sign, sqrt, square, average, clip, newaxis, concatenate, stack,
@@ -25,6 +27,9 @@ class GaussNewton_MultiPhases(GaussNewton):
             Experimental spectrum.
         - sigma: (float)
             Standard deviation of Gaussian peaks of the synthetic XRD patterns. Default is 0.2.
+        - clean_peaks: (bool)
+            Threshold used to clean pair of tabulated peaks that are close to each other.
+            The default value is None, in which case no cleaning is performed.
         - kwargs: (different types, optional)
             Arguments to select peaks; they are passed to Phase.get_theta().
         """
@@ -308,10 +313,11 @@ class GaussNewton_MultiPhases(GaussNewton):
 
 
     def search(self, alpha = 1):
-        self.fit_cycle(steps = 2, a = False, s = False, gamma = True, alpha = alpha, downsample = 3)
-        self.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 2)
-        self.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 1)
-        self.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 0)
+        self.fit_cycle(steps = 3, a = False, s = False, gamma = True, alpha = alpha, downsample = 3)
+        self.fit_cycle(steps = 3, a = True, s = True, gamma = True, alpha = alpha, downsample = 2)
+        self.fit_cycle(steps = 3, a = True, s = True, gamma = True, alpha = alpha, downsample = 1)
+        self.fit_cycle(steps = 3, a = True, s = True, gamma = True, alpha = alpha, downsample = 0)
+        return self
 
 
     ### Evaluation of the results ###
@@ -327,3 +333,56 @@ class GaussNewton_MultiPhases(GaussNewton):
 
     def plot_phase(self, idx, **kwargs):
         self.phases[idx].plot(**self.kwargs, **kwargs)
+
+
+
+class GammaMap_MultiPhases(GammaMap):
+    """
+    Map that fits multiple phases in every pixel of the given data.
+    The basic structure is a list of GaussNewton_MultiPhases objects, one for each pixel.
+    """
+
+    def __init__(self, list_elements = []):
+        super().__init__(list_elements, GaussNewton_MultiPhases)
+
+
+    def from_data(self, data, phases, indices_sel = None, sigma = 0.2, clean_peaks = None, **kwargs):
+        """
+        Builds the map that searches for given phases in given XRD data.
+        
+        Arguments
+        ---------
+        - data: (DataXRD)
+            Contains the experimental XRD patterns for every pixel.
+        - phases: (list of Phase)
+            Phases that will be fitted to experimental XRD patterns.
+        - indices_sel: (numpy array)
+            2d numpy array of boolean type, of the same dimensions as data, telling for each pixel if it is included or not in the map.
+            The default value is None, in which case all the pixels are included.
+        - sigma: (float)
+            Standard deviation of Gaussian peaks of the synthetic XRD patterns. Default is 0.2.
+        - clean_peaks: (bool)
+            Threshold used to clean pair of tabulated peaks that are close to each other.
+            The default value is None, in which case no cleaning is performed.
+        - kwargs: (different types, optional)
+            Arguments that will be passed down to Phase.get_theta().
+            They put restrictions on which peaks of tabulated phases are chosen to build synthetic XRD patterns.
+        """
+        self.from_data__core(data, phases, indices_sel)
+
+        self.coordinates = []
+        for y in range(data.shape[0]):
+            for x in range(data.shape[1]):
+                if self.indices_sel[y, x]:
+                    self.coordinates.append((x, y))
+                    spectrum = FastSpectraXRD().from_Data(data, x, y)
+                    self += [self.type_of_elements(phases, spectrum, sigma, clean_peaks, **kwargs)]
+
+        return self
+
+
+    def search(self, verbose = True, alpha = 1):
+        list_result = self.parallelized(verbose, self.type_of_elements.search, alpha = alpha)
+        map = type(self)(list_result)
+        map.set_attributes_from(self)
+        return map
