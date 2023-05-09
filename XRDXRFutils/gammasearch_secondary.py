@@ -43,8 +43,8 @@ class GammaMap_Secondary(GammaMap):
     The basic structure is a list of GammaSearch_Secondary objects, one for each pixel.
     """
 
-    def __init__(self, list_gammasearch = []):
-        super().__init__(list_gammasearch)
+    def __init__(self, list_elements = []):
+        super().__init__(list_elements, GammaSearch_Secondary)
         self.attribute_names_to_set += ['primary_phases']
 
 
@@ -65,9 +65,10 @@ class GammaMap_Secondary(GammaMap):
             They put restrictions on which peaks of tabulated phases are chosen to build synthetic XRD patterns.
         """
         self.set_attributes_from(gammamap_1)
+        self.type_of_elements = GammaSearch_Secondary
         self.primary_phases = gammamap_1.phases
         self.phases = phases
-        self += [GammaSearch_Secondary(gs_1, phases, sigma, **kwargs) for gs_1 in gammamap_1]
+        self += [self.type_of_elements(gs_1, phases, sigma, **kwargs) for gs_1 in gammamap_1]
         return self
 
 
