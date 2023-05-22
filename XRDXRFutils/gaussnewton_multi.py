@@ -386,3 +386,4 @@ class GammaMap_MultiPhases(GammaMap):
         map = type(self)(list_result)
         map.set_attributes_from(self)
         return map
+    
