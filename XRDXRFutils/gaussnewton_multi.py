@@ -204,7 +204,7 @@ class GaussNewton_MultiPhases(GaussNewton):
         del self.component_full
 
 
-    def der_f_a_s_beta(self):
+    def der_f_a_s_beta(self, bool_a, bool_s, bool_beta):
         mu = [arr[newaxis, :] for arr in self.mu]
         sigma2 = [arr[newaxis, :] for arr in self.sigma2]
         channel = self.channel[:, newaxis]
@@ -212,18 +212,28 @@ class GaussNewton_MultiPhases(GaussNewton):
 
         a = self.opt[:self.n_phases]
         s = self.opt[self.n_phases]
-
-        der_denominator = [(channel + a[idx])**2 + s**2 for idx in range(self.n_phases)]
-        der_theta_a = [rad2deg(s / der_denominator[idx]) for idx in range(self.n_phases)]
-        der_theta_s = [- rad2deg((channel + a[idx]) / der_denominator[idx]) for idx in range(self.n_phases)]
-
+        J = []
         aux = [(self.component_full[idx] * (theta[idx] - mu[idx]) / sigma2[idx]).sum(axis = 1, keepdims = True) for idx in range(self.n_phases)]
 
-        der_f_a = [- der_theta_a[idx] * aux[idx] for idx in range(self.n_phases)]
-        der_f_s = - concatenate([der_theta_s[idx] * aux[idx] for idx in range(self.n_phases)], axis = 1).sum(axis = 1, keepdims = True)
-        der_f_beta = - concatenate(aux, axis = 1).sum(axis = 1, keepdims = True)
+        if (sum(bool_a) + bool_s > 0):
+            der_denominator = [(channel + a[idx])**2 + s**2 for idx in range(self.n_phases)]
 
-        return der_f_a + [der_f_s, der_f_beta]
+            if (sum(bool_a) > 0):
+                aux__sel = [e for idx, e in enumerate(aux) if bool_a[idx]]
+                der_theta_a__sel = [rad2deg(s / e) for idx, e in enumerate(der_denominator) if bool_a[idx]]
+                der_f_a = [- der_theta_a__sel[idx] * aux__sel[idx] for idx in range(len(aux__sel))]
+                J += der_f_a
+
+            if (bool_s):
+                der_theta_s = [- rad2deg((channel + a[idx]) / der_denominator[idx]) for idx in range(self.n_phases)]
+                der_f_s = - concatenate([der_theta_s[idx] * aux[idx] for idx in range(self.n_phases)], axis = 1).sum(axis = 1, keepdims = True)
+                J += [der_f_s]
+
+        if (bool_beta):
+            der_f_beta = - concatenate(aux, axis = 1).sum(axis = 1, keepdims = True)
+            J += [der_f_beta]
+
+        return J
 
 
     def der_f_g(self):
@@ -242,6 +252,11 @@ class GaussNewton_MultiPhases(GaussNewton):
         """
         Performs a step of Gauss-Newton optimization.
         You need to choose the parameters that will be used to optimize. The other ones will be kept fixed.
+        - a: (bool or list of bools)
+            Whether to fit for parameters a.
+            If it is a single bool, it will be applied to all the phases of the given GaussNewton_MultiPhases instance.
+            Otherwise, it can be a list of bools of the same length as the list of phases of the given GaussNewton_MultiPhases instance.
+            In this case, each value of a is applied to the corresponding phase.
         """
 
         def f(self, a, s, beta, gamma, sigma, alpha):
@@ -249,7 +264,14 @@ class GaussNewton_MultiPhases(GaussNewton):
 
                 if (sum(self.n_peaks) == 1):
                     s = False
-                n_opt = self.n_phases * a + s + beta
+
+                #check for a
+                if (type(a) == bool):
+                    a = self.n_phases * [a]
+                elif ((type(a) != list) or (len(a) != self.n_phases)):
+                    raise Exception('GaussNewton_MultiPhases.fit(): parameter a is invalid. It can be a bool or a list of bools of the same length as the list of phases of the given GaussNewton_MultiPhases instance.')
+
+                n_opt = sum(a) + s + beta
                 n_gamma = [n_peaks * gamma for n_peaks in self.n_peaks]
                 n_sigma = [n_peaks * sigma for n_peaks in self.n_peaks]
 
@@ -260,13 +282,7 @@ class GaussNewton_MultiPhases(GaussNewton):
 
                 # Calibration parameters
                 if (n_opt > 0):
-                    der_f_calibration = self.der_f_a_s_beta()
-                    if a:
-                        Jacobian_construction.extend(der_f_calibration[:self.n_phases])
-                    if s:
-                        Jacobian_construction.append(der_f_calibration[self.n_phases])
-                    if beta:
-                        Jacobian_construction.append(der_f_calibration[self.n_phases + 1])
+                    Jacobian_construction.extend(self.der_f_a_s_beta(a, s, beta))
 
                 # Gamma
                 if gamma:
@@ -290,7 +306,7 @@ class GaussNewton_MultiPhases(GaussNewton):
                 d_params = alpha * evol.squeeze()
 
                 # Add evolution
-                mask_opt = self.n_phases * [a] + [s, beta]
+                mask_opt = a + [s, beta]
                 self.opt[mask_opt] += d_params[0 : n_opt]
 
                 if gamma:
