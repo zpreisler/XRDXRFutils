@@ -101,6 +101,19 @@ class GaussNewton_MultiPhases(GaussNewton):
     ### Utility functions ###
 
     @property
+    def a(self):
+        return self.opt[:self.n_phases]
+
+    @property
+    def s(self):
+        return self.opt[self.n_phases]
+
+    @property
+    def beta(self):
+        return self.opt[self.n_phases + 1]
+
+
+    @property
     def n_peaks(self):
         """Number of tabulated peaks of each phase."""
         return [mu.shape[0] for mu in self.mu]

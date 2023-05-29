@@ -89,6 +89,18 @@ class GammaSearch(list):
         return self
 
 
+    @property
+    def a(self):
+        return self.opt[0]
+
+    @property
+    def s(self):
+        return self.opt[1]
+
+    @property
+    def beta(self):
+        return self.opt[2]
+
     def z(self):
         return array([gn.z() for gn in self])
 
@@ -316,6 +328,15 @@ class GammaMap(list):
 
     def opt(self):
         return self.format_as_2d_from_1d(array([gs.opt for gs in self]))
+
+    def a(self):
+        return self.format_as_2d_from_1d(array([gs.a for gs in self]))
+
+    def s(self):
+        return self.format_as_2d_from_1d(array([gs.s for gs in self]))
+
+    def beta(self):
+        return self.format_as_2d_from_1d(array([gs.beta for gs in self]))
 
     def z(self):
         return self.format_as_2d_from_1d(array([gs.z() for gs in self]))
