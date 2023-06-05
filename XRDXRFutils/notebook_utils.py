@@ -89,7 +89,7 @@ def rename_phase_in_database(database, name_old, name_new):
 
 def find_element(element, labels, allow_loose = False):
     for j, label in enumerate(labels):
-        if (element + '_') in label:   # search for the given string + '_' in XRF label
+        if ((element + '_' in label) or (element + '-' in label)):   # search for the given string + '_' in XRF label
             return j
     if allow_loose:
         for j, label in enumerate(labels):
