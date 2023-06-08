@@ -3,6 +3,7 @@ from .data import DataXRF, DataXRD
 from .spectra import SpectraXRF, SpectraXRD, FastSpectraXRD
 from .calibration import Calibration
 from .gaussnewton import GaussNewton
+from .gaussnewton_multi import GaussNewton_MultiPhases, GammaMap_MultiPhases
 from .gammasearch import GammaSearch, GammaMap
 from .gammasearch_secondary import GammaSearch_Secondary, GammaMap_Secondary
 from .chisearch import ChiSearch, ChiMap
@@ -23,7 +24,7 @@ from numpy import (linspace, concatenate, append, delete, exp, sqrt, log, sin, c
     pi, deg2rad, rad2deg, histogram, array, asarray, unravel_index, savetxt, nan, isnan, flip, sum, average,
     std, amax, amin, nanmax, nanmin, nanmean, argmax, nanargmax, argmin, nanargmin, maximum, minimum, arange,
     linspace, empty, full, zeros, ones, newaxis, expand_dims, squeeze, stack, clip, quantile, nanquantile,
-    absolute, rot90, loadtxt, where, argwhere, sort, argsort, power, ndarray)
+    absolute, rot90, loadtxt, where, argwhere, sort, argsort, power, ndarray, printoptions)
 
 from pandas import DataFrame, read_csv, concat
 
@@ -88,7 +89,7 @@ def rename_phase_in_database(database, name_old, name_new):
 
 def find_element(element, labels, allow_loose = False):
     for j, label in enumerate(labels):
-        if (element + '_') in label:   # search for the given string + '_' in XRF label
+        if ((element + '_' in label) or (element + '-' in label)):   # search for the given string + '_' in XRF label
             return j
     if allow_loose:
         for j, label in enumerate(labels):

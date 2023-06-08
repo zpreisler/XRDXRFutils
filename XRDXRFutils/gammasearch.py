@@ -89,6 +89,18 @@ class GammaSearch(list):
         return self
 
 
+    @property
+    def a(self):
+        return self.opt[0]
+
+    @property
+    def s(self):
+        return self.opt[1]
+
+    @property
+    def beta(self):
+        return self.opt[2]
+
     def z(self):
         return array([gn.z() for gn in self])
 
@@ -152,9 +164,23 @@ class GammaMap(list):
 
     ### Creation ###
 
-    def __init__(self, list_gammasearch = []):
-        super().__init__(list_gammasearch)
-        self.attribute_names_to_set = ['phases', 'indices_sel', 'n_pixels', 'shape', 'coordinates']
+    def __init__(self, list_elements = [], type_of_elements = GammaSearch):
+        super().__init__(list_elements)
+        self.type_of_elements = type_of_elements
+        self.attribute_names_to_set = ['type_of_elements', 'phases', 'indices_sel', 'n_pixels', 'shape', 'coordinates']
+
+
+    def from_data__core(self, data, phases, indices_sel):
+        if indices_sel is None:
+            indices_sel = ones(data.shape[:2], bool)
+
+        if data.shape[:2] != indices_sel.shape:
+            raise Exception('Method from_data: incompatible shapes of data and indices_sel.')
+
+        self.phases = phases
+        self.indices_sel = indices_sel
+        self.n_pixels = indices_sel.sum()
+        self.shape = (data.shape[0], data.shape[1], len(phases), data.shape[2])
 
 
     def from_data(self, data, phases, indices_sel = None, sigma = 0.2, **kwargs):
@@ -176,34 +202,22 @@ class GammaMap(list):
             Arguments that will be passed down to Phase.get_theta().
             They put restrictions on which peaks of tabulated phases are chosen to build synthetic XRD patterns.
         """
-        if indices_sel is None:
-            indices_sel = ones(data.shape[:2], bool)
-
-        if data.shape[:2] != indices_sel.shape:
-            raise Exception('Method from_data: incompatible shapes of data and indices_sel.')
-
-        self.phases = phases
-        self.indices_sel = indices_sel
-        self.n_pixels = indices_sel.sum()
-        self.shape = (data.shape[0], data.shape[1], len(phases), data.shape[2])
+        self.from_data__core(data, phases, indices_sel)
 
         self.coordinates = []
         for y in range(data.shape[0]):
             for x in range(data.shape[1]):
-                if indices_sel[y, x]:
+                if self.indices_sel[y, x]:
                     self.coordinates.append((x, y))
                     spectrum = FastSpectraXRD().from_Data(data, x, y)
-                    self += [GammaSearch(phases, spectrum, sigma, **kwargs)]
+                    self += [self.type_of_elements(phases, spectrum, sigma, **kwargs)]
 
         return self
 
 
     @property
-    def type_of_elements(self):
-        if len(self) > 0:
-            return type(self[0])
-        else:
-            raise Exception('GammaMap: cannot identify the type of elements because the map is empty.')
+    def n_phases(self):
+        return len(self.phases)
 
 
     ### Manipulation ###
@@ -315,6 +329,15 @@ class GammaMap(list):
     def opt(self):
         return self.format_as_2d_from_1d(array([gs.opt for gs in self]))
 
+    def a(self):
+        return self.format_as_2d_from_1d(array([gs.a for gs in self]))
+
+    def s(self):
+        return self.format_as_2d_from_1d(array([gs.s for gs in self]))
+
+    def beta(self):
+        return self.format_as_2d_from_1d(array([gs.beta for gs in self]))
+
     def z(self):
         return self.format_as_2d_from_1d(array([gs.z() for gs in self]))
 
@@ -365,7 +388,7 @@ class GammaMap(list):
     def select_phases(self, criterion, offset = -8):
         phases_new = []
 
-        for i_phase in range(len(self.phases)):
+        for i_phase in range(self.n_phases):
             criterion_sel_flat = criterion[..., i_phase][self.indices_sel]                # Criterion in selected pixels
             indices_sorted = criterion_sel_flat.argsort()                                 # Indices sorted according to 'criterion'
             indices_sorted_clean = indices_sorted[: (~isnan(criterion_sel_flat)).sum()]   # Remove indices corresponding to nan values of 'criterion'
