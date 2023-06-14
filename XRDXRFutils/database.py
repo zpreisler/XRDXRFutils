@@ -152,7 +152,7 @@ class Phase(dict):
 
     def plot(self, x_axis_is_channel = False, calibration_function_theta_to_channel = None, calibration_parameters = None,
         convolution = False, positions = False, colors = 'red', linestyles = 'dashed', label = None, lineheight = None,
-        min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, distance_merge = None, **kwargs):
+        length = None, min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, distance_merge = None, **kwargs):
 
         theta, intensity, position = self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity, first_n_peaks = first_n_peaks, distance_merge = distance_merge)
 
