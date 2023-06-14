@@ -40,7 +40,7 @@ class GaussNewton(FastSpectraXRD):
         # tabulated theta: mu
         # tabulated intensity: I
         # parameters g, tau --> gamma, sigma^2
-        self.mu, self.I, p = self.get_theta()
+        self.mu, self.I, p = self.get_theta(**kwargs)
         self.g = full((1, self.n_peaks), self.iw(1))
         self.tau = full((1, self.n_peaks), self.iu(sigma**2))
 

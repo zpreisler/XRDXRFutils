@@ -739,7 +739,7 @@ class SyntheticDataXRF(DataXRF):
             self._datadir = source
             self.path = dirname(self._datadir[:-1])
             self.metadata["path"] = self.path
-            self.xmso_list = glob(join(self._datadir, '*.xmso'))
+            self.xmso_list = sorted(glob(join(self._datadir, '*.xmso')))
         else:
             self.xmso_list = source
         
