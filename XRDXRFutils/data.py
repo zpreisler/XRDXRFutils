@@ -571,8 +571,11 @@ class DataXRD(Data):
             """
             Strangely this is faster then loadtxt. But only reads int!
             """
+            y = []
             with open(filename,mode='r') as f:
-                y = [int(line.split()[-1]) for line in f]
+                for line in f:
+                    if line[0] != '#':
+                        y += [float(line.split()[-1])]
             z += [asarray(y)]
 
         z = asarray(z).reshape(self.params['shape'])
@@ -618,6 +621,33 @@ class DataXRD(Data):
         #data_new.background_elimination_and_smoothing()
         return data_new
 
+class DataPilatus(DataXRD):
+    """
+    XRD data class
+    """
+
+    """
+    Namespace
+    """
+    name = 'xrd_pilatus'
+
+    def __init__(self):
+        super().__init__()
+        self.check_attributes += ['background', 'signal_background_ratio', 'rescaling', 'intensity']
+
+    @staticmethod
+    def fce_calibration(x,a,s,beta):
+        """
+        XRD calibration function 
+        """
+        return (arctan((x+a)/s)) * 180 / pi + beta
+
+    @staticmethod
+    def fce_calibration(x,a,b,c):
+        """
+        Linear calibration function
+        """
+        return a * x + b 
 
 class SyntheticDataXRF(DataXRF):
     """

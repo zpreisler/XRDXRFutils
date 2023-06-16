@@ -211,6 +211,19 @@ class FastSpectraXRD(SpectraXRD):
     def __init__(self):
         super().__init__(downsample_max = 3)
 
+class SpectraPilatus(FastSpectraXRD):
+    @staticmethod
+    def fce_calibration(x, a, b, c):
+        """
+        XRD calibration function 
+            x is a channel
+            beta is in degrees
+        """
+        return a * x + b
+
+    @staticmethod
+    def fce_calibration_inverse(theta, a, b, c):
+        return (x - b) / a
         
 xm = Xmendeleev()
 

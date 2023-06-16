@@ -154,7 +154,7 @@ class Phase(dict):
         convolution = False, positions = False, colors = 'red', linestyles = 'dashed', label = None, lineheight = None,
         length = None, min_theta = None, max_theta = None, min_intensity = None, first_n_peaks = None, distance_merge = None, **kwargs):
 
-        theta, intensity, position = self.get_theta(min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity, first_n_peaks = first_n_peaks, distance_merge = distance_merge)
+        theta, intensity, position = self.get_theta(length=length,min_theta = min_theta, max_theta = max_theta, min_intensity = min_intensity, first_n_peaks = first_n_peaks, distance_merge = distance_merge)
 
         if x_axis_is_channel:
             if (calibration_function_theta_to_channel is None or calibration_parameters is None):
@@ -215,7 +215,7 @@ class Phase(dict):
 class PhaseList(list):
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args)
         if 'label' in kwargs:
             self.set_label(kwargs.pop('label'))
 

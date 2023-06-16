@@ -1,4 +1,4 @@
-from .spectra import SpectraXRD, FastSpectraXRD
+from .spectra import SpectraXRD, FastSpectraXRD, SpectraPilatus
 from .database import Phase, PhaseList
 
 from numpy import (fabs, sum, exp, log, sin, pi, array, ones, zeros, full, full_like, trapz, fromiter,
@@ -455,3 +455,8 @@ class GaussNewton(FastSpectraXRD):
             return pl_new[0]
         else:
             return pl_new
+
+
+class GaussNewtonPilatus(GaussNewton,SpectraPilatus):
+    def __init__(self, phase, spectrum, sigma = 0.2, **kwargs):
+        super().__init__(phase, spectrum, sigma = 0.2, **kwargs)

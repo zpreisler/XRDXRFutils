@@ -1,7 +1,7 @@
 from .database import Phase, PhaseList
 from .data import DataXRD
-from .spectra import SpectraXRD, FastSpectraXRD
-from .gaussnewton import GaussNewton
+from .spectra import SpectraXRD, FastSpectraXRD, SpectraPilatus
+from .gaussnewton import GaussNewton, GaussNewtonPilatus
 from numpy import (ndarray, array, full, zeros, ones, nan, isnan, nanargmin, nanargmax, newaxis,
     append, concatenate, sqrt, average, square, std, asarray, unravel_index, ravel_multi_index,
     minimum, where)
@@ -16,8 +16,6 @@ import pathlib
 
 import gc
 
-
-
 class GammaSearch(list):
     """
     Searches for phases against the given XRD experimental pattern.
@@ -28,7 +26,6 @@ class GammaSearch(list):
         super().__init__([GaussNewton(phase, spectrum, sigma, **kwargs) for phase in phases])
         self.spectrum = spectrum
         self.set_opt(spectrum.opt.copy(), copy = True)
-
 
     @property
     def intensity(self):
@@ -42,7 +39,6 @@ class GammaSearch(list):
                 gn.opt = self.opt.copy()
             else:
                 gn.opt = self.opt
-
 
     def select(self, phase_selected, method = None):
         if phase_selected is None:
@@ -81,6 +77,140 @@ class GammaSearch(list):
         self.selected.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 3)
         self.selected.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha, downsample = 2)
         self.selected.fit_cycle(steps = 2, a = True, s = True, gamma = True, alpha = alpha)
+
+        self.fit_cycle(steps = 1, gamma = True, alpha = alpha, downsample = 3)
+        self.fit_cycle(steps = 1, gamma = True, alpha = alpha, downsample = 2)
+        self.fit_cycle(steps = 2, gamma = True, alpha = alpha)
+
+        return self
+
+
+    @property
+    def a(self):
+        return self.opt[0]
+
+    @property
+    def s(self):
+        return self.opt[1]
+
+    @property
+    def beta(self):
+        return self.opt[2]
+
+    def z(self):
+        return array([gn.z() for gn in self])
+
+    def z0(self):
+        return array([gn.z0() for gn in self])
+
+    def area(self):
+        return array([gn.area() for gn in self])
+
+    def area0(self):
+        return array([gn.area0() for gn in self])
+
+    def overlap(self, downsample = None):
+        return array([gn.overlap(downsample) for gn in self])
+
+    def overlap_area(self, downsample = None):
+        return array([gn.overlap_area(downsample) for gn in self])
+
+    def overlap_area_ratio(self, downsample = None):
+        return array([gn.overlap_area_ratio(downsample) for gn in self])
+
+    def adjustment_ratio(self, downsample = None):
+        return array([gn.adjustment_ratio(downsample) for gn in self])
+
+    def phase_presence(self, downsample = None, method = None, correction = None):
+        return array([gn.phase_presence(downsample, method, correction) for gn in self])
+
+    def L1loss(self, downsample = None):
+        return array([gn.L1loss(downsample) for gn in self])
+
+    def MSEloss(self, downsample = None):
+        return array([gn.MSEloss(downsample) for gn in self])
+
+    def metrics(self, downsample = None, method = None, correction = None):
+        return self.L1loss(downsample), self.MSEloss(downsample), self.phase_presence(downsample, method, correction)
+
+
+    def overlap_total(self):
+        arr_z = array([gn.z() for gn in self])
+        z_max = arr_z.max(axis = 0)
+        m = minimum(z_max, self.intensity)
+        m = where(m < 0, 0, m)
+        return m
+
+    def overlap_total_area(self):
+        return self.overlap_total().sum()
+
+    def overlap_total_ratio(self):
+        integral_intersection = self.overlap_total_area()
+        intensity_corrected = where(self.intensity < 0, 0, self.intensity)
+        integral_intensity = intensity_corrected.sum()
+        return (integral_intersection / integral_intensity)
+
+class GammaSearchPilatus(list):
+    """
+    Searches for phases against the given XRD experimental pattern.
+    The basic structure is a list of GaussNewton objects, one for each phase.
+    """
+
+    def __init__(self, phases, spectrum, sigma = 0.2, **kwargs):
+        super().__init__([GaussNewtonPilatus(phase, spectrum, sigma, **kwargs) for phase in phases])
+        self.spectrum = spectrum
+        self.set_opt(spectrum.opt.copy(), copy = True)
+
+    @property
+    def intensity(self):
+        return self.spectrum.intensity
+
+
+    def set_opt(self, opt, copy = True):
+        self.opt = opt
+        for gn in self:
+            if copy:
+                gn.opt = self.opt.copy()
+            else:
+                gn.opt = self.opt
+
+    def select(self, phase_selected, method = None):
+        if phase_selected is None:
+            self.idx = self.phase_presence(method = method, correction = False).argmax()
+        else:
+            self.idx = phase_selected
+        self.selected = self[self.idx]
+
+
+    def downsample(self, level):
+        for gn in self:
+            gn.downsample(level)
+        return self
+
+
+    def fit(self, **kwargs):
+        for gn in self:
+            gn.fit(**kwargs)
+        return self
+
+
+    def fit_cycle(self, **kwargs):
+        for gn in self:
+            gn.fit_cycle(**kwargs)
+        return self
+
+
+    def search(self, phase_selected = None, method = None, alpha = 1):
+        self.fit_cycle(steps = 2, gamma = True, alpha = alpha, downsample = 3)
+        self.fit_cycle(steps = 6, a = False, s = False, gamma = True, alpha = alpha, downsample = 3)
+        self.fit_cycle(steps = 2, a = False, s = False, gamma = True, alpha = alpha, downsample = 2)
+
+        self.select(phase_selected, method)
+        self.set_opt(self.selected.opt, copy = False)
+
+        self.selected.fit_cycle(steps = 2, a = False, s = False, gamma = True, alpha = alpha, downsample = 3)
+        self.selected.fit_cycle(steps = 2, a = False, s = False, gamma = True, alpha = alpha, downsample = 2)
+        self.selected.fit_cycle(steps = 2, a = False, s = False, gamma = True, alpha = alpha)
 
         self.fit_cycle(steps = 1, gamma = True, alpha = alpha, downsample = 3)
         self.fit_cycle(steps = 1, gamma = True, alpha = alpha, downsample = 2)
@@ -280,7 +410,7 @@ class GammaMap(list):
         if system() == 'Darwin':
             n_cpu = cpu_count()
             if verbose:
-                print(f'Using {n_cpu} CPUs')
+                print(f'Darwin: Using {n_cpu} CPUs')
             return Parallel(n_jobs = n_cpu)( delayed(self.f_to_parallelize)(gs, f, kwargs) for gs in self )
         else:
             n_cpu = cpu_count() - 2
@@ -324,7 +454,6 @@ class GammaMap(list):
         cols, rows = zip(*self.coordinates)
         x_formatted[rows, cols] = x
         return x_formatted
-
 
     def opt(self):
         return self.format_as_2d_from_1d(array([gs.opt for gs in self]))
@@ -382,7 +511,6 @@ class GammaMap(list):
     def selected(self):
         return self.format_as_2d_from_1d(array([gs.idx for gs in self]))
 
-
     ### Misc ###
 
     def select_phases(self, criterion, offset = -8):
@@ -403,3 +531,23 @@ class GammaMap(list):
             phases_new += [phase_made]
 
         return phases_new
+
+class GammaMapPilatus(GammaMap):
+
+    def __init__(self, list_elements = [], type_of_elements = GammaSearchPilatus):
+        super().__init__(list_elements,type_of_elements)
+        self.type_of_elements = type_of_elements
+        self.attribute_names_to_set = ['type_of_elements', 'phases', 'indices_sel', 'n_pixels', 'shape', 'coordinates']
+
+    def from_data(self, data, phases, indices_sel = None, sigma = 0.2, **kwargs):
+        self.from_data__core(data, phases, indices_sel)
+
+        self.coordinates = []
+        for y in range(data.shape[0]):
+            for x in range(data.shape[1]):
+                if self.indices_sel[y, x]:
+                    self.coordinates.append((x, y))
+                    spectrum = SpectraPilatus().from_Data(data, x, y)
+                    self += [self.type_of_elements(phases, spectrum, sigma, **kwargs)]
+
+        return self
