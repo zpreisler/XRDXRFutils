@@ -189,7 +189,7 @@ class Data():
                 f.attrs[k] = v
 
             if hasattr(self, 'data'):
-                dataset = f.create_dataset('data', data = self.data)
+                dataset = f.create_dataset('data', data = self.data, compression = 'lzf')
                 dataset = f.create_dataset('x', data = self.x)
 
             for attr in ['labels', 'weights'] + self.check_attributes:
@@ -838,19 +838,19 @@ class SyntheticDataXRF(DataXRF):
                 f.attrs[k] = v
             
             if hasattr(self, 'data'):
-                dataset = f.create_dataset("data", data = self.data)
+                dataset = f.create_dataset("data", data = self.data, compression = 'lzf')
                 dataset = f.create_dataset("x", data = self._x)
 
             for attr in ['unconv_data','labels']:
                 if hasattr(self,attr):
-                    dataset = f.create_dataset(attr,data = getattr(self,attr))
+                    dataset = f.create_dataset(attr,data = getattr(self,attr), compression = 'lzf')
 
             if hasattr(self, 'spectra'):
                 layers = f.create_group('layers')
                 for l in self.layers_names:
                     layers.create_group(l)
-                    layers[l].create_dataset('thickness', data = asarray([s.layers[l].thickness for s in self.spectra]))
-                    layers[l].create_dataset('weight_fractions', data = self._get_wfrac(l))
+                    layers[l].create_dataset('thickness', data = asarray([s.layers[l].thickness for s in self.spectra]), compression = 'lzf')
+                    layers[l].create_dataset('weight_fractions', data = self._get_wfrac(l), compression = 'lzf')
                     #layers[l].create_dataset('elements', data = asarray([s.layers[l].elements for s in self.spectra]).astype('S2'))
                     if hasattr(self.spectra[0].layers, 'pigments'):
                         if l in self.pgmset:
@@ -919,7 +919,7 @@ class SyntheticDataXRF(DataXRF):
             
             for k,v in f.attrs.items():
                 self.metadata[k] = v
-            self.path = self.metadata['path']
+            self.path = self.metadata['path'] if "path" in self.metadata else ""
 
             if "/layers" in f:
                 self.layers = {}
