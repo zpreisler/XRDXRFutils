@@ -292,6 +292,10 @@ class Layers(UserDict):
                     self[k].pigments = self.comments['layers'][k]['pigments']
                     self[k].volume_fractions = self.comments['layers'][k]['volume_fractions']
                     self[k].mass_fractions = self.comments['layers'][k]['mass_fractions']
+                else:
+                    self[k].pigments = []
+                    self[k].volume_fractions = []
+                    self[k].mass_fractions = []
     #         super().__init__(self.Layer(x) for x in xml_data.findall('./xmimsim-input/composition/layer'))
             rl_index = int(xml_data.find('./xmimsim-input/composition/reference_layer').text)-1
             self.reflayer_name = keys[rl_index]
@@ -323,6 +327,8 @@ class Layers(UserDict):
     def pigments(self):
         if hasattr(self, "comments"):
             return [self[layer].pigments for layer in self]
+        else:
+            return []
     
             
 class Labels(UserDict):

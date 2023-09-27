@@ -189,7 +189,7 @@ class Data():
                 f.attrs[k] = v
 
             if hasattr(self, 'data'):
-                dataset = f.create_dataset('data', data = self.data)
+                dataset = f.create_dataset('data', data = self.data, compression = 'lzf')
                 dataset = f.create_dataset('x', data = self.x)
 
             for attr in ['labels', 'weights'] + self.check_attributes:
@@ -710,7 +710,27 @@ class SyntheticDataXRF(DataXRF):
         elif hasattr(self, "layers"):
             return self.layers[layer]['pigments']
             #return self.layers[layer]['pigments']
-        
+
+    def _get_mass_volume_fractions(self, layer):
+        if layer not in self.pgmset: return
+        mass_fractions = zeros((len(self.spectra),len(self.pgmset[layer])))
+        volume_fractions = zeros((len(self.spectra),len(self.pgmset[layer])))
+        for i,s in enumerate(self.spectra):
+            layerp = s.layers[layer].pigments
+            layermf = s.layers[layer].mass_fractions
+            layervf = s.layers[layer].volume_fractions
+            for j,p in enumerate(self.pgmset[layer]):
+                k = 0
+                while True:
+                    try:
+                        k = layerp.index(p,k)
+                        mass_fractions[i,j] += layermf[k]
+                        volume_fractions[i,j] += layervf[k]
+                        k+=1
+                    except ValueError:
+                        break
+        return mass_fractions, volume_fractions
+
     def _get_volume_fractions(self, layer):
         if hasattr(self, "spectra"):
             return asarray([s.layers[layer].volume_fractions for s in self.spectra], dtype = float)
@@ -752,14 +772,23 @@ class SyntheticDataXRF(DataXRF):
         
         self.labels_set = set()
         self.elem_set = set()
+        self.pgmset = {}
         for s in self.spectra:
             self.labels_set.update(list(s.labels.keys()))
             for v in s.layers.values():
                 self.elem_set.update(v.elements)
-        
+            for layer in self.layers_names:
+                pgmlist = s.layers[layer].pigments
+                if pgmlist:
+                    if layer in self.pgmset:
+                        self.pgmset[layer].update(pgmlist)
+                    else:
+                        self.pgmset[layer] = set(pgmlist)
+
         self.metadata['labels'] = asarray(list(self.labels_set), dtype = object_)
         self.metadata['elements'] = asarray(list(self.elem_set), dtype = object_)
         self.metadata['layers'] = asarray(self.spectra[0].layers_names, dtype = object_)
+        #self.metadata['pigments'] = {k:list(v) for k,v in self.pgmset.items()}
         
         self.channels = arange(self.spectra[0].nchannels)
 #         self._labmap = {l:i for i,l in enumerate(labels)}
@@ -809,24 +838,26 @@ class SyntheticDataXRF(DataXRF):
                 f.attrs[k] = v
             
             if hasattr(self, 'data'):
-                dataset = f.create_dataset("data", data = self.data)
+                dataset = f.create_dataset("data", data = self.data, compression = 'lzf')
                 dataset = f.create_dataset("x", data = self._x)
 
             for attr in ['unconv_data','labels']:
                 if hasattr(self,attr):
-                    dataset = f.create_dataset(attr,data = getattr(self,attr))
+                    dataset = f.create_dataset(attr,data = getattr(self,attr), compression = 'lzf')
 
             if hasattr(self, 'spectra'):
                 layers = f.create_group('layers')
                 for l in self.layers_names:
                     layers.create_group(l)
-                    layers[l].create_dataset('thickness', data = asarray([s.layers[l].thickness for s in self.spectra]))
-                    layers[l].create_dataset('weight_fractions', data = asarray([s.layers[l].weight_fractions for s in self.spectra]))
-                    layers[l].create_dataset('elements', data = asarray([s.layers[l].elements for s in self.spectra]).astype('S2'))
+                    layers[l].create_dataset('thickness', data = asarray([s.layers[l].thickness for s in self.spectra]), compression = 'lzf')
+                    layers[l].create_dataset('weight_fractions', data = self._get_wfrac(l), compression = 'lzf')
+                    #layers[l].create_dataset('elements', data = asarray([s.layers[l].elements for s in self.spectra]).astype('S2'))
                     if hasattr(self.spectra[0].layers, 'pigments'):
-                        layers[l].create_dataset('pigments', data = self._get_pigments(l).astype('S32'))
-                        layers[l].create_dataset('volume_fractions', data = self._get_volume_fractions(l))
-                        layers[l].create_dataset('mass_fractions', data = self._get_mass_fractions(l))
+                        if l in self.pgmset:
+                            layers[l].create_dataset('pigments', data = array(list(self.pgmset[l])).astype('S32'))
+                            mf,vf = self._get_mass_volume_fractions(l)
+                            layers[l].create_dataset('volume_fractions', data = vf)
+                            layers[l].create_dataset('mass_fractions', data = mf)
 
             if hasattr(self, 'layers'):
                 layers = f.create_group('layers')
@@ -860,13 +891,14 @@ class SyntheticDataXRF(DataXRF):
                 for l in self.layers_names:
                     layers.create_group(l)
                     layers[l].create_dataset('thickness', data = asarray([s.layers[l].thickness for s in self.spectra]))
-                    layers[l].create_dataset('weight_fractions', data = asarray([s.layers[l].weight_fractions for s in self.spectra]))
-                    layers[l].create_dataset('elements', data = asarray([s.layers[l].elements for s in self.spectra]).astype('S2'))
+                    layers[l].create_dataset('weight_fractions', data = self._get_wfrac(layer))
+                    #layers[l].create_dataset('elements', data = asarray([s.layers[l].elements for s in self.spectra]).astype('S2'))
                     if hasattr(self.spectra[0].layers, 'pigments'):
                         layers[l].create_dataset('pigments', data = self._get_pigments(l).astype('S32'))
-                        layers[l].create_dataset('volume_fractions', data = self._get_volume_fractions(l))
-                        layers[l].create_dataset('mass_fractions', data = self._get_mass_fractions(l))
-                    
+                        mf,vf = self_get_mass_volume_fractions(self, l)
+                        layers[l].create_dataset('volume_fractions', data = vf)
+                        layers[l].create_dataset('mass_fractions', data = mf)
+
                 f.attrs['layers'] = self.layers_names
         
         return self
@@ -887,7 +919,7 @@ class SyntheticDataXRF(DataXRF):
             
             for k,v in f.attrs.items():
                 self.metadata[k] = v
-            self.path = self.metadata['path']
+            self.path = self.metadata['path'] if "path" in self.metadata else ""
 
             if "/layers" in f:
                 self.layers = {}
